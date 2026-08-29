@@ -120,6 +120,7 @@ export const api = {
       trustProxy: boolean;
       allowUserWorkspaces: boolean;
       maxUploadMb: number;
+      maxImageReadMb: number;
       trashDays: number;
       auditDays: number;
       pdfCover: boolean;

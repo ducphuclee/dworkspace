@@ -16,7 +16,7 @@ The Model Context Protocol is a common language between an AI client and a
 program that holds data. The client asks the program which tools it offers, the
 program answers with a list, and from then on the client can call them. dworkspace
 implements the server half: no plugin, no separate process, no external service.
-Start the binary and the endpoint is there. What an agent gets is **33 tools**,
+Start the binary and the endpoint is there. What an agent gets is **34 tools**,
 each one an action that already exists in the product, under the permissions of
 the person whose credential it is using.
 
@@ -215,6 +215,7 @@ because renaming a tool breaks every agent configuration in existence.
 | --- | --- |
 | `search` | Full text across everything the caller may read — titles, content, indexed PDFs. Returns matching passages with their heading path. |
 | `list` | What is there of a kind: pages, templates, tags, workspaces, files, users, cover presets. For files, `under: <page id>` narrows it to one page and its sub-pages. |
+| `read_file` | Read an attached file by canonical `/files/<stored name>` URL. Valid PNG, JPEG, GIF and WebP files arrive as native MCP image content; SVG and other binaries return metadata. |
 | `get_page` | One page as Markdown; `include_children` returns the whole sub-tree in one answer. |
 | `get_collection` | A database's property schema and its views, with ids. |
 | `query_rows` | Rows with server-side filter, sort and paging, including computed rollups and formulas. |

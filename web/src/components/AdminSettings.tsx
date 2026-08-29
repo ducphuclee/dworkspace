@@ -97,6 +97,7 @@ export function AdminSettingsModal({ onClose }: { onClose: () => void }) {
           publicBaseUrl: v.publicBaseUrl,
           smtpPass: '',
           maxUploadMb: String(v.maxUploadMb),
+          maxImageReadMb: String(v.maxImageReadMb),
           trashDays: String(v.trashDays),
           auditDays: String(v.auditDays ?? 0),
           sessionDays: String(v.sessionDays),
@@ -226,6 +227,7 @@ export function AdminSettingsModal({ onClose }: { onClose: () => void }) {
         pdfLandscape: pdf.landscape,
         allowUserWorkspaces: allowUserWs,
         maxUploadMb: num('maxUploadMb', 1, 2048),
+        maxImageReadMb: num('maxImageReadMb', 1, 2048),
         trashDays: num('trashDays', 0, 3650),
         auditDays: num('auditDays', 0, 3650),
         sessionDays: num('sessionDays', 1, 365),
@@ -333,6 +335,8 @@ ingress:
                     <input className="prop-input" placeholder="https://notes.example.com" value={s.publicBaseUrl} onChange={(e) => set('publicBaseUrl', e.target.value)} />
                     <label>{t('Max. file size per upload (MB)')}</label>
                     <input className="prop-input" type="number" min={1} max={2048} value={s.maxUploadMb} onChange={(e) => set('maxUploadMb', e.target.value)} />
+                    <label>{t('Max. image read size over MCP (MB)')}</label>
+                    <input className="prop-input" type="number" min={1} max={2048} value={s.maxImageReadMb} onChange={(e) => set('maxImageReadMb', e.target.value)} />
                     <label>{t('Empty the trash automatically after (days, 0 = never)')}</label>
                     <input className="prop-input" type="number" min={0} max={3650} value={s.trashDays} onChange={(e) => set('trashDays', e.target.value)} />
                     <label>{t('Sign-in session length (days)')}</label>

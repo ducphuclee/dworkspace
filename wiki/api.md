@@ -8,7 +8,7 @@ authenticate, what an answer and an error look like, the limits you will hit,
 and a grouped list of the endpoints worth calling.
 
 **If you are connecting an AI agent, use the MCP endpoint instead.** It speaks
-the same data through 33 purpose-built tools, with descriptions the agent reads
+the same data through 34 purpose-built tools, with descriptions the agent reads
 before it acts, and it needs no glue code at all — see
 [Agents](agents.md) and the [tool reference](mcp-tools.md). The REST API is for
 code you write; MCP is for models. Both accept the same credentials.
@@ -403,6 +403,16 @@ attributable once it knows which page it belongs to. A PDF uploaded with a page
 id has its text extracted and indexed under that page. The file itself is served
 from `/files/<name>` and needs the same credential as everything else; a
 directory listing is refused, so the random names cannot be enumerated.
+
+Agents use the MCP `read_file` tool for file content. It accepts only a
+canonical `/files/<single-segment>` URL and checks the indexed carrier page
+before reading, so private pages, out-of-scope workspaces and orphan uploads
+remain inaccessible. Native MCP image content is available for valid PNG,
+JPEG, GIF and WebP bytes; SVG and unsupported binaries are metadata-only in
+this MVP. The image-read cap defaults to 10 MB and is separate from the upload
+cap. MCP tool failures carry machine-readable codes including
+`file_not_found`, `invalid_file_reference`, `unsupported_representation`,
+`invalid_image_content`, `image_too_large` and `read_failed`.
 
 ### What to send to the import endpoints
 

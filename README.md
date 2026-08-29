@@ -97,7 +97,7 @@ and the same permission model. And you run the whole thing yourself.
 
 ## What an agent can do
 
-Connect any MCP client to `/mcp` and it gets **33 tools** over the same
+Connect any MCP client to `/mcp` and it gets **34 tools** over the same
 workspace you use:
 
 - **Read and write pages**: create, update, move, duplicate, trash, restore

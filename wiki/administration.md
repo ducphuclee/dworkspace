@@ -62,6 +62,7 @@ removing a webhook. **Cancel** therefore does not undo those.
 | **Instance name (sign-in page & title)** | empty | free text |
 | **Public base URL (for links, mail, calendars)** | empty | a URL |
 | **Max. file size per upload (MB)** | 50 | 1–2048 |
+| **Max. image read size over MCP (MB)** | 10 | 1–2048 |
 | **Empty the trash automatically after (days, 0 = never)** | 30 | 0–3650 |
 | **Sign-in session length (days)** | 90 | 1–365 |
 
@@ -92,6 +93,11 @@ large — max 50 MB"*. An agent is told *"file is 84 MB — the limit is 50 MB;
 upload it through the browser (/api/upload) or raise max_upload_mb in the
 settings"* — worth knowing if somebody quotes a message at you. See
 [Files](files.md).
+
+**The image-read cap** is separate from the upload cap. It limits how many
+bytes `read_file` may load to produce native MCP image content; metadata reads
+remain available for larger files. It defaults to 10 MB and is configurable
+here, from 1 to 2048 MB.
 
 **The trash setting** is swept by a background pass every 30 minutes: pages
 trashed longer ago than the limit are deleted for good. `0` disables the sweep

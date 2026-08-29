@@ -1,7 +1,7 @@
 # MCP tools
 
 dworkspace speaks MCP (Model Context Protocol) on one endpoint, `/mcp`, and offers
-**33 tools**. This page is the complete reference: every tool, every parameter,
+**34 tools**. This page is the complete reference: every tool, every parameter,
 what comes back, and what can go wrong. It is written for the person wiring an
 agent up and for the agent itself.
 
@@ -53,8 +53,8 @@ workspaces can carry rules, and it should read them.
 
 ### What a tool returns
 
-Every tool returns one block of text. Some return prose, most return JSON as
-text. A tool that **refuses** does not produce a JSON-RPC error: it comes back
+Most tools return one block of text. `read_file` can additionally return one
+native MCP image content block. A tool that **refuses** does not produce a JSON-RPC error: it comes back
 as a normal result with `isError` set and the message as its text. So anything a
 tool itself rejects — a wrong id, a missing permission, a bad argument, the rate
 limit — arrives as a readable sentence.
@@ -167,7 +167,7 @@ to it.
 
 | Area | Tools |
 | --- | --- |
-| Orientation | `list`, `search`, `get_page`, `get_links`, `whoami`, `get_workspace`, `get_permissions` |
+| Orientation | `list`, `read_file`, `search`, `get_page`, `get_links`, `whoami`, `get_workspace`, `get_permissions` |
 | Pages | `create_page`, `update_page`, `write_content`, `duplicate_page`, `set_trashed`, `save_as_template`, `upload_file`, `embed_database` |
 | Databases | `create_database`, `get_collection`, `update_schema`, `query_rows`, `create_rows`, `set_properties`, `set_view`, `delete_view` |
 | History and talk | `revisions`, `comments`, `delete_comment`, `note` |
@@ -177,6 +177,34 @@ to it.
 | Presence | `working_on` |
 
 ## Orientation
+
+### read_file
+
+| Parameter | Type | Required |
+| --- | --- | --- |
+| `url` | string | yes — canonical `/files/<single-segment>` |
+| `max_bytes` | integer | no — lower image-read limit for this call |
+| `representation` | string | no — `auto`, `image`, or `metadata` (default `auto`) |
+
+Reads a file attached to a readable, non-trashed page. The stored name alone
+does not grant access: the file index resolves it back to its carrier page and
+the same page, workspace, and token-scope checks used by page reads run before
+the bytes are opened. Orphan uploads are deliberately unavailable in this MVP.
+
+For valid PNG, JPEG, GIF and WebP bytes, `auto` and `image` return MCP's native
+`image` content block with `data` and the exact `mimeType` field casing required
+by MCP. The base64 bytes exist only in that native image block, never inside a
+normal text or metadata JSON response. `metadata` returns JSON text with the
+URL, display name, stored name, MIME type, size and carrier page id. SVG and
+other binaries return metadata in `auto`; asking for `image` for them returns
+`unsupported_representation`.
+
+The configured image-read limit is 10 MB by default and is separate from the
+upload limit. `max_bytes` can lower it for one call. Errors are JSON text under
+`content[0].text` with `isError: true` and an `error.code` of
+`file_not_found`, `invalid_file_reference`, `unsupported_representation`,
+`invalid_image_content`, `image_too_large` or `read_failed`. Missing, private,
+out-of-scope and orphan files all use `file_not_found`.
 
 ### list
 

@@ -170,6 +170,22 @@ attached to somebody's private page out of your list even though you are in the
 same workspace. Files on pages in the trash drop out of the list until the page
 is restored.
 
+An agent can read an attached file with `read_file`, passing its canonical
+`/files/<stored name>` URL. The file index resolves that opaque name to its
+carrier page before opening anything, so knowing a stored name cannot bypass
+page privacy or a workspace-scoped token. Orphan uploads are not readable by
+this MVP. `representation: "auto"` returns valid PNG, JPEG, GIF and WebP files
+as native MCP image content; SVG and other binaries return metadata. Use
+`representation: "metadata"` for metadata only or `"image"` when a native
+image block is required. The default image-read limit is 10 MB, separately
+configurable from the upload limit, and `max_bytes` may lower it per call.
+
+`read_file` validates the canonical path before lookup, rejects traversal,
+encoded traversal, query/fragment suffixes and external URLs, stats the file
+before reading, and detects its MIME from its bytes. A fake PNG/JPEG/GIF/WebP
+fails with `invalid_image_content`. Missing, unauthorized, out-of-scope,
+trashed and orphan references are indistinguishable as `file_not_found`.
+
 ## Previewing and downloading
 
 Clicking the name of a file block in a document normally sends it to your
@@ -345,6 +361,7 @@ See [Workspaces](workspaces.md) for import and export of a whole workspace, and
 | | |
 | --- | --- |
 | Per-file upload cap | 50 MB by default, 1–2048 MB configurable |
+| MCP native image-read cap | 10 MB by default, 1–2048 MB configurable |
 | Slack on top of the cap, for the multipart envelope | 1 MB |
 | Editor's own refusal | 50 MB, not configurable |
 | PDF text extracted | up to 50 MB of file, 500,000 bytes of text |

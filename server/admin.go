@@ -109,6 +109,10 @@ func (s *Server) maxUploadBytes() int64 {
 	return int64(s.intSetting("max_upload_mb", 50, 1, 2048)) << 20
 }
 
+func (s *Server) maxImageReadBytes() int64 {
+	return int64(s.intSetting("max_image_read_mb", 10, 1, 2048)) << 20
+}
+
 // appSettings is the admin-facing view. The SMTP password is never sent back —
 // only whether one is set.
 type appSettings struct {
@@ -123,6 +127,7 @@ type appSettings struct {
 	PublicBaseURL   string `json:"publicBaseUrl"`
 	TrustProxy      bool   `json:"trustProxy"`
 	MaxUploadMB     int    `json:"maxUploadMb"`
+	MaxImageReadMB  int    `json:"maxImageReadMb"`
 	TrashDays       int    `json:"trashDays"`
 	AuditDays       int    `json:"auditDays"`
 	PdfCover        bool   `json:"pdfCover"`
@@ -162,6 +167,7 @@ func (s *Server) loadSettings() appSettings {
 		PublicBaseURL:       s.setting("public_base_url", ""),
 		TrustProxy:          s.boolSetting("trust_proxy"),
 		MaxUploadMB:         s.intSetting("max_upload_mb", 50, 1, 2048),
+		MaxImageReadMB:      s.intSetting("max_image_read_mb", 10, 1, 2048),
 		TrashDays:           s.trashRetentionDays(),
 		AuditDays:           s.auditRetentionDays(),
 		PdfCover:            s.boolSetting("pdf_cover"),
@@ -210,6 +216,7 @@ func (s *Server) handlePutSettings(w http.ResponseWriter, r *http.Request) {
 		PublicBaseURL       *string `json:"publicBaseUrl"`
 		TrustProxy          *bool   `json:"trustProxy"`
 		MaxUploadMB         *int    `json:"maxUploadMb"`
+		MaxImageReadMB      *int    `json:"maxImageReadMb"`
 		TrashDays           *int    `json:"trashDays"`
 		AuditDays           *int    `json:"auditDays"`
 		PdfCover            *bool   `json:"pdfCover"`
@@ -302,6 +309,10 @@ func (s *Server) handlePutSettings(w http.ResponseWriter, r *http.Request) {
 		return nil
 	}
 	if err := setInt("max_upload_mb", body.MaxUploadMB, 1, 2048); err != nil {
+		httpError(w, 400, err.Error())
+		return
+	}
+	if err := setInt("max_image_read_mb", body.MaxImageReadMB, 1, 2048); err != nil {
 		httpError(w, 400, err.Error())
 		return
 	}

@@ -11,7 +11,7 @@
 # reproducible instead of "whatever :latest meant at pull time".
 services:
   dworkspace:
-    image: ghcr.io/ducphuclee/dworkspace@sha256:0b3a363a53b61d84b8a1e4fd53c91d279e54a1c1b260aea8d2eaa0527de1305a
+    image: ghcr.io/ducphuclee/dworkspace@sha256:2176ed851d90ff9d7e8fa81831718a7ebe52041c694e24226d75bd2d560594d6
     restart: unless-stopped
     # Coolify's proxy reaches the container over the internal network, so the
     # port is exposed but not published on the host. Set the domain on this

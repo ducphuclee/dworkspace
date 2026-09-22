@@ -566,6 +566,11 @@ func (s *Server) startIngest(u *user, spec ingestSpec) (string, error) {
 					prop, strings.Join(known, ", "))
 			}
 		}
+		// workspace_id here is the caller confirming which workspace the
+		// database belongs to, not a second destination (mcp_target.go).
+		if _, err := s.mcpPlacementWorkspace(u, spec.WorkspaceI, workspaceID, "that database"); err != nil {
+			return "", err
+		}
 		parentID = spec.DatabaseID
 		target = "database " + spec.DatabaseID
 	} else if spec.ParentID != "" {
@@ -576,10 +581,13 @@ func (s *Server) startIngest(u *user, spec ingestSpec) (string, error) {
 			spec.ParentID).Scan(&workspaceID); err != nil {
 			return "", fmt.Errorf("parent page %q not found", spec.ParentID)
 		}
+		if _, err := s.mcpPlacementWorkspace(u, spec.WorkspaceI, workspaceID, "the parent page"); err != nil {
+			return "", err
+		}
 		parentID = spec.ParentID
 		target = "pages under " + spec.ParentID
 	} else {
-		ws, err := s.mcpCreateWorkspaceTarget(u, spec.WorkspaceI)
+		ws, err := s.mcpPlacementWorkspace(u, spec.WorkspaceI, "", "")
 		if err != nil {
 			return "", err
 		}

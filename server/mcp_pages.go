@@ -407,7 +407,7 @@ func (s *Server) mcpWorkspaceScope(u *user, wsID string) ([]string, error) {
 // normalisation are deliberately the same as in the REST handler (tags.go), or
 // an agent could set a colour nobody is able to render.
 func (s *Server) mcpSetTagColor(u *user, wsID, tag, color string) (string, error) {
-	ws, err := s.mcpCreateWorkspaceTarget(u, wsID)
+	ws, err := s.mcpPlacementWorkspace(u, wsID, "", "")
 	if err != nil {
 		return "", err
 	}
@@ -432,25 +432,12 @@ func (s *Server) mcpSetTagColor(u *user, wsID, tag, color string) (string, error
 	return fmt.Sprintf("Tag %q is now %s in workspace %s", tag, color, ws), nil
 }
 
-// mcpCreateWorkspaceTarget decides the workspace for something NEW that has no
-// parent page. Unlike mcpWorkspaceScope exactly one has to come out, and write
-// permission is mandatory — read access is not enough to create.
-func (s *Server) mcpCreateWorkspaceTarget(u *user, wsID string) (string, error) {
-	if wsID == "" {
-		wsID = s.defaultWorkspaceFor(u)
-		if wsID == "" {
-			return "", fmt.Errorf("no workspace available")
-		}
-		if !s.credentialMayEnter(u, wsID) {
-			return "", fmt.Errorf("this token cannot create top-level pages in the default workspace; pass workspace_id (see list with kind=\"workspaces\") or a parent_id inside an allowed workspace")
-		}
-		return wsID, nil
-	}
-	if !s.isMember(u.ID, wsID) || !s.credentialMayEnter(u, wsID) {
-		return "", fmt.Errorf("workspace %q not found", wsID)
-	}
-	if s.workspaceRole(u.ID, wsID) == "viewer" {
-		return "", fmt.Errorf("you are a viewer in that workspace and cannot create pages there")
-	}
-	return wsID, nil
-}
+// Where mcpCreateWorkspaceTarget used to be. It decided the workspace for
+// something new with no parent page, and when the caller named none it silently
+// picked defaultWorkspaceFor — "your first workspace". For anyone in a single
+// workspace that was right every time; for anyone in several it was a coin toss
+// the agent could not see itself making.
+//
+// mcpPlacementWorkspace (mcp_target.go) replaced it and keeps both halves of
+// that behaviour honest: it still answers immediately when there is only one
+// workspace to mean, and it refuses rather than guesses when there is not.

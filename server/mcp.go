@@ -144,7 +144,7 @@ var mcpTools = []map[string]any{
 				"title":              map[string]any{"type": "string"},
 				"template_id":        map[string]any{"type": "string", "description": "Build the page from a template instead of from scratch — call list with kind=\"templates\" for the ids. Only title applies alongside it."},
 				"parent_id":          map[string]any{"type": "string", "description": "Optional parent page id. Pass a database id to create a ROW in that database."},
-				"workspace_id":       map[string]any{"type": "string", "description": "Which workspace to create in when there is no parent_id. Call list with kind=\"workspaces\" first — without this the page lands in your first workspace, which may not be the one you mean."},
+				"workspace_id":       map[string]any{"type": "string", "description": "Which workspace you are writing into. REQUIRED once you can reach more than one, even when a parent_id or page_id already implies it: you state which workspace you mean, the server checks it against where the target actually lives, and refuses if the two disagree. That check is the point — it catches the case where you resolved the right workspace but then picked an object from a similarly named one. Call list with kind=\"workspaces\" for the ids."},
 				"markdown":           map[string]any{"type": "string", "description": "Optional initial content as Markdown. " + pageLinkHint + " " + diagramHint},
 				"icon":               map[string]any{"type": "string", "description": "Optional emoji, \"lucide:Name\", \"mdi:Name\" or image URL"},
 				"properties":         map[string]any{"type": "object", "description": "Typed property values when creating a database row — same shape as set_properties. Call get_collection first for property ids."},
@@ -243,7 +243,7 @@ var mcpTools = []map[string]any{
 				"parent_id":    map[string]any{"type": "string", "description": "Optional parent page id"},
 				"schema":       map[string]any{"type": "array", "description": "Property definitions. Options may be plain strings: [{\"name\":\"Status\",\"type\":\"select\",\"options\":[\"To do\",\"Done\"]}]"},
 				"properties":   map[string]any{"type": "array", "description": "Alias for schema — same shape."},
-				"workspace_id": map[string]any{"type": "string", "description": "Which workspace to create in when there is no parent_id. Call list with kind=\"workspaces\" first — without this it lands in your first workspace."},
+				"workspace_id": map[string]any{"type": "string", "description": "Which workspace you are writing into. REQUIRED once you can reach more than one, even when a parent_id or page_id already implies it: you state which workspace you mean, the server checks it against where the target actually lives, and refuses if the two disagree. That check is the point — it catches the case where you resolved the right workspace but then picked an object from a similarly named one. Call list with kind=\"workspaces\" for the ids."},
 			},
 			"required": []string{"title"}},
 	},
@@ -281,7 +281,8 @@ var mcpTools = []map[string]any{
 		"description": "Create many database rows in ONE call (max 200) instead of one call per row. Each row: {title, icon?, properties?}. Call get_collection first for property ids.",
 		"inputSchema": map[string]any{"type": "object",
 			"properties": map[string]any{
-				"page_id": map[string]any{"type": "string", "description": "The database page id"},
+				"page_id":      map[string]any{"type": "string", "description": "The database page id"},
+				"workspace_id": map[string]any{"type": "string", "description": "Which workspace you believe this database is in. REQUIRED once you can reach more than one. The server already knows where the page lives; naming it yourself is what lets the two be compared, so a page picked out of a similarly named workspace is refused instead of written to."},
 				"rows": map[string]any{"type": "array", "items": map[string]any{
 					"type": "object",
 					// Spelled out in the schema, not only in the description above:
@@ -309,9 +310,10 @@ var mcpTools = []map[string]any{
 		"description": "Write Markdown into a page. mode: append (the default — adds at the end) | prepend (adds at the top) | replace (creates a proposed revision and leaves the canonical body unchanged until human Publish). " + pageLinkHint + " " + diagramHint,
 		"inputSchema": map[string]any{"type": "object",
 			"properties": map[string]any{
-				"page_id":  map[string]any{"type": "string"},
-				"markdown": map[string]any{"type": "string"},
-				"mode":     map[string]any{"type": "string", "description": "append (default) | prepend | replace. replace creates a proposal for human review; it does not overwrite the canonical body."},
+				"page_id":      map[string]any{"type": "string"},
+				"markdown":     map[string]any{"type": "string"},
+				"workspace_id": map[string]any{"type": "string", "description": "Which workspace you believe this page is in. REQUIRED once you can reach more than one. The server already knows where the page lives; naming it yourself is what lets the two be compared, so a page picked out of a similarly named workspace is refused instead of written to."},
+				"mode":         map[string]any{"type": "string", "description": "append (default) | prepend | replace. replace creates a proposal for human review; it does not overwrite the canonical body."},
 			},
 			"required": []string{"page_id", "markdown"}},
 	},
@@ -528,7 +530,7 @@ var mcpTools = []map[string]any{
 				"resolve":      map[string]any{"type": "object", "description": "Turn foreign ids into readable names using another array in the same response: {\"idList\": {\"from\": \"lists\", \"match\": \"id\", \"to\": \"name\"}}."},
 				"database_id":  map[string]any{"type": "string", "description": "Import as ROWS of this database (call get_collection first so the property names match)."},
 				"parent_id":    map[string]any{"type": "string", "description": "Alternative: import as pages under this parent."},
-				"workspace_id": map[string]any{"type": "string", "description": "Alternative: import as top-level pages in this workspace."},
+				"workspace_id": map[string]any{"type": "string", "description": "Which workspace you are importing into. Alternative to database_id and parent_id for a top-level import, and REQUIRED alongside either of them once you can reach more than one workspace: you state which workspace you mean, the server checks it against where the target actually lives, and refuses if the two disagree. An import writes many pages at once, so landing it in the wrong workspace is the most expensive version of that mistake."},
 				"limit":        map[string]any{"type": "number", "description": "Import only the first N records — useful for a trial run before the real import."},
 			},
 			"required": []string{"url", "title"}},
@@ -544,8 +546,11 @@ var mcpTools = []map[string]any{
 		"name":        "duplicate_page",
 		"description": "Duplicate a page and its entire sub-tree (a deep copy placed next to the original). Returns the new page id.",
 		"inputSchema": map[string]any{"type": "object",
-			"properties": map[string]any{"page_id": map[string]any{"type": "string"}},
-			"required":   []string{"page_id"}},
+			"properties": map[string]any{
+				"page_id":      map[string]any{"type": "string"},
+				"workspace_id": map[string]any{"type": "string", "description": "Which workspace you believe this page is in. REQUIRED once you can reach more than one. The server already knows where the page lives; naming it yourself is what lets the two be compared, so a page picked out of a similarly named workspace is refused instead of written to."},
+			},
+			"required": []string{"page_id"}},
 	},
 	// ---- the skill control plane (see mcp_skills.go) ----
 	//
@@ -1094,10 +1099,16 @@ func (s *Server) mcpCall(u *user, name string, rawArgs json.RawMessage, publicBa
 					return "", fmt.Errorf("parent page %q not found", parentID)
 				}
 				parent = &parentID
-				workspaceID = pws
+				// The parent fixes the workspace; workspace_id is the agent
+				// saying it meant that one (mcp_target.go).
+				var err error
+				workspaceID, err = s.mcpPlacementWorkspace(u, args.WorkspaceID, pws, "the parent page")
+				if err != nil {
+					return "", err
+				}
 			} else {
 				var err error
-				workspaceID, err = s.mcpCreateWorkspaceTarget(u, args.WorkspaceID)
+				workspaceID, err = s.mcpPlacementWorkspace(u, args.WorkspaceID, "", "")
 				if err != nil {
 					return "", err
 				}
@@ -1284,6 +1295,11 @@ func (s *Server) mcpCall(u *user, name string, rawArgs json.RawMessage, publicBa
 		case "delete_view":
 			return s.mcpDeleteView(args.PageID, args.ViewID)
 		case "create_rows":
+			// The board an agent logs a task to is exactly where this went wrong
+			// in the field — see mcp_target.go.
+			if err := s.mcpConfirmPageWorkspace(u, args.WorkspaceID, args.PageID, "that database"); err != nil {
+				return "", err
+			}
 			return s.mcpCreateRows(userID, args.PageID, args.Rows)
 		case "embed_database":
 			return s.mcpEmbedDatabase(u, args.PageID, args.DatabaseID)
@@ -1372,6 +1388,9 @@ func (s *Server) mcpCall(u *user, name string, rawArgs json.RawMessage, publicBa
 			}
 			return s.mcpCreateDatabase(u, args.Title, parentID, args.WorkspaceID, sch)
 		case "duplicate_page":
+			if err := s.mcpConfirmPageWorkspace(u, args.WorkspaceID, args.PageID, "that page"); err != nil {
+				return "", err
+			}
 			nid, err := s.duplicatePage(args.PageID, userID, false, false)
 			if err != nil {
 				return "", err
@@ -1380,6 +1399,9 @@ func (s *Server) mcpCall(u *user, name string, rawArgs json.RawMessage, publicBa
 		case "save_as_template":
 			return s.mcpSaveAsTemplate(u, args.PageID)
 		case "write_content":
+			if err := s.mcpConfirmPageWorkspace(u, args.WorkspaceID, args.PageID, "that page"); err != nil {
+				return "", err
+			}
 			return s.mcpWriteContent(u, args.PageID, args.Markdown, args.Mode)
 		case "revisions":
 			return s.mcpRevisions(u, args.PageID, args.Action, args.RevisionID, args.Limit)
@@ -1466,12 +1488,28 @@ func (s *Server) mcpSearch(u *user, q string) (string, error) {
 	if len(hits) == 0 {
 		hits = s.searchPagesFallback(userID, ftsMatch(q), ws, 20)
 	}
+	// Which workspace each hit is in, when there is more than one it could be.
+	// Two pages of the same name in two workspaces came back as two identical
+	// bullets, and picking between them was left to an agent that had nothing to
+	// pick on — the same gap list had (see mcpListPages).
+	where := map[string]string{}
+	if len(ws) > 1 {
+		for _, h := range hits {
+			if _, ok := where[h.ID]; ok {
+				continue
+			}
+			where[h.ID] = s.workspaceName(s.pageWorkspace(h.ID))
+		}
+	}
 	var b strings.Builder
 	n := 0
 	for _, h := range hits {
 		title := h.Title
 		if title == "" {
 			title = "Untitled"
+		}
+		if w := where[h.ID]; w != "" {
+			title += " [" + w + "]"
 		}
 		if h.Heading != "" {
 			fmt.Fprintf(&b, "• %s › %s (id: %s)\n  %s\n", title, h.Heading, h.ID, h.Snippet)
@@ -1496,19 +1534,23 @@ func (s *Server) mcpListPages(u *user) (string, error) {
 	for i, v := range ws {
 		wargs[i] = v
 	}
-	rows, err := s.db.Query(`SELECT id, parent_id, title, type FROM pages WHERE trashed_at IS NULL AND workspace_id IN (`+placeholders(len(ws))+`) ORDER BY position, created_at`, wargs...)
+	rows, err := s.db.Query(`SELECT p.id, p.parent_id, p.title, p.type, p.workspace_id, COALESCE(w.name, '')
+		FROM pages p LEFT JOIN workspaces w ON w.id = p.workspace_id
+		WHERE p.trashed_at IS NULL AND p.workspace_id IN (`+placeholders(len(ws))+`)
+		ORDER BY w.name, p.position, p.created_at`, wargs...)
 	if err != nil {
 		return "", err
 	}
 	defer rows.Close()
 	type node struct {
 		id, title, ptype string
+		ws, wsName       string
 		parent           *string
 	}
 	var scanned []node
 	for rows.Next() {
 		var n node
-		if rows.Scan(&n.id, &n.parent, &n.title, &n.ptype) == nil {
+		if rows.Scan(&n.id, &n.parent, &n.title, &n.ptype, &n.ws, &n.wsName) == nil {
 			scanned = append(scanned, n)
 		}
 	}
@@ -1546,7 +1588,51 @@ func (s *Server) mcpListPages(u *user) (string, error) {
 			walk(n.id, indent+"  ")
 		}
 	}
-	walk("", "")
+	// Grouped under a workspace heading, one block each.
+	//
+	// This used to be one flat tree with every workspace's roots run together
+	// and nothing saying which was which. On an instance where somebody belongs
+	// to several, that made two boards called "Tasks" in two different
+	// workspaces literally indistinguishable in the answer — and an agent asked
+	// to log a task into one of them had nothing to go on but the title. It
+	// picked wrong, noticed afterwards, deleted and rewrote. The workspace was
+	// in the database the whole time; only the answer left it out.
+	if len(ws) == 1 {
+		// One workspace: a heading naming the only place anything could be adds
+		// a line and tells nobody anything.
+		walk("", "")
+	} else {
+		seen := map[string]bool{}
+		for _, n := range all {
+			if n.parent != nil && ids[*n.parent] {
+				continue // not a root — it is printed under its own parent
+			}
+			if seen[n.ws] {
+				continue
+			}
+			seen[n.ws] = true
+			name := n.wsName
+			if name == "" {
+				name = "Untitled workspace"
+			}
+			fmt.Fprintf(&b, "%s (workspace_id: %s)\n", name, n.ws)
+			for _, r := range children[""] {
+				if r.ws != n.ws {
+					continue
+				}
+				title := r.title
+				if title == "" {
+					title = "Untitled"
+				}
+				kind := ""
+				if r.ptype == "collection" {
+					kind = " [database]"
+				}
+				fmt.Fprintf(&b, "  - %s (id: %s)%s\n", title, r.id, kind)
+				walk(r.id, "    ")
+			}
+		}
+	}
 	if b.Len() == 0 {
 		return "No pages yet.", nil
 	}

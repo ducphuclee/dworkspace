@@ -126,6 +126,59 @@ can write to it (`note`, and the entry `working_on` leaves at check-out), but
 nothing hands it back. Reading it means the browser, or `GET
 /api/pages/{id}/notes` over the REST surface — see [API](api.md).
 
+### Saying which workspace you mean
+
+Six tools **place content somewhere** — `create_page`, `create_database`,
+`create_rows`, `write_content`, `duplicate_page`, `import_url`. If your account
+belongs to more than one workspace, all six require `workspace_id`, even when
+the server could work the destination out on its own from `parent_id` or
+`page_id`.
+
+That redundancy is the point. The server derives the workspace from the object
+being written to, you declare the workspace you believe you are writing to, and
+the two are compared. They only disagree when something has gone wrong:
+
+```
+workspace_id says "Stockbook" but that database is in "Dtrade".
+One of the two is wrong — check which one you actually mean before writing.
+```
+
+This exists because of a failure that repeats: an agent is told to log a task in
+one workspace, finds the right board, and then at the moment of writing notices
+a second workspace whose boards are named almost identically, talks itself into
+that one, writes there, notices, deletes, and writes again in the right place.
+The intent was formed once and re-derived at write time, and the second
+derivation had nothing to anchor it.
+
+Two things keep the requirement from becoming noise:
+
+- **An account with one workspace is never asked.** There is nothing to confuse
+  and no comparison to run, so `workspace_id` stays optional for them. The
+  people who see the requirement are exactly the people who have the problem.
+- **A refusal never says where the object actually is.** It lists the workspaces
+  you can write to and makes you choose. An error reading "it is in Dtrade, pass
+  that id" would hand over the answer, and what you echoed back would no longer
+  be an independent statement of intent.
+
+Omitting it with several workspaces in reach gets:
+
+```
+workspace_id is required: you can write to 2 workspaces, and which one you mean
+cannot be guessed from the call. Say which: "Dtrade" (id: …), "Stockbook" (id: …)
+```
+
+`update_page` is deliberately **not** in the list. Its `workspace_id` already
+means something else — move this page and its sub-tree into that workspace — so
+it cannot double as a statement of where the page is now.
+
+The check catches a call that contradicts itself. It cannot catch one that is
+wrong consistently: declare Dtrade, pass Dtrade's board, and the write lands in
+Dtrade. What prevents *that* is knowing which board you picked in the first
+place — so `list` and `search` name the workspace beside every entry as soon as
+you can see more than one. `list` groups its roots under a
+`Workspace name (workspace_id: …)` heading, and `search` appends `[Workspace
+name]` to each hit's title. With a single workspace both stay plain.
+
 ## Limits
 
 | Limit | Value |
@@ -195,8 +248,12 @@ tools.
 What each returns:
 
 - **pages** — an indented text tree of every page you may read, each line
-  `- Title (id: …)`, with ` [database]` appended to a database. Empty answer:
-  `No pages yet.`
+  `- Title (id: …)`, with ` [database]` appended to a database. With more than
+  one workspace in reach the roots are grouped under a
+  `Workspace name (workspace_id: …)` heading each, so two boards of the same
+  name in two workspaces are not two identical lines — see [Saying which
+  workspace you mean](#saying-which-workspace-you-mean). With one workspace the
+  tree stays plain. Empty answer: `No pages yet.`
 - **templates** — JSON: `id`, `title`, `icon`, `kind`, `description`,
   `workspace_id`.
 - **tags** — `{"tags":[{"tag":"…","count":n}]}`, most frequent first,
@@ -250,6 +307,13 @@ somewhere in this 4000-word page". Up to 20 results, one per line:
 • Contract › Termination (id: 6f1c…)
   …notice period of three months…
 ```
+
+With more than one workspace in reach, each title carries the workspace it came
+from — `• Contract [Stockbook] › Termination (id: …)` — for the same reason the
+page tree carries headings: two hits of the same name were otherwise two
+identical bullets. See [Saying which workspace you
+mean](#saying-which-workspace-you-mean). With one workspace the label is left
+off.
 
 If passage search finds nothing, a whole-page search runs as a fallback. Empty
 answer: `No results.` Errors: `query is required`.
@@ -380,7 +444,7 @@ which is also what you get for a page you may not read.
 | `title` | string | yes |
 | `template_id` | string | no |
 | `parent_id` | string | no |
-| `workspace_id` | string | no |
+| `workspace_id` | string | yes, once you can reach more than one — see [Saying which workspace you mean](#saying-which-workspace-you-mean) |
 | `markdown` | string | no |
 | `icon` | string | no |
 | `properties` | object | no |
@@ -398,8 +462,14 @@ title, body, metadata, and selected links, then returns its id and review state.
 
 Three things decide where the proposed page lands. `parent_id` puts it under that page —
 and if that page is a **database**, the new page is a **row** in it. With no
-parent, `workspace_id` decides; with neither, it lands in your default
-workspace, which may not be the one you meant.
+parent, `workspace_id` decides; with neither, it lands in your only workspace.
+
+"Which may not be the one you meant" used to end that paragraph, because with
+several workspaces in reach the call fell back to a default and said nothing.
+It no longer falls back: `workspace_id` is required as soon as there is a choice,
+including alongside `parent_id`, where it is checked against the parent's own
+workspace. See [Saying which workspace you
+mean](#saying-which-workspace-you-mean).
 
 `icon` takes an emoji, `lucide:Name`, `mdi:Name`, or an image URL. `cover` takes
 only two forms: `gradient:linear-gradient(120deg,#a8edea,#5b86e5)` or an
@@ -487,6 +557,7 @@ replace creates a proposed revision and leaves the canonical page unchanged.
 | --- | --- | --- |
 | `page_id` | string | yes |
 | `markdown` | string | yes |
+| `workspace_id` | string | yes, once you can reach more than one — see [Saying which workspace you mean](#saying-which-workspace-you-mean) |
 | `mode` | string | no — `append` (default), `prepend`, `replace` |
 
 `append` is the default because it is the only one of the three that cannot
@@ -518,6 +589,7 @@ Errors: `unknown mode "x" — use append (the default), prepend or replace`;
 | Parameter | Type | Required |
 | --- | --- | --- |
 | `page_id` | string | yes |
+| `workspace_id` | string | yes, once you can reach more than one — see [Saying which workspace you mean](#saying-which-workspace-you-mean) |
 
 A deep copy of the page and its sub-tree, placed next to the original.
 
@@ -626,7 +698,7 @@ Everything below operates on a **collection** in the interface's words. Read
 | `parent_id` | string | no |
 | `schema` | array | no |
 | `properties` | array | no — an alias for `schema` |
-| `workspace_id` | string | no |
+| `workspace_id` | string | yes, once you can reach more than one — see [Saying which workspace you mean](#saying-which-workspace-you-mean) |
 
 Both `schema` and `properties` are accepted for the same thing, because half the
 callers reached for the other name and got the default schema silently.
@@ -770,6 +842,7 @@ Errors: `page "…" is not a database`.
 | --- | --- | --- |
 | `page_id` | string | yes |
 | `rows` | array | yes |
+| `workspace_id` | string | yes, once you can reach more than one — see [Saying which workspace you mean](#saying-which-workspace-you-mean) |
 
 Up to **200** rows in one call, each `{title, icon?, properties?}`. For 40 rows
 this is one call rather than forty, each of which could fail and leave half a
@@ -1214,7 +1287,7 @@ of the content passes through the agent**.
 | `resolve` | object | no |
 | `database_id` | string | no |
 | `parent_id` | string | no |
-| `workspace_id` | string | no |
+| `workspace_id` | string | yes, once you can reach more than one — see [Saying which workspace you mean](#saying-which-workspace-you-mean) |
 | `limit` | number | no |
 
 Use this rather than looping `create_page` or `create_rows` whenever there are
@@ -1232,9 +1305,12 @@ another array in the same answer:
 `{"idList": {"from":"lists","match":"id","to":"name"}}`.
 
 The target is one of three: `database_id` imports rows, `parent_id` imports
-pages under a page, `workspace_id` imports top-level pages. Missing select
-options are created for you, with a colour, so a board is not a row of
-colourless columns.
+pages under a page, `workspace_id` imports top-level pages. With more than one
+workspace in reach, `workspace_id` also has to accompany the other two, as the
+statement of where you believe the target is — an import writes many pages at
+once, so landing it in the wrong workspace is the most expensive version of that
+mistake. Missing select options are created for you, with a colour, so a board
+is not a row of colourless columns.
 
 `limit` imports only the first N records — a trial run before the real thing.
 

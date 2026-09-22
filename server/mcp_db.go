@@ -172,13 +172,19 @@ func (s *Server) mcpCreateDatabase(u *user, title, parentID, wsID string, schema
 			return "", fmt.Errorf("parent page %q not found", parentID)
 		}
 		parent = &parentID
-		workspaceID = pws
+		// The parent fixes the workspace; wsID is the caller confirming it
+		// meant that one (mcp_target.go).
+		var err error
+		workspaceID, err = s.mcpPlacementWorkspace(u, wsID, pws, "the parent page")
+		if err != nil {
+			return "", err
+		}
 	} else {
 		var err error
 		// With no parent page the caller decides the workspace. Before this,
 		// everything landed silently in the default workspace — an agent created
 		// page and database in the wrong place and could not even see that.
-		workspaceID, err = s.mcpCreateWorkspaceTarget(u, wsID)
+		workspaceID, err = s.mcpPlacementWorkspace(u, wsID, "", "")
 		if err != nil {
 			return "", err
 		}

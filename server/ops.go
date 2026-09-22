@@ -1,6 +1,8 @@
 package server
 
 import (
+	"database/sql"
+	"errors"
 	"log"
 	"net"
 	"net/http"
@@ -160,9 +162,12 @@ func (s *Server) runCleanup() {
 	s.checkForUpdate()
 	if days := s.trashRetentionDays(); days > 0 {
 		cutoff := time.Now().UTC().AddDate(0, 0, -days).Format(time.RFC3339Nano)
-		if n, err := s.PurgeTrashedBefore(cutoff); err != nil {
+		// A closed database is shutdown racing the ticker, not a failure worth
+		// a line — the cleanup loop can be mid-pass when Close lands, and the
+		// old silent Exec never said anything about it either.
+		if n, err := s.PurgeTrashedBefore(cutoff); err != nil && !errors.Is(err, sql.ErrConnDone) && !strings.Contains(err.Error(), "database is closed") {
 			log.Printf("trash purge: %v", err)
-		} else if n > 0 {
+		} else if err == nil && n > 0 {
 			log.Printf("trash: purged %d pages older than %d days", n, days)
 		}
 	}

@@ -98,71 +98,27 @@ func (s *Server) moveSubtreeToWorkspace(userID, pageID, targetWS string, tokenOK
 	return len(ids), nil
 }
 
-// sameWorkspaceName compares two names the way a person reading a sidebar
-// would: case and surrounding space do not make two workspaces different.
-func sameWorkspaceName(a, b string) bool {
-	return strings.EqualFold(strings.Join(strings.Fields(a), " "), strings.Join(strings.Fields(b), " "))
-}
-
-// workspaceNamed finds a workspace this person is already in whose name reads
-// the same as the one given, and returns its id and its name as stored. The
-// stored spelling is returned rather than the argument so the error shows what
-// is actually in the sidebar — "Stockbook" when the agent typed "stockbook".
-func (s *Server) workspaceNamed(userID, name string) (string, string) {
-	rows, err := s.db.Query(`SELECT w.id, w.name FROM workspaces w
-		JOIN workspace_members m ON m.workspace_id = w.id
-		WHERE m.user_id = ? ORDER BY w.created_at`, userID)
-	if err != nil {
-		return "", ""
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var id, have string
-		if rows.Scan(&id, &have) == nil && sameWorkspaceName(have, name) {
-			return id, have
-		}
-	}
-	return "", ""
-}
-
-// mcpCreateWorkspace creates a workspace; the caller becomes its admin.
+// createWorkspaceFor creates a workspace; the named user becomes its admin.
 //
-// The duplicate-name guard is here because requiring workspace_id on writes
-// gave a lost agent a way out that always succeeds. Asked to log something in
-// Stockbook, holding no id, it has two moves: look the id up, or create a
-// workspace called "Stockbook". The second one returns a real id and the write
-// after it goes through, so an agent that is even slightly unsure takes it —
-// and a second, empty "Stockbook" duly appeared on the live instance.
-//
-// So the name is the check. If this person already has a workspace by that
-// name then they are not creating anything; they are looking for that one, and
-// the refusal hands over the id they were missing. That is the opposite of the
-// rule in mcp_target.go, where a refusal must never reveal the answer — and
-// deliberately so. There the agent's id is a second opinion to compare against;
-// here there is nothing to compare, only a duplicate to prevent.
-//
-// The browser keeps its freedom: s.createWorkspace in workspaces.go is the
-// human path, and a person making a second "Stockbook" on purpose is not making
-// this mistake.
-func (s *Server) mcpCreateWorkspace(userID, name string) (string, error) {
+// This is now only reached from the browser — the REST create handler and the
+// blueprint behind it. The MCP `workspace` tool that used to call it is gone:
+// agents kept answering "I need a workspace_id I do not have" by creating a
+// workspace with the name they had been given, which always appears to succeed
+// and left a second, empty "Stockbook" on the live instance. Making a workspace
+// is a decision about how a team is organised, and it belongs to the person, in
+// the interface, where they can see what already exists.
+func (s *Server) createWorkspaceFor(userID, name string) (string, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
 		return "", fmt.Errorf("name is required")
 	}
-	// The same gate as in the REST handler: an agent should not walk past a
-	// boundary that is set for a human in the interface.
+	// Repeated rather than referenced: the REST handler ahead of this checks it
+	// too, and the blueprint path arrives here without passing that check.
 	if u := s.userByID(userID); (u == nil || !u.IsAdmin) && !s.loadSettings().AllowUserWorkspaces {
 		return "", fmt.Errorf("creating workspaces is disabled on this instance")
 	}
 	if len([]rune(name)) > 80 {
 		return "", fmt.Errorf("name is too long")
-	}
-	if id, existing := s.workspaceNamed(userID, name); id != "" {
-		return "", fmt.Errorf(
-			"you are already in a workspace called %q (id: %s), so this would make a second one "+
-				"nobody can tell apart. If you came here because a write asked for workspace_id, "+
-				"that id is the answer — pass it and do not create anything. If you really want a "+
-				"separate workspace, give it a name that distinguishes the two", existing, id)
 	}
 	id := newID()
 	if _, err := s.db.Exec(`INSERT INTO workspaces (id, name, created_at, owner_id) VALUES (?, ?, ?, ?)`, id, name, now(), userID); err != nil {
@@ -173,8 +129,7 @@ func (s *Server) mcpCreateWorkspace(userID, name string) (string, error) {
 		id, userID); err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("Created workspace %q with id %s — you are its admin. Use move_page with workspace_id to move existing pages into it. "+
-		"It has no rules yet: consider drafting working conventions with the user and submitting them via propose_workspace_rules — an admin applies them in the browser.", name, id), nil
+	return id, nil
 }
 
 // mcpMoveToWorkspace is the MCP facade of the move.

@@ -762,20 +762,17 @@ func (s *Server) handleCreateWorkspace(w http.ResponseWriter, r *http.Request) {
 	}
 	if body.FromWorkspace != "" {
 		u := requestUser(r)
-		if _, err := s.blueprintWorkspace(u, body.Name, body.FromWorkspace); err != nil {
+		// The blueprint path creates the workspace itself and hands back its id, so
+		// the browser can switch straight into it. It used to return a sentence and
+		// this handler looked the workspace back up by owner and name, newest
+		// first — which picked the wrong one for anybody who already had a
+		// workspace by that name.
+		id, err := s.blueprintWorkspace(u, body.Name, body.FromWorkspace)
+		if err != nil {
 			httpErrorCode(w, 400, "blueprint_failed", err.Error())
 			return
 		}
-		// The blueprint path creates the workspace itself; hand back the new one so
-		// the browser can switch straight into it.
-		var id, name string
-		if err := s.db.QueryRow(`SELECT id, name FROM workspaces
-			WHERE owner_id = ? AND name = ? ORDER BY created_at DESC LIMIT 1`,
-			u.ID, strings.TrimSpace(body.Name)).Scan(&id, &name); err != nil {
-			httpError(w, 500, err.Error())
-			return
-		}
-		writeJSON(w, workspaceJSON{ID: id, Name: name, Role: "admin"})
+		writeJSON(w, workspaceJSON{ID: id, Name: strings.TrimSpace(body.Name), Role: "admin"})
 		return
 	}
 	id := newID()

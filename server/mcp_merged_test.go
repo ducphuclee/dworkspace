@@ -254,32 +254,6 @@ func TestSetViewCreatesAndUpdates(t *testing.T) {
 	}
 }
 
-// Creating a workspace was possible, renaming one was not — the gap this step
-// closes on the way past.
-func TestWorkspaceCreatesAndRenames(t *testing.T) {
-	s := testServer(t)
-	uid, _ := signedIn(t, s, "ws@example.test")
-	u := &user{ID: uid, Name: "Test"}
-	ws := s.firstWorkspaceOf(t, uid)
-
-	if _, err := callTool(t, s, u, "workspace", `{"workspace_id":"`+ws+`","name":"Renamed"}`); err != nil {
-		t.Fatalf("rename: %v", err)
-	}
-	var name string
-	s.db.QueryRow(`SELECT name FROM workspaces WHERE id = ?`, ws).Scan(&name)
-	if name != "Renamed" {
-		t.Errorf("the workspace is still called %q", name)
-	}
-	if _, err := callTool(t, s, u, "workspace", `{"workspace_id":"`+ws+`"}`); err == nil {
-		t.Error("a call that changes nothing should say so")
-	}
-	// A stranger must not be able to rename it.
-	other, _ := signedIn(t, s, "other@example.test")
-	if _, err := callTool(t, s, &user{ID: other}, "workspace", `{"workspace_id":"`+ws+`","name":"Hijacked"}`); err == nil {
-		t.Error("a non-member renamed somebody else's workspace")
-	}
-}
-
 // The untrusted-content markers wrap agent-facing answers; tests that parse
 // those answers have to look past them.
 func stripMarkers(s string) string {

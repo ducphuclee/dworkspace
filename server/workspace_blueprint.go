@@ -63,16 +63,9 @@ func (s *Server) blueprintWorkspace(u *user, name, sourceWS string) (string, err
 	s.db.QueryRow(`SELECT COALESCE(rules, '') FROM workspaces WHERE id = ?`, sourceWS).Scan(&rules)
 
 	// Create the workspace itself through the normal path, so its guards apply.
-	msg, err := s.mcpCreateWorkspace(u.ID, name)
+	newWS, err := s.createWorkspaceFor(u.ID, name)
 	if err != nil {
 		return "", err
-	}
-	newWS := ""
-	if i := strings.LastIndex(msg, "with id "); i >= 0 {
-		newWS = strings.Fields(msg[i+len("with id "):])[0]
-	}
-	if newWS == "" {
-		return "", fmt.Errorf("could not determine the new workspace id")
 	}
 
 	// Pass one: every database, so the ids exist before anything points at them.
@@ -110,12 +103,7 @@ func (s *Server) blueprintWorkspace(u *user, name, sourceWS string) (string, err
 	}
 	s.pagesChanged()
 
-	note := ""
-	if rules != "" {
-		note = " Its rules came along."
-	}
-	return fmt.Sprintf("Created workspace %q with id %s from the structure of %s: %d database(s) with their schemas and views, no rows.%s",
-		name, newWS, sourceWS, len(sources), note), nil
+	return newWS, nil
 }
 
 // remapSchema points every reference at the copied database instead of the

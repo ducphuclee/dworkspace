@@ -179,43 +179,40 @@ you can see more than one. `list` groups its roots under a
 `Workspace name (workspace_id: …)` heading, and `search` appends `[Workspace
 name]` to each hit's title. With a single workspace both stay plain.
 
-#### Never answer a missing `workspace_id` by creating a workspace
+#### There is no way to create a workspace from here
 
 Requiring the id opened a second way to get this wrong, and it showed up on a
 live instance within hours: an agent that was refused for want of a
-`workspace_id`, and that held only a workspace *name*, called `workspace` and
-created one by that name. That move always appears to succeed — it returns a
-real id, and the write after it goes through — so an empty duplicate
-"Stockbook" sat in the sidebar with nothing in the trace looking like an error.
+`workspace_id`, and that held only a workspace *name*, created a workspace by
+that name. That move always appeared to succeed — it returned a real id, and the
+write after it went through — so an empty duplicate "Stockbook" sat in the
+sidebar with nothing in the trace looking like an error.
 
-The workspace you want already exists. `list` with `kind="workspaces"` has its
-id. Three things now push you back towards the lookup:
+The `workspace` tool has been **removed**. Not made stricter: an agent reaching
+for a tool because it is stuck is not in a state to be talked out of it by a
+warning in the description. Creating a workspace is a decision about how a team
+is organised, it happens perhaps twice a year, and it belongs to the person in
+the browser, where they can see what already exists. A cached client that calls
+it anyway gets `unknown tool "workspace"`.
+
+Renaming and re-iconing went with it. They only existed so an agent could
+correct a workspace it had just created.
+
+The workspace you mean already exists, and `list` with `kind="workspaces"` has
+its id. Two things point you back at that lookup:
 
 - A `workspace_id` you passed that does not resolve no longer dead-ends on
   `workspace "…" not found`. It lists what you *can* write to, because a bare
-  "not found" reads as "this workspace does not exist" and invites making it.
-- `workspace` **refuses a name already used** by a workspace you are in, and the
-  refusal gives you that workspace's id — which is the thing you came without:
+  "not found" reads as "this workspace does not exist" — which is the thought
+  that led to creating one.
+- `whoami` names workspace creation in `not_available_via_mcp` and its `note`
+  says where the id comes from instead. That matters because `whoami` is where
+  an agent looks first when a write fails; otherwise it works the answer out by
+  trying, and trying is how this started.
 
-  ```
-  you are already in a workspace called "Stockbook" (id: …), so this would make a
-  second one nobody can tell apart. If you came here because a write asked for
-  workspace_id, that id is the answer — pass it and do not create anything.
-  ```
-
-  Case and stray spacing do not count as a distinction. Someone else's workspace
-  of the same name does not block you — only the ones you are a member of.
-- The `workspace` tool's own description now leads with *create only when the
-  user asked for a new workspace in so many words*.
-
-Note this is the opposite of the rule one section above, and deliberately.
-There, a refusal must not reveal the answer, because your id is a second opinion
-to be compared against. Here there is nothing to compare — only a duplicate to
-prevent — so handing over the id is the whole point.
-
-The browser keeps its freedom: a person who deliberately wants two workspaces of
-the same name can still make them. The guard is on the MCP path, because this is
-an agent's mistake.
+If a new workspace really is wanted, ask the person to make it in the browser.
+Nothing changed there — including creating one from an existing workspace's
+structure, which the new-workspace dialog still offers.
 
 ## Limits
 
@@ -263,7 +260,7 @@ to it.
 | Databases | `create_database`, `get_collection`, `update_schema`, `query_rows`, `create_rows`, `set_properties`, `set_view`, `delete_view` |
 | History and talk | `revisions`, `proposals`, `comments`, `delete_comment`, `note` |
 | Sharing | `set_sharing` |
-| Workspaces | `workspace`, `propose_workspace_rules` |
+| Workspaces | `propose_workspace_rules` |
 | Bulk import | `import_url`, `get_import_status` |
 | Presence | `working_on` |
 
@@ -1234,56 +1231,20 @@ More on what a visitor sees in [Sharing](sharing.md).
 
 ## Workspaces
 
-### workspace
+### workspace — removed
 
-Change a workspace, or create one.
+There is no `workspace` tool. Creating, renaming and re-iconing a workspace all
+happen in the browser now; see [There is no way to create a workspace from
+here](#there-is-no-way-to-create-a-workspace-from-here) for why. A client
+holding the old schema gets `unknown tool "workspace"`.
 
-**Create only when the user asked for a new workspace in so many words.** If you
-are here because a write refused you for want of a `workspace_id`, this is the
-wrong tool — see [Never answer a missing `workspace_id` by creating a
-workspace](#never-answer-a-missing-workspace_id-by-creating-a-workspace). A
-workspace made by mistake cannot be tidied away from here and sits in
-everybody's sidebar.
-
-| Parameter | Type | Required |
-| --- | --- | --- |
-| `workspace_id` | string | no — omit to create |
-| `from_workspace` | string | creating only |
-| `name` | string | required when creating |
-| `icon` | string | changing only |
-
-Creating makes you the workspace's **admin**. Changing needs you to be one
-already, and accepts a new `name` (80 characters at most) or an `icon` — the
-icon field is for an emoji and is cut to 8 characters, so nobody smuggles text
-into the sidebar.
-
-`from_workspace` starts from an existing workspace's **structure** instead of
-from nothing: its rules, its databases, their property schemas with the option
-ids, and their views. **No rows and no documents** — a blueprint carrying
-somebody's tasks is not a blueprint. There is no separate template object on
-purpose: the workspace you point at is the blueprint, so it cannot drift out of
-step with how you actually work. Use `update_page` with `workspace_id` afterwards
-to move existing pages in.
-
-Creating from nothing returns `Created workspace "N" with id … — you are its
-admin.` followed by two more sentences: a reminder to move existing pages in,
-and a note that the workspace has no rules yet and that conventions can be
-drafted with the user and submitted via `propose_workspace_rules`. **The
-reminder still names a tool that no longer exists** (`move_page`, folded into
-`update_page`) — read it as `update_page` with `workspace_id`. Creating from a
-blueprint returns `Created workspace "N" with id … from the structure of …: N
-database(s) with their schemas and views, no rows.` Changing returns
-`Updated workspace <id>`.
-
-Errors: `name is required`; `name is too long`; `creating workspaces is disabled
-on this instance`; `this connection is limited to particular workspaces, so it
-cannot create new ones — it would not be able to open them`; `pass workspace_id
-to set an icon — a new workspace is created with a name only`; `only a workspace
-admin can change "…"`; `nothing to change: pass name or icon`; `workspace "…"
-has no databases to copy — nothing to use as a blueprint`; `you are already in a
-workspace called "…" (id: …), so this would make a second one nobody can tell
-apart …` — that last one applies to the blueprint path too, since it creates the
-workspace through the same door.
+The browser lost nothing: its new-workspace dialog still creates from scratch or
+from an existing workspace's **structure** — that workspace's rules, its
+databases, their property schemas with the option ids, and their views, but no
+rows and no documents. There is no separate template object on purpose; the
+workspace you point at is the blueprint, so it cannot drift out of step with how
+you actually work. Use `update_page` with `workspace_id` to move existing pages
+into it afterwards.
 
 ### propose_workspace_rules
 

@@ -434,17 +434,6 @@ var mcpTools = []map[string]any{
 			"required": []string{"page_id"}},
 	},
 	{
-		"name":        "workspace",
-		"description": "Rename a workspace, or create one. CREATE ONLY WHEN THE USER ASKED FOR A NEW WORKSPACE IN SO MANY WORDS. If you are here because a write refused you for want of a workspace_id, this is the wrong tool and a new workspace is the wrong answer: the one you mean already exists, and list with kind=\"workspaces\" has its id. A workspace created by mistake cannot be tidied away from here — it sits in everybody's sidebar — so a second one by a name already in use is refused. Without workspace_id it creates and you become its admin; with one it renames it or sets its icon — workspace admins only. Pass from_workspace to start from an existing one's STRUCTURE instead of from nothing: its rules, its databases, their property schemas with the option ids, and their views — but no rows and no documents. There is no separate template object on purpose; the workspace you point at is the blueprint, so it cannot drift out of step with how you actually work. Use update_page with workspace_id afterwards to move existing pages into it.",
-		"inputSchema": map[string]any{"type": "object",
-			"properties": map[string]any{
-				"workspace_id":   map[string]any{"type": "string", "description": "The workspace to rename or re-icon. Omitting it means \"create a new workspace\" — only do that when that is what was asked of you."},
-				"from_workspace": map[string]any{"type": "string", "description": "Creating only: copy this workspace's structure (rules, databases, schemas, views) into the new one. No rows, no documents."},
-				"name":           map[string]any{"type": "string", "description": "The name. Required when creating."},
-				"icon":           map[string]any{"type": "string", "description": "Changing only: an emoji for the sidebar."},
-			}},
-	},
-	{
 		"name": "working_on",
 		"description": "Say that you are working on a page, so a person watching sees it live — and say when you are done. " +
 			"Check in BEFORE you start on something that takes a while (a task from a board, a document you are rewriting), and call it again with done: true when you finish. " +
@@ -879,8 +868,6 @@ func (s *Server) mcpCall(u *user, name string, rawArgs json.RawMessage, publicBa
 		Rules string `json:"rules"`
 		// File index (W125).
 		Under string `json:"under"`
-		// workspace(from_workspace:) — copy a workspace's structure.
-		FromWorkspace string `json:"from_workspace"`
 		// working_on — the agent presence check-in.
 		Agent              string          `json:"agent"`
 		Label              string          `json:"label"`
@@ -945,7 +932,7 @@ func (s *Server) mcpCall(u *user, name string, rawArgs json.RawMessage, publicBa
 		name == "create_rows" ||
 		name == "delete_comment" ||
 		name == "set_sharing" ||
-		name == "workspace" || name == "embed_database" || name == "import_url" ||
+		name == "embed_database" || name == "import_url" ||
 		name == "working_on" || name == "note" ||
 		// Workspace rules (W123): a proposal is inert, but it IS a write.
 		name == "propose_workspace_rules"
@@ -1419,8 +1406,6 @@ func (s *Server) mcpCall(u *user, name string, rawArgs json.RawMessage, publicBa
 			return s.mcpWorkingOn(u, args.PageID, args.Agent, args.Label, args.Note, args.ExpectedMinutes, args.Done)
 		case "note":
 			return s.mcpNote(u, args.PageID, args.Text, args.Agent, args.Label)
-		case "workspace":
-			return s.mcpWorkspace(u, args.WorkspaceID, args.Name, args.Icon, args.FromWorkspace)
 		case "skill_catalog":
 			return s.mcpSkillCatalog(u, args.WorkspaceID, args.Project, args.Repository, args.Role,
 				args.TaskType, args.Agent, args.Capabilities)

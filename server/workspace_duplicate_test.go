@@ -10,89 +10,50 @@ import (
 // Requiring workspace_id on writes closed the silent-wrong-write hole and
 // opened a louder one. An agent told to log something in Stockbook, holding no
 // id, now gets refused — and from there it has two moves. Looking the id up is
-// the right one. Creating a workspace called "Stockbook" is the one that CANNOT
-// FAIL: it returns a real id, and the write that follows it succeeds.
+// the right one. Creating a workspace called "Stockbook" was the one that could
+// not fail: it returned a real id, and the write after it succeeded. The live
+// instance grew a second, empty "Stockbook" exactly that way, with nothing in
+// the trace looking like an error.
 //
-// The live instance grew a second, empty "Stockbook" exactly that way. Nothing
-// in the trace looked like an error; every call returned success.
+// The answer is not a better warning in the tool description. An agent reaching
+// for a tool because it is stuck is not in a state to be talked out of it. The
+// tool is gone: creating a workspace is a decision about how a team is
+// organised, it happens perhaps twice a year, and it belongs to the person in
+// the browser where they can see what already exists.
 //
-// These tests cover the three places an agent can take that turn: the refusal
-// that sends it looking (it must list what exists), the wrong-id dead end (same),
-// and the create itself (it must refuse the duplicate and hand over the id the
-// agent was actually missing).
+// What remains over MCP is the lookup, so being stuck has an exit that is not
+// creation — which is what the second test here is about.
 
-// The whole incident, as one call: the agent reaches for the name it was given.
-func TestCreatingAWorkspaceThatAlreadyExistsIsRefused(t *testing.T) {
+// The tool is not merely refused, it is not offered. A refusal still invites a
+// retry with different arguments; an absent tool ends the line of thought.
+func TestNoToolCreatesAWorkspace(t *testing.T) {
 	s := testServer(t)
-	uid, _, stockbook, _, _, _ := twoLookalikes(t, s)
+	for _, tool := range mcpTools {
+		name, _ := tool["name"].(string)
+		if name == "workspace" {
+			t.Fatal("the workspace tool is back: an agent can create workspaces again")
+		}
+	}
 
-	out, err := s.mcpCreateWorkspace(uid, "Stockbook")
+	// And the dispatch does not answer it either, in case a client has the old
+	// schema cached and calls it anyway.
+	uid, _ := signedIn(t, s, "a@example.com")
+	out, err := s.mcpCall(s.userByID(uid), "workspace", []byte(`{"name":"Stockbook"}`), "")
 	if err == nil {
-		t.Fatalf("a second workspace called Stockbook was created: %s", out)
-	}
-	// The id is the thing the agent came here without. Withholding it leaves it
-	// exactly where it was, which is how it ended up here.
-	if !strings.Contains(err.Error(), stockbook) {
-		t.Errorf("the refusal does not give the id of the workspace that already exists: %v", err)
-	}
-	if !strings.Contains(err.Error(), "Stockbook") {
-		t.Errorf("the refusal does not name it: %v", err)
+		t.Fatalf("a cached workspace call was served: %s", out)
 	}
 
 	var n int
 	s.db.QueryRow(`SELECT COUNT(*) FROM workspaces WHERE name = 'Stockbook'`).Scan(&n)
-	if n != 1 {
-		t.Errorf("there are now %d workspaces called Stockbook", n)
+	if n != 0 {
+		t.Errorf("the call created %d workspaces on its way to failing", n)
 	}
 }
 
-// Case and stray spacing are not a distinction anybody can see in a sidebar, so
-// they must not be enough to get a duplicate past the guard.
-func TestNearlyTheSameNameIsStillADuplicate(t *testing.T) {
-	s := testServer(t)
-	uid, _, _, _, _, _ := twoLookalikes(t, s)
-
-	for _, name := range []string{"stockbook", "STOCKBOOK", "  Stockbook  "} {
-		if _, err := s.mcpCreateWorkspace(uid, name); err == nil {
-			t.Errorf("%q was accepted as a new workspace alongside Stockbook", name)
-		}
-	}
-}
-
-// And a genuinely new name still goes through: the guard is against collisions,
-// not against creating workspaces.
-func TestADistinctNameStillCreates(t *testing.T) {
-	s := testServer(t)
-	uid, _, _, _, _, _ := twoLookalikes(t, s)
-
-	out, err := s.mcpCreateWorkspace(uid, "Stockbook Archive")
-	if err != nil {
-		t.Fatalf("a workspace with an unused name was refused: %v", err)
-	}
-	if !strings.Contains(out, "Created workspace") {
-		t.Errorf("unexpected answer: %s", out)
-	}
-}
-
-// Somebody else's workspace of the same name is not this person's problem: the
-// guard looks at what THEY are in, not at the whole instance.
-func TestAnotherPersonsWorkspaceOfTheSameNameDoesNotBlockYou(t *testing.T) {
-	s := testServer(t)
-	other, _ := signedIn(t, s, "other@example.com")
-	ws := makeWorkspace(t, s, other)
-	if _, err := s.db.Exec(`UPDATE workspaces SET name = 'Stockbook' WHERE id = ?`, ws); err != nil {
-		t.Fatalf("name it: %v", err)
-	}
-
-	uid, _ := signedIn(t, s, "a@example.com")
-	if _, err := s.mcpCreateWorkspace(uid, "Stockbook"); err != nil {
-		t.Errorf("a name used only by somebody else was refused: %v", err)
-	}
-}
-
-// The earlier of the two places to stop this. An agent that guesses an id — or
-// carries a stale one — used to get a bare "not found", which reads as "this
-// workspace does not exist" and invites making it.
+// Taking the tool away only works if the agent has somewhere else to go. A
+// workspace_id that does not resolve used to dead-end on "not found", which
+// reads as "this workspace does not exist" — the exact thought that led to
+// creating one. It now lists what can be written to instead.
 func TestAWrongWorkspaceIdIsAnsweredWithTheOnesThatExist(t *testing.T) {
 	s := testServer(t)
 	uid, _, _, _, _, dtBoard := twoLookalikes(t, s)
@@ -107,14 +68,37 @@ func TestAWrongWorkspaceIdIsAnsweredWithTheOnesThatExist(t *testing.T) {
 	}
 }
 
-// The blueprint path creates a workspace too, and goes through the same guard —
-// worth pinning, because it is the one that would otherwise be forgotten.
-func TestABlueprintCannotDuplicateANameEither(t *testing.T) {
+// whoami is where an agent looks first when a write fails, so it has to say
+// that creating a workspace is not on the table — otherwise the agent works
+// that out by trying, and trying is how this started.
+func TestWhoamiSaysWorkspacesAreNotCreatedHere(t *testing.T) {
 	s := testServer(t)
-	uid, _, stockbook, _, _, _ := twoLookalikes(t, s)
-	u := s.userByID(uid)
+	uid, _ := signedIn(t, s, "a@example.com")
 
-	if _, err := s.blueprintWorkspace(u, "Stockbook", stockbook); err == nil {
-		t.Error("a blueprint made a second workspace called Stockbook")
+	out, err := s.mcpWhoami(s.userByID(uid))
+	if err != nil {
+		t.Fatalf("whoami: %v", err)
+	}
+	if !strings.Contains(out, "creating, renaming or deleting a workspace") {
+		t.Errorf("whoami does not list workspace creation as unavailable:\n%s", out)
+	}
+	// And points at the thing to do instead.
+	if !strings.Contains(out, "kind=\\\"workspaces\\\"") {
+		t.Errorf("whoami does not say where the id it is missing comes from:\n%s", out)
+	}
+}
+
+// The browser keeps both paths. Creating a workspace was never the problem —
+// an agent creating one was.
+func TestTheBrowserCanStillCreateAWorkspace(t *testing.T) {
+	s := testServer(t)
+	_, cookie := signedIn(t, s, "a@example.com")
+
+	rec := requestAs(t, s, cookie, "POST", "/api/workspaces", `{"name":"Stockbook"}`)
+	if rec.Code != 200 {
+		t.Fatalf("the browser was refused: %d %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "Stockbook") {
+		t.Errorf("unexpected answer: %s", rec.Body.String())
 	}
 }

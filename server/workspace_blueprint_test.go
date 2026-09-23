@@ -52,16 +52,12 @@ func TestBlueprintCopiesStructureAndRemapsIDs(t *testing.T) {
 	// A row, to prove rows do NOT come along.
 	s.makeRow(t, ws, uid, tasks, "Do not copy me", `{}`)
 
-	out, err := s.blueprintWorkspace(u, "Entwicklung 2", ws)
+	newWS, err := s.blueprintWorkspace(u, "Entwicklung 2", ws)
 	if err != nil {
 		t.Fatalf("blueprint: %v", err)
 	}
-	newWS := ""
-	if i := strings.Index(out, "with id "); i >= 0 {
-		newWS = strings.Fields(out[i+len("with id "):])[0]
-	}
 	if newWS == "" {
-		t.Fatalf("no workspace id in %q", out)
+		t.Fatal("the blueprint returned no workspace id")
 	}
 
 	// Two databases, no rows.

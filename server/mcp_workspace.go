@@ -45,10 +45,16 @@ func (s *Server) mcpWhoami(u *user) (string, error) {
 			"two-factor settings", "API tokens", "creating or deleting accounts",
 			"backup/restore", "tunnel and instance settings",
 			"workspace membership and roles",
+			"creating, renaming or deleting a workspace (the person does it in the browser — see the note below)",
 			"applying workspace rules (workspace admins may submit a draft via propose_workspace_rules; applying it stays in the browser)",
 		},
 		"note": "list with kind=\"users\" names only the people you share a workspace with; " +
-			"account administration needs a signed-in browser session.",
+			"account administration needs a signed-in browser session. " +
+			"If a write refuses you for want of a workspace_id, the workspace you mean already exists: " +
+			"list with kind=\"workspaces\" has its id. There is no way to create one from here, on purpose — " +
+			"agents used to answer that refusal by making a workspace with the name they had been given, " +
+			"which always looked like it worked and left an empty duplicate behind. " +
+			"If a new workspace really is wanted, ask the person to make it in the browser.",
 		// A tool nobody thinks of is a tool nobody uses. This is the one place an
 		// agent reliably looks BEFORE it starts — its own description says "call
 		// this first" — so the reminder to announce work belongs here rather than

@@ -276,19 +276,40 @@ tools.
 | `kind` | string | yes |
 | `workspace_id` | string | no |
 | `under` | string | no |
+| `depth` | integer | no, pages only, default 2 |
 
 `kind` is one of `pages`, `templates`, `tags`, `workspaces`, `files`, `users`,
 `cover_presets`.
 
 What each returns:
 
-- **pages** — an indented text tree of every page you may read, each line
+- **pages** — an indented text tree of the pages you may read, each line
   `- Title (id: …)`, with ` [database]` appended to a database. With more than
   one workspace in reach the roots are grouped under a
   `Workspace name (workspace_id: …)` heading each, so two boards of the same
   name in two workspaces are not two identical lines — see [Saying which
   workspace you mean](#saying-which-workspace-you-mean). With one workspace the
   tree stays plain. Empty answer: `No pages yet.`
+
+  **Two levels deep by default.** This used to render the tree entire, which on
+  a real instance is 2539 lines and 305,000 characters — measured twice in one
+  session by exceeding an agent's token limit outright, so the answer had to be
+  spilled to a file and grepped. A branch that goes further now says what it
+  holds and how to open it:
+
+  ```
+  - Handbuch (id: root)
+    - Kapitel 1 (id: kid1)
+      … 4 more below — list with under: kid1
+
+  12 page(s) are not shown, 2 level(s) down. Open a branch with
+  list(kind: "pages", under: "<id>"), or raise depth …
+  ```
+
+  The count is what makes the notice worth acting on — "there is more here" is
+  true of almost anything, "4 more" is a decision. `under` opens one branch (and
+  obeys your read permissions like any other read); `depth` raises the limit
+  deliberately. A tree shallow enough to fit gets no notice at all.
 - **templates** — JSON: `id`, `title`, `icon`, `kind`, `description`,
   `workspace_id`.
 - **tags** — `{"tags":[{"tag":"…","count":n}]}`, most frequent first,
@@ -362,11 +383,69 @@ Read one page as Markdown.
 | Parameter | Type | Required |
 | --- | --- | --- |
 | `page_id` | string | yes |
+| `outline` | boolean | no, default false |
+| `section` | string | no |
 | `include_children` | boolean | no, default false |
 
 A document comes back as `# Icon Title` followed by the body. A **database**
 comes back as a Markdown table of its rows: a Title column plus one column per
 property, with select option ids resolved to their names.
+
+#### A long page comes back as an outline
+
+Over **8000 characters** (about 2000 tokens) a document is not returned whole.
+You get its heading tree with the size of each section, plus the opening
+paragraph before the first heading:
+
+```
+# Vertragsunterlagen
+
+# Vertragsunterlagen — outline (~9.1k chars in 5 section(s))
+
+- (opening, before the first heading) — 31 chars
+- Vertrag — 24 chars
+  - Kündigung — ~4.4k chars
+  - Zahlung — ~4.4k chars
+- Anhang — 33 chars
+
+Read one with get_page(page_id, section: "…"), naming the full path as it is
+written above, e.g. "Vertrag". Pass section: "*" to read the whole page anyway.
+
+Was dieses Dokument regelt.
+```
+
+The sizes are the point. An outline of bare headings makes you guess which
+section is worth opening; one that says `~4.4k` next to it makes that a
+decision. The opening paragraph comes along uninvited because it is usually the
+only summary a page has, and an outline without it costs a second call to learn
+what the page is even about.
+
+- `section` reads one section: the heading path as the outline writes it,
+  `"Vertrag › Kündigung"`. The **last heading alone** is accepted when it is
+  unambiguous, so a heading read off a search hit works without reconstructing
+  the path. Two sections of the same name are refused rather than guessed, and
+  the refusal names both full paths.
+- `section: "*"` reads a long page whole.
+- `outline: true` returns only the tree, whatever the page's length — the
+  cheapest way to find out whether a page is worth reading at all.
+- A long page with **no headings** is still returned whole. There is nothing to
+  abbreviate it into, and a one-line outline would be a worse answer than the
+  page.
+- A page under the threshold is untouched. Measured on a live instance of 173
+  pages the median renders to 1.3k characters, so 84% of reads never meet this
+  mechanism at all — while the longest page, at 137k characters, is the one it
+  exists for.
+
+The cut is **automatic, not opt-in**, for the same reason the `workspace` tool
+was removed rather than documented more sternly: a parameter an agent has to
+know about is a parameter it will not use. The default has to be the safe one.
+
+Sections are sliced from the block tree, not from the `page_chunks` search
+index. The chunk table already splits every page by heading and would have been
+less work — but it is built with `blockPlainText`, which keeps the words and
+drops code fences, table structure, list markers, link targets and image URLs.
+Right for searching, useless for reading: an agent asking for the "Cursor"
+section of a setup document needs the JSON block intact.
 
 `include_children` returns the whole sub-tree instead: each page as a heading
 one level deeper than its parent (capped at six), separated by `---`, with

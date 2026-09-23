@@ -21,7 +21,7 @@ func TestListAnswersEveryKindItOffers(t *testing.T) {
 	u := &user{ID: uid}
 
 	for _, kind := range listKinds {
-		out, err := s.mcpList(u, kind, "", "")
+		out, err := s.mcpList(u, kind, "", "", 0)
 		if err != nil {
 			t.Errorf("kind %q: %v", kind, err)
 			continue
@@ -33,7 +33,7 @@ func TestListAnswersEveryKindItOffers(t *testing.T) {
 	// Not every kind returns JSON — "pages" is a readable tree, deliberately, and
 	// that predates the merge. Asserting a shape here would either be wrong or
 	// force a change nobody asked for; asserting an ANSWER is what matters.
-	if out, _ := s.mcpList(u, "workspaces", "", ""); !json.Valid([]byte(out)) {
+	if out, _ := s.mcpList(u, "workspaces", "", "", 0); !json.Valid([]byte(out)) {
 		t.Error("workspaces should still be JSON")
 	}
 }
@@ -75,7 +75,7 @@ func TestListRefusesAnUnknownKindHelpfully(t *testing.T) {
 	u := &user{ID: uid}
 
 	for _, bad := range []string{"", "page", "nonsense"} {
-		_, err := s.mcpList(u, bad, "", "")
+		_, err := s.mcpList(u, bad, "", "", 0)
 		if err == nil {
 			t.Errorf("kind %q should be refused", bad)
 			continue

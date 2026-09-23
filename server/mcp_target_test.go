@@ -191,7 +191,7 @@ func TestTheePageTreeNamesTheWorkspaceOfEachRoot(t *testing.T) {
 	uid, _, _, _, _, _ := twoLookalikes(t, s)
 	u := s.userByID(uid)
 
-	out, err := s.mcpListPages(u)
+	out, err := s.mcpListPages(u, "", 0)
 	if err != nil {
 		t.Fatalf("list pages: %v", err)
 	}
@@ -249,7 +249,7 @@ func TestTheePageTreeStaysPlainWithOneWorkspace(t *testing.T) {
 		VALUES ('p1', 'Solo', '[]', 0, ?, ?, ?, ?, 'workspace')`, now(), now(), ws, uid); err != nil {
 		t.Fatalf("insert page: %v", err)
 	}
-	out, err := s.mcpListPages(s.userByID(uid))
+	out, err := s.mcpListPages(s.userByID(uid), "", 0)
 	if err != nil {
 		t.Fatalf("list pages: %v", err)
 	}

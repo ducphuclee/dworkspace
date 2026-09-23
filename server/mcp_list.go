@@ -33,12 +33,12 @@ func listKindList() string { return strings.Join(listKinds, ", ") }
 // ones that do not (users are per instance, cover presets are constants).
 // Ignoring rather than refusing is deliberate: an agent that passes it out of
 // habit gets its answer instead of an error it has to reason about.
-func (s *Server) mcpList(u *user, kind, wsID, under string) (string, error) {
+func (s *Server) mcpList(u *user, kind, wsID, under string, depth int) (string, error) {
 	switch kind {
 	case "":
 		return "", fmt.Errorf("kind is required — use one of: %s", listKindList())
 	case "pages":
-		return s.mcpListPages(u)
+		return s.mcpListPages(u, under, depth)
 	case "templates":
 		// The only one that wraps its own answer in the untrusted-content
 		// markers; the others are wrapped by the caller. Left as it is rather

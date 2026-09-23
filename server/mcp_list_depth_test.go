@@ -147,3 +147,99 @@ func TestUnderRefusesAPageYouCannotRead(t *testing.T) {
 		t.Error("a stranger opened a branch of somebody else's tree")
 	}
 }
+
+// What the depth limit did NOT fix, found by running the shipped code against a
+// real instance instead of against the fixture above.
+//
+// The tree was 300,000 characters because it listed every DATABASE ROW as a
+// page: 2393 of 2472 lines were the rows of a few boards. They sit at depth 2,
+// so a depth limit of 2 left every one of them in place — the answer shrank by
+// two percent. The fixture in this file is all documents, so it could never
+// have shown that, and the tests passed on a change that did nearly nothing.
+//
+// The browser never had this problem: handleListPages has always applied
+// liveTreeFilter, which keeps rows out of the tree. The MCP copy simply did not
+// use it.
+func boardWithRows(t *testing.T, s *Server, ws, uid string, rows int) {
+	t.Helper()
+	if _, err := s.db.Exec(`INSERT INTO pages (id, title, content, position, created_at, updated_at, workspace_id, owner_id, visibility, type)
+		VALUES ('board', 'Aufgaben', '[]', 0, ?, ?, ?, ?, 'workspace', 'collection')`, now(), now(), ws, uid); err != nil {
+		t.Fatalf("insert board: %v", err)
+	}
+	if _, err := s.db.Exec(`INSERT INTO collections (page_id, schema, views) VALUES ('board', '[]', '[]')`); err != nil {
+		t.Fatalf("insert collection: %v", err)
+	}
+	for i := 0; i < rows; i++ {
+		if _, err := s.db.Exec(`INSERT INTO pages (id, parent_id, title, content, position, created_at, updated_at, workspace_id, owner_id, visibility)
+			VALUES (?, 'board', ?, '[]', ?, ?, ?, ?, ?, 'workspace')`,
+			fmt.Sprintf("row%d", i), fmt.Sprintf("Aufgabe %d", i), i, now(), now(), ws, uid); err != nil {
+			t.Fatalf("insert row %d: %v", i, err)
+		}
+	}
+}
+
+// A board is one line, not one line per task.
+func TestDatabaseRowsAreNotListedAsPages(t *testing.T) {
+	s := testServer(t)
+	uid, _ := signedIn(t, s, "a@example.com")
+	ws := soleWorkspace(t, s, uid)
+	boardWithRows(t, s, ws, uid, 60)
+
+	out, err := s.mcpListPages(s.userByID(uid), "", 0)
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	if !strings.Contains(out, "Aufgaben") {
+		t.Fatalf("the board itself is missing:\n%s", out)
+	}
+	if strings.Contains(out, "Aufgabe 7") {
+		t.Errorf("the board's rows are listed as pages — this is what made the tree 300k:\n%s", out)
+	}
+	// The rows are not shown, so the count is the only thing saying the board is
+	// not empty.
+	if !strings.Contains(out, "60 rows") {
+		t.Errorf("the board gives no idea how much is in it:\n%s", out)
+	}
+}
+
+// A row that has sub-pages of its own still appears, or those sub-pages would
+// be unreachable from the tree. Same rule the browser applies.
+func TestARowWithSubPagesStaysInTheTree(t *testing.T) {
+	s := testServer(t)
+	uid, _ := signedIn(t, s, "a@example.com")
+	ws := soleWorkspace(t, s, uid)
+	boardWithRows(t, s, ws, uid, 3)
+	if _, err := s.db.Exec(`INSERT INTO pages (id, parent_id, title, content, position, created_at, updated_at, workspace_id, owner_id, visibility)
+		VALUES ('note', 'row1', 'Notiz zur Aufgabe', '[]', 0, ?, ?, ?, ?, 'workspace')`, now(), now(), ws, uid); err != nil {
+		t.Fatalf("insert note: %v", err)
+	}
+	out, err := s.mcpListPages(s.userByID(uid), "", 4)
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	if !strings.Contains(out, "Notiz zur Aufgabe") {
+		t.Errorf("a page hanging off a row became unreachable:\n%s", out)
+	}
+	if strings.Contains(out, "Aufgabe 2") {
+		t.Errorf("a row without sub-pages is still listed:\n%s", out)
+	}
+}
+
+// Templates are not tree pages either — list(kind: "templates") is where they
+// belong, and the browser has always kept them out of this answer.
+func TestTemplatesStayOutOfThePageTree(t *testing.T) {
+	s := testServer(t)
+	uid, _ := signedIn(t, s, "a@example.com")
+	ws := soleWorkspace(t, s, uid)
+	if _, err := s.db.Exec(`INSERT INTO pages (id, title, content, position, created_at, updated_at, workspace_id, owner_id, visibility, is_template)
+		VALUES ('t1', 'Vorlage Bericht', '[]', 0, ?, ?, ?, ?, 'workspace', 1)`, now(), now(), ws, uid); err != nil {
+		t.Fatalf("insert template: %v", err)
+	}
+	out, err := s.mcpListPages(s.userByID(uid), "", 0)
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	if strings.Contains(out, "Vorlage Bericht") {
+		t.Errorf("a template is listed as a page:\n%s", out)
+	}
+}

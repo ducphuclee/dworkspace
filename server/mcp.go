@@ -1547,9 +1547,15 @@ func (s *Server) mcpListPages(u *user, under string, depth int) (string, error) 
 	for i, v := range ws {
 		wargs[i] = v
 	}
-	rows, err := s.db.Query(`SELECT p.id, p.parent_id, p.title, p.type, p.workspace_id, COALESCE(w.name, '')
+	// liveTreeFilter, the browser's own rule, rather than a second one written
+	// here. Without it this listed every DATABASE ROW as a page: on the instance
+	// measured, 2393 of 2472 lines were rows of a few boards, which is what made
+	// the answer 300,000 characters — not the depth of the tree, which is all the
+	// first attempt at this limited. A row appears only when it has sub-pages of
+	// its own, so nothing hanging off one is orphaned. Templates stay out too.
+	rows, err := s.db.Query(templateCTE+` SELECT p.id, p.parent_id, p.title, p.type, p.workspace_id, COALESCE(w.name, '')
 		FROM pages p LEFT JOIN workspaces w ON w.id = p.workspace_id
-		WHERE p.trashed_at IS NULL AND p.workspace_id IN (`+placeholders(len(ws))+`)
+		WHERE p.workspace_id IN (`+placeholders(len(ws))+`) AND `+liveTreeFilter+`
 		ORDER BY w.name, p.position, p.created_at`, wargs...)
 	if err != nil {
 		return "", err
@@ -1585,6 +1591,33 @@ func (s *Server) mcpListPages(u *user, under string, depth int) (string, error) 
 		}
 		children[key] = append(children[key], n)
 	}
+	// How many rows each database holds. Without this a board comes back as one
+	// line with nothing on it — the rows are deliberately not listed, so the
+	// count is the only thing saying whether there is anything to query_rows for.
+	rowCounts := map[string]int{}
+	if cnt, err := s.db.Query(`SELECT r.parent_id, COUNT(*) FROM pages r
+		JOIN pages c ON c.id = r.parent_id AND c.type = 'collection'
+		WHERE r.trashed_at IS NULL AND c.workspace_id IN (`+placeholders(len(ws))+`)
+		GROUP BY r.parent_id`, wargs...); err == nil {
+		for cnt.Next() {
+			var id string
+			var n int
+			if cnt.Scan(&id, &n) == nil {
+				rowCounts[id] = n
+			}
+		}
+		cnt.Close()
+	}
+	label := func(ptype, id string) string {
+		if ptype != "collection" {
+			return ""
+		}
+		if n := rowCounts[id]; n > 0 {
+			return fmt.Sprintf(" [database, %d rows]", n)
+		}
+		return " [database]"
+	}
+
 	// How many pages sit below this one, at any depth — the number that makes
 	// "there is more here" worth acting on rather than merely true.
 	var below func(id string) int
@@ -1604,11 +1637,7 @@ func (s *Server) mcpListPages(u *user, under string, depth int) (string, error) 
 			if title == "" {
 				title = "Untitled"
 			}
-			kind := ""
-			if n.ptype == "collection" {
-				kind = " [database]"
-			}
-			fmt.Fprintf(&b, "%s- %s (id: %s)%s\n", indent, title, n.id, kind)
+			fmt.Fprintf(&b, "%s- %s (id: %s)%s\n", indent, title, n.id, label(n.ptype, n.id))
 			if left > 1 {
 				walk(n.id, indent+"  ", left-1)
 				continue
@@ -1659,11 +1688,7 @@ func (s *Server) mcpListPages(u *user, under string, depth int) (string, error) 
 				if title == "" {
 					title = "Untitled"
 				}
-				kind := ""
-				if r.ptype == "collection" {
-					kind = " [database]"
-				}
-				fmt.Fprintf(&b, "  - %s (id: %s)%s\n", title, r.id, kind)
+				fmt.Fprintf(&b, "  - %s (id: %s)%s\n", title, r.id, label(r.ptype, r.id))
 				if depth > 1 {
 					walk(r.id, "    ", depth-1)
 				} else if rest := below(r.id); rest > 0 {

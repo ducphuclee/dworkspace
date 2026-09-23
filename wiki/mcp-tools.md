@@ -291,11 +291,17 @@ What each returns:
   workspace you mean](#saying-which-workspace-you-mean). With one workspace the
   tree stays plain. Empty answer: `No pages yet.`
 
-  **Two levels deep by default.** This used to render the tree entire, which on
-  a real instance is 2539 lines and 305,000 characters — measured twice in one
-  session by exceeding an agent's token limit outright, so the answer had to be
-  spilled to a file and grepped. A branch that goes further now says what it
-  holds and how to open it:
+  **Database rows are not pages here.** A board appears as one line,
+  `- Aufgaben (id: …) [database, 60 rows]`, and its rows are read with
+  `query_rows`, which is paginated. This is the whole reason the answer used to
+  run to 305,000 characters: 2393 of its 2472 lines were the rows of a few
+  boards. The browser never had the problem — `handleListPages` has always
+  applied the same tree filter — the MCP copy simply did not use it. A row that
+  has sub-pages of its own still appears, so nothing hanging off one becomes
+  unreachable, and templates stay out (they have their own `kind`).
+
+  **Two levels deep by default**, for trees that are genuinely deep rather than
+  wide. A branch that goes further says what it holds and how to open it:
 
   ```
   - Handbuch (id: root)

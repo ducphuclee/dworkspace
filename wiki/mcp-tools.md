@@ -393,7 +393,7 @@ property, with select option ids resolved to their names.
 
 #### A long page comes back as an outline
 
-Over **8000 characters** (about 2000 tokens) a document is not returned whole.
+Over **8000 characters** (about 2000 tokens) a document is not returned whole. Characters, not bytes — otherwise the same page would be abbreviated sooner in Vietnamese or German than in English, purely because accented characters weigh more in UTF-8.
 You get its heading tree with the size of each section, plus the opening
 paragraph before the first heading:
 
@@ -451,7 +451,7 @@ section of a setup document needs the JSON block intact.
 one level deeper than its parent (capped at six), separated by `---`, with
 sub-pages you may not read silently skipped.
 
-Over **24000 characters** the sub-tree is not concatenated either. You get this
+Over **24000 characters** (again characters, not bytes) the sub-tree is not concatenated either. You get this
 page in full — it is normally the index page, and a manifest without it is a
 list of titles with nothing to choose on — followed by the shape of what hangs
 off it, with a size and an id against each:

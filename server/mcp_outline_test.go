@@ -362,3 +362,50 @@ func TestTheManifestHidesWhatYouMayNotRead(t *testing.T) {
 		t.Errorf("the readable sub-pages went missing too:\n%s", out)
 	}
 }
+
+// Size is counted in CHARACTERS, not bytes.
+//
+// The first version used len(), which is bytes. The threshold then meant
+// something different in every language: a page of Vietnamese or German hit the
+// limit sooner than an English page of exactly the same length, because its
+// characters weigh more in UTF-8. On the instance this was built for the ratio
+// is 1.148 bytes per character, so "8000" really bit at about 6965 — and which
+// pages got abbreviated depended on their accents.
+//
+// Two pages of the SAME character count, one ASCII and one not, must be treated
+// alike. Both need HEADINGS: without them a long page is returned whole whatever
+// the threshold says, and the first version of this test passed for exactly
+// that reason — it never reached the code it was meant to be testing.
+func TestTheSizeLimitDoesNotDependOnTheLanguage(t *testing.T) {
+	s := testServer(t)
+	uid, _ := signedIn(t, s, "a@example.com")
+	ws := soleWorkspace(t, s, uid)
+
+	const runes = outlineThreshold - 500 // just inside the limit, counted properly
+	write := func(id, filler string) {
+		content := fmt.Sprintf(`[{"type":"heading","props":{"level":1},"content":[{"type":"text","text":"Head"}]},`+
+			`{"type":"paragraph","content":[{"type":"text","text":%q}]}]`, filler)
+		if _, err := s.db.Exec(`INSERT INTO pages (id, title, content, position, created_at, updated_at, workspace_id, owner_id, visibility)
+			VALUES (?, ?, ?, 0, ?, ?, ?, ?, 'workspace')`, id, id, content, now(), now(), ws, uid); err != nil {
+			t.Fatalf("insert %s: %v", id, err)
+		}
+	}
+	ascii := strings.Repeat("a", runes)
+	// i18n-ok: not language, just a character that costs two bytes in UTF-8.
+	accented := strings.Repeat("ä", runes)
+	if len(accented) <= len(ascii) {
+		t.Fatalf("the fixture does not test anything: both are %d bytes", len(ascii))
+	}
+	write("plain", ascii)
+	write("accented", accented)
+
+	plainWhole := strings.Contains(readPage(t, s, "plain", false, ""), ascii)
+	accentedWhole := strings.Contains(readPage(t, s, "accented", false, ""), accented)
+	if !plainWhole {
+		t.Fatal("the ascii page was abbreviated although it is inside the limit — the fixture is wrong")
+	}
+	if !accentedWhole {
+		t.Error("same character count, abbreviated anyway: the limit is counting bytes, " +
+			"so accented text is cut sooner than ascii of identical length")
+	}
+}

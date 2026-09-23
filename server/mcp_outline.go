@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"unicode/utf8"
 )
 
 // Reading a long page without swallowing it whole.
@@ -35,10 +36,17 @@ import (
 
 // outlineThreshold is where get_page stops handing back the whole page.
 //
-// 8000 characters is about 2000 tokens. On the instance this was measured
-// against it leaves 84% of pages untouched and catches the 28 that are worth
-// catching, which is the shape you want: the agent that reads an ordinary note
-// never learns this mechanism exists.
+// 8000 CHARACTERS, counted as runes and not as bytes. The first version of this
+// used len(), which is bytes, while the distribution it was chosen from was
+// measured in characters — so on the instance it was built for, whose pages run
+// at 1.148 bytes per character, the limit really bit at about 6965 and caught
+// 35 pages rather than the 28 intended. Worse than the wrong number: a page of
+// Vietnamese was abbreviated sooner than an English page of the same length,
+// for no reason a reader could see. Runes make the limit mean the same thing in
+// every language the instance is written in.
+//
+// 8000 is roughly 2000 tokens, and leaves about four fifths of pages untouched:
+// the agent reading an ordinary note never learns this mechanism exists.
 const outlineThreshold = 8000
 
 // listDepthDefault is how far down the page tree list goes before it stops and
@@ -52,9 +60,10 @@ const listDepthDefault = 2
 // Higher than outlineThreshold on purpose: asking for the children IS asking
 // for more, and a budget that punished that would just push agents into reading
 // the pages one at a time, which costs more calls for the same words. 24000
-// characters is about 6000 tokens. On the instance measured, it leaves 54 of 62
-// sub-trees untouched and catches the eight that matter — the worst of which is
-// 152,354 characters across 16 pages, some 38,000 tokens in a single answer.
+// characters is about 6000 tokens, counted in runes for the reason above. On the
+// instance measured, it leaves 54 of 62 sub-trees untouched and catches the
+// eight that matter — the worst of which is 152,354 characters across 16 pages,
+// some 38,000 tokens in a single answer.
 const subtreeThreshold = 24000
 
 // headingSep joins a heading path. Same separator as chunks.go, so the address
@@ -144,7 +153,7 @@ func sectionsOf(content []byte) []pageSection {
 		}
 		var b strings.Builder
 		renderBlocks(&b, cur.Blocks, 0)
-		cur.Chars = len(b.String())
+		cur.Chars = utf8.RuneCountInString(b.String())
 		out = append(out, cur)
 	}
 	for _, blk := range flat {
@@ -229,7 +238,7 @@ func pageReadout(p *page, outline bool, section string) (string, error) {
 	head += title
 
 	full := blocksToMarkdown(p.Content)
-	if outline || (section == "" && len(full) > outlineThreshold) {
+	if outline || (section == "" && utf8.RuneCountInString(full) > outlineThreshold) {
 		secs := sectionsOf(p.Content)
 		// A long page with no headings cannot be abbreviated into anything
 		// useful, and an outline of one line would be a worse answer than the
@@ -237,7 +246,7 @@ func pageReadout(p *page, outline bool, section string) (string, error) {
 		if headedCount(secs) == 0 {
 			if outline {
 				return head + "\n\n(this page has no headings, so there is no outline — " +
-					approxSize(len(full)) + " in all)\n", nil
+					approxSize(utf8.RuneCountInString(full)) + " in all)\n", nil
 			}
 			return head + "\n\n" + full, nil
 		}

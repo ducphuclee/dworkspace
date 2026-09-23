@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"unicode/utf8"
 )
 
 // Agent parity, part 1: pages and content.
@@ -319,7 +320,7 @@ func (s *Server) mcpSubtree(userID, pageID string) (string, error) {
 		if err := s.db.QueryRow(`SELECT title, content FROM pages WHERE id = ? AND trashed_at IS NULL`, id).Scan(&title, &content); err != nil {
 			return fmt.Errorf("page %q not found", id)
 		}
-		n := len(blocksToMarkdown([]byte(content)))
+		n := utf8.RuneCountInString(blocksToMarkdown([]byte(content)))
 		total += n
 		nodes = append(nodes, subtreeNode{ID: id, Title: title, Depth: depth, Chars: n})
 		kids, err := s.db.Query(`SELECT id FROM pages WHERE parent_id = ? AND trashed_at IS NULL ORDER BY position`, id)

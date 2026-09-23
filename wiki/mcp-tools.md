@@ -451,6 +451,27 @@ section of a setup document needs the JSON block intact.
 one level deeper than its parent (capped at six), separated by `---`, with
 sub-pages you may not read silently skipped.
 
+Over **24000 characters** the sub-tree is not concatenated either. You get this
+page in full — it is normally the index page, and a manifest without it is a
+list of titles with nothing to choose on — followed by the shape of what hangs
+off it, with a size and an id against each:
+
+```
+4 sub-page(s), ~40.0k chars in all — more than one answer should carry, so
+here is what is there rather than all of it:
+
+- Kapitel eins (id: c1) — ~10.0k chars
+  - Abschnitt (id: gk) — ~10.0k chars
+- Kapitel zwei (id: c2) — ~10.0k chars
+```
+
+The budget is higher than a single page's 8000 on purpose: asking for the
+children **is** asking for more, and punishing that would only push you into
+reading the pages one at a time, which costs more calls for the same words. On
+the instance measured it leaves 54 of 62 sub-trees untouched and catches the
+eight that matter — the worst being 152,354 characters across 16 pages, some
+38,000 tokens in one answer. A page with no children is never given a manifest.
+
 **The two forms are not the same read**, and on a database the difference is
 large. The table above is what a plain `get_page` produces. With
 `include_children` the sub-tree export runs, which renders each page's own

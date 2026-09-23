@@ -302,6 +302,64 @@ func (s *Server) mcpExportMarkdown(userID, pageID string, recursive bool) (strin
 	return out.String(), nil
 }
 
+// mcpSubtree is include_children: the page and everything under it, unless that
+// is more than an answer should carry.
+//
+// The size is worked out before anything is rendered, because the decision is
+// whether to render at all. Over the budget the root comes back in full — it is
+// normally the index page, and a manifest without it is a list of titles with
+// nothing to choose on — followed by the shape of the sub-tree with a size
+// against each page.
+func (s *Server) mcpSubtree(userID, pageID string) (string, error) {
+	var nodes []subtreeNode
+	total := 0
+	var measure func(id string, depth int) error
+	measure = func(id string, depth int) error {
+		var title, content string
+		if err := s.db.QueryRow(`SELECT title, content FROM pages WHERE id = ? AND trashed_at IS NULL`, id).Scan(&title, &content); err != nil {
+			return fmt.Errorf("page %q not found", id)
+		}
+		n := len(blocksToMarkdown([]byte(content)))
+		total += n
+		nodes = append(nodes, subtreeNode{ID: id, Title: title, Depth: depth, Chars: n})
+		kids, err := s.db.Query(`SELECT id FROM pages WHERE parent_id = ? AND trashed_at IS NULL ORDER BY position`, id)
+		if err != nil {
+			return err
+		}
+		var ids []string
+		for kids.Next() {
+			var k string
+			if err := kids.Scan(&k); err != nil {
+				kids.Close()
+				return err
+			}
+			ids = append(ids, k)
+		}
+		kids.Close() // drain before the recursion needs the connection
+		for _, k := range ids {
+			if !s.canRead(userID, k) {
+				continue
+			}
+			if err := measure(k, depth+1); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	if err := measure(pageID, 0); err != nil {
+		return "", err
+	}
+	// Under budget, or nothing below it to leave out: the old answer, unchanged.
+	if total <= subtreeThreshold || len(nodes) < 2 {
+		return s.mcpExportMarkdown(userID, pageID, true)
+	}
+	root, err := s.mcpExportMarkdown(userID, pageID, false)
+	if err != nil {
+		return "", err
+	}
+	return root + subtreeManifest(pageID, nodes, total), nil
+}
+
 func min(a, b int) int {
 	if a < b {
 		return a

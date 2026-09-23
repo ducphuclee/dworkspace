@@ -46,9 +46,51 @@ const outlineThreshold = 8000
 // is the depth at which the answer is still a map rather than the territory.
 const listDepthDefault = 2
 
+// subtreeThreshold is where include_children stops concatenating and hands back
+// a manifest instead.
+//
+// Higher than outlineThreshold on purpose: asking for the children IS asking
+// for more, and a budget that punished that would just push agents into reading
+// the pages one at a time, which costs more calls for the same words. 24000
+// characters is about 6000 tokens. On the instance measured, it leaves 54 of 62
+// sub-trees untouched and catches the eight that matter — the worst of which is
+// 152,354 characters across 16 pages, some 38,000 tokens in a single answer.
+const subtreeThreshold = 24000
+
 // headingSep joins a heading path. Same separator as chunks.go, so the address
 // an agent reads out of a search hit is the address section takes.
 const headingSep = " › "
+
+// subtreeNode is one page in a manifest: what it is called, what it costs, and
+// the id to read it with.
+type subtreeNode struct {
+	ID    string
+	Title string
+	Depth int
+	Chars int
+}
+
+// subtreeManifest is the include_children answer for a sub-tree too big to
+// concatenate: the root page in full, then the shape of what hangs off it.
+//
+// The root comes back whole because it is usually the index page — the thing
+// that says what the sub-pages ARE. A manifest without it is a list of titles
+// and no reason to prefer any of them.
+func subtreeManifest(root string, nodes []subtreeNode, total int) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "\n\n---\n\n%d sub-page(s), %s in all — more than one answer should carry, "+
+		"so here is what is there rather than all of it:\n\n", len(nodes)-1, approxSize(total))
+	for _, n := range nodes[1:] {
+		title := n.Title
+		if title == "" {
+			title = "Untitled"
+		}
+		fmt.Fprintf(&b, "%s- %s (id: %s) — %s\n", strings.Repeat("  ", n.Depth-1), title, n.ID, approxSize(n.Chars))
+	}
+	b.WriteString("\nRead one with get_page(page_id) — a long one will answer with its outline. " +
+		"list(kind: \"pages\", under: \"" + root + "\") gives the same shape without the sizes.\n")
+	return b.String()
+}
 
 // pageSection is one heading and everything under it, down to the next heading
 // of the same or a higher level.

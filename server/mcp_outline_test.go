@@ -237,3 +237,128 @@ func TestASectionKeepsItsFormatting(t *testing.T) {
 		t.Errorf("the list marker was lost:\n%s", out)
 	}
 }
+
+// include_children was the half left undone: it concatenated a whole sub-tree
+// with no cap at all. Measured on the live instance, the biggest root comes to
+// 152,354 characters across 16 pages — roughly 38,000 tokens in one answer.
+func bigSubtree(t *testing.T, s *Server, ws, uid string) {
+	t.Helper()
+	filler := strings.Repeat("Ein Absatz über Zinsswaps und Fristen. ", 250) // ~9.5k each
+	mk := func(id, title string, parent any, body string) {
+		content := fmt.Sprintf(`[{"type":"paragraph","content":[{"type":"text","text":%q}]}]`, body)
+		if _, err := s.db.Exec(`INSERT INTO pages (id, parent_id, title, content, position, created_at, updated_at, workspace_id, owner_id, visibility)
+			VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, 'workspace')`, id, parent, title, content, now(), now(), ws, uid); err != nil {
+			t.Fatalf("insert %s: %v", id, err)
+		}
+	}
+	mk("root", "Handbuch", nil, "Was hier zu finden ist.")
+	mk("c1", "Kapitel eins", "root", filler)
+	mk("c2", "Kapitel zwei", "root", filler)
+	mk("c3", "Kapitel drei", "root", filler)
+	mk("gk", "Abschnitt", "c1", filler)
+}
+
+// Too big to concatenate: the root in full, then what is there.
+func TestABigSubtreeComesBackAsAManifest(t *testing.T) {
+	s := testServer(t)
+	uid, _ := signedIn(t, s, "a@example.com")
+	ws := soleWorkspace(t, s, uid)
+	bigSubtree(t, s, ws, uid)
+
+	out, err := s.mcpSubtree(uid, "root")
+	if err != nil {
+		t.Fatalf("subtree: %v", err)
+	}
+	if strings.Contains(out, "Zinsswaps") {
+		t.Errorf("the manifest carried the sub-page bodies it exists to replace (%d chars)", len(out))
+	}
+	// The root comes along whole: it is the index page, and a manifest without
+	// it is a list of titles with nothing to choose on.
+	if !strings.Contains(out, "Was hier zu finden ist") {
+		t.Errorf("the root page's own content was dropped:\n%s", out)
+	}
+	for _, want := range []string{"Kapitel eins", "Kapitel zwei", "Abschnitt", "id: c1", "id: gk"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("the manifest is missing %q:\n%s", want, out)
+		}
+	}
+	// Sizes, or there is no basis for picking one.
+	if !strings.Contains(out, "k chars") {
+		t.Errorf("the manifest gives no sizes:\n%s", out)
+	}
+}
+
+// A small sub-tree is concatenated exactly as before.
+func TestASmallSubtreeIsStillReturnedWhole(t *testing.T) {
+	s := testServer(t)
+	uid, _ := signedIn(t, s, "a@example.com")
+	ws := soleWorkspace(t, s, uid)
+	indexedPage(t, s, ws, uid, "root", "Klein", "Die Wurzel.")
+	if _, err := s.db.Exec(`INSERT INTO pages (id, parent_id, title, content, position, created_at, updated_at, workspace_id, owner_id, visibility)
+		VALUES ('kid', 'root', 'Kind', '[{"type":"paragraph","content":[{"type":"text","text":"Ein Kind."}]}]', 0, ?, ?, ?, ?, 'workspace')`,
+		now(), now(), ws, uid); err != nil {
+		t.Fatalf("insert: %v", err)
+	}
+	out, err := s.mcpSubtree(uid, "root")
+	if err != nil {
+		t.Fatalf("subtree: %v", err)
+	}
+	if !strings.Contains(out, "Ein Kind") {
+		t.Errorf("a small sub-tree was abbreviated:\n%s", out)
+	}
+	if strings.Contains(out, "sub-page(s)") {
+		t.Errorf("a small sub-tree got a manifest it does not need:\n%s", out)
+	}
+}
+
+// A long page with no children is not a sub-tree, and must not be answered with
+// a manifest of nothing.
+func TestALongPageWithNoChildrenIsNotManifested(t *testing.T) {
+	s := testServer(t)
+	uid, _ := signedIn(t, s, "a@example.com")
+	ws := soleWorkspace(t, s, uid)
+	indexedPage(t, s, ws, uid, "root", "Allein", strings.Repeat("Ein langer Absatz. ", 2000))
+
+	out, err := s.mcpSubtree(uid, "root")
+	if err != nil {
+		t.Fatalf("subtree: %v", err)
+	}
+	if strings.Contains(out, "sub-page(s)") {
+		t.Errorf("a childless page was given a manifest:\n%s", out)
+	}
+	if !strings.Contains(out, "Ein langer Absatz") {
+		t.Errorf("the body is missing:\n%s", out)
+	}
+}
+
+// Sub-pages the caller may not read are left out of the manifest as well as out
+// of the export — a title is information too.
+//
+// The reader here is a plain MEMBER on purpose: forbiddenPrivateAncestor lets a
+// workspace admin past every private page, so running this as the admin would
+// have passed without testing anything.
+func TestTheManifestHidesWhatYouMayNotRead(t *testing.T) {
+	s := testServer(t)
+	uid, _ := signedIn(t, s, "a@example.com")
+	ws := soleWorkspace(t, s, uid)
+	bigSubtree(t, s, ws, uid)
+
+	other, _ := signedIn(t, s, "other@example.com")
+	if _, err := s.db.Exec(`INSERT INTO workspace_members (workspace_id, user_id, role) VALUES (?, ?, 'member')`, ws, other); err != nil {
+		t.Fatalf("add member: %v", err)
+	}
+	if _, err := s.db.Exec(`UPDATE pages SET visibility = 'private' WHERE id = 'c2'`); err != nil {
+		t.Fatalf("hide: %v", err)
+	}
+
+	out, err := s.mcpSubtree(other, "root")
+	if err != nil {
+		t.Fatalf("subtree: %v", err)
+	}
+	if strings.Contains(out, "Kapitel zwei") {
+		t.Errorf("a private sub-page is named in the manifest:\n%s", out)
+	}
+	if !strings.Contains(out, "Kapitel eins") {
+		t.Errorf("the readable sub-pages went missing too:\n%s", out)
+	}
+}

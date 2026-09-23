@@ -135,7 +135,7 @@ var mcpTools = []map[string]any{
 				"page_id":          map[string]any{"type": "string"},
 				"outline":          map[string]any{"type": "boolean", "description": "Return only the heading tree with the size of each section, whatever the page's length. The cheapest way to find out whether a page is worth reading and which part of it."},
 				"section":          map[string]any{"type": "string", "description": "Read one section: the heading path as the outline writes it, e.g. \"Hợp đồng › Chấm dứt\". The last heading alone is accepted when it is unambiguous. Pass \"*\" to read a long page in full anyway."},
-				"include_children": map[string]any{"type": "boolean", "description": "Also return every sub-page, one after another (default false). This does NOT abbreviate — a whole sub-tree can be very large, so prefer reading the pages you need."},
+				"include_children": map[string]any{"type": "boolean", "description": "Also return every sub-page, one after another (default false). A sub-tree too large for one answer comes back as this page in full plus a list of what hangs off it, each with its size and id, so you can read the ones you need."},
 			},
 			"required": []string{"page_id"}},
 	},
@@ -1053,7 +1053,7 @@ func (s *Server) mcpCall(u *user, name string, rawArgs json.RawMessage, publicBa
 			// include_children replaces the old export_markdown, which was the
 			// same read with a flag on it.
 			if args.IncludeChildren || args.Recursive {
-				out, err := s.mcpExportMarkdown(userID, args.PageID, true)
+				out, err := s.mcpSubtree(userID, args.PageID)
 				if err != nil {
 					return "", err
 				}

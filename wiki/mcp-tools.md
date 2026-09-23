@@ -179,6 +179,44 @@ you can see more than one. `list` groups its roots under a
 `Workspace name (workspace_id: …)` heading, and `search` appends `[Workspace
 name]` to each hit's title. With a single workspace both stay plain.
 
+#### Never answer a missing `workspace_id` by creating a workspace
+
+Requiring the id opened a second way to get this wrong, and it showed up on a
+live instance within hours: an agent that was refused for want of a
+`workspace_id`, and that held only a workspace *name*, called `workspace` and
+created one by that name. That move always appears to succeed — it returns a
+real id, and the write after it goes through — so an empty duplicate
+"Stockbook" sat in the sidebar with nothing in the trace looking like an error.
+
+The workspace you want already exists. `list` with `kind="workspaces"` has its
+id. Three things now push you back towards the lookup:
+
+- A `workspace_id` you passed that does not resolve no longer dead-ends on
+  `workspace "…" not found`. It lists what you *can* write to, because a bare
+  "not found" reads as "this workspace does not exist" and invites making it.
+- `workspace` **refuses a name already used** by a workspace you are in, and the
+  refusal gives you that workspace's id — which is the thing you came without:
+
+  ```
+  you are already in a workspace called "Stockbook" (id: …), so this would make a
+  second one nobody can tell apart. If you came here because a write asked for
+  workspace_id, that id is the answer — pass it and do not create anything.
+  ```
+
+  Case and stray spacing do not count as a distinction. Someone else's workspace
+  of the same name does not block you — only the ones you are a member of.
+- The `workspace` tool's own description now leads with *create only when the
+  user asked for a new workspace in so many words*.
+
+Note this is the opposite of the rule one section above, and deliberately.
+There, a refusal must not reveal the answer, because your id is a second opinion
+to be compared against. Here there is nothing to compare — only a duplicate to
+prevent — so handing over the id is the whole point.
+
+The browser keeps its freedom: a person who deliberately wants two workspaces of
+the same name can still make them. The guard is on the MCP path, because this is
+an agent's mistake.
+
 ## Limits
 
 | Limit | Value |
@@ -1198,7 +1236,14 @@ More on what a visitor sees in [Sharing](sharing.md).
 
 ### workspace
 
-Create a workspace, or change one.
+Change a workspace, or create one.
+
+**Create only when the user asked for a new workspace in so many words.** If you
+are here because a write refused you for want of a `workspace_id`, this is the
+wrong tool — see [Never answer a missing `workspace_id` by creating a
+workspace](#never-answer-a-missing-workspace_id-by-creating-a-workspace). A
+workspace made by mistake cannot be tidied away from here and sits in
+everybody's sidebar.
 
 | Parameter | Type | Required |
 | --- | --- | --- |
@@ -1235,7 +1280,10 @@ on this instance`; `this connection is limited to particular workspaces, so it
 cannot create new ones — it would not be able to open them`; `pass workspace_id
 to set an icon — a new workspace is created with a name only`; `only a workspace
 admin can change "…"`; `nothing to change: pass name or icon`; `workspace "…"
-has no databases to copy — nothing to use as a blueprint`.
+has no databases to copy — nothing to use as a blueprint`; `you are already in a
+workspace called "…" (id: …), so this would make a second one nobody can tell
+apart …` — that last one applies to the blueprint path too, since it creates the
+workspace through the same door.
 
 ### propose_workspace_rules
 

@@ -98,7 +98,52 @@ func (s *Server) moveSubtreeToWorkspace(userID, pageID, targetWS string, tokenOK
 	return len(ids), nil
 }
 
+// sameWorkspaceName compares two names the way a person reading a sidebar
+// would: case and surrounding space do not make two workspaces different.
+func sameWorkspaceName(a, b string) bool {
+	return strings.EqualFold(strings.Join(strings.Fields(a), " "), strings.Join(strings.Fields(b), " "))
+}
+
+// workspaceNamed finds a workspace this person is already in whose name reads
+// the same as the one given, and returns its id and its name as stored. The
+// stored spelling is returned rather than the argument so the error shows what
+// is actually in the sidebar — "Stockbook" when the agent typed "stockbook".
+func (s *Server) workspaceNamed(userID, name string) (string, string) {
+	rows, err := s.db.Query(`SELECT w.id, w.name FROM workspaces w
+		JOIN workspace_members m ON m.workspace_id = w.id
+		WHERE m.user_id = ? ORDER BY w.created_at`, userID)
+	if err != nil {
+		return "", ""
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id, have string
+		if rows.Scan(&id, &have) == nil && sameWorkspaceName(have, name) {
+			return id, have
+		}
+	}
+	return "", ""
+}
+
 // mcpCreateWorkspace creates a workspace; the caller becomes its admin.
+//
+// The duplicate-name guard is here because requiring workspace_id on writes
+// gave a lost agent a way out that always succeeds. Asked to log something in
+// Stockbook, holding no id, it has two moves: look the id up, or create a
+// workspace called "Stockbook". The second one returns a real id and the write
+// after it goes through, so an agent that is even slightly unsure takes it —
+// and a second, empty "Stockbook" duly appeared on the live instance.
+//
+// So the name is the check. If this person already has a workspace by that
+// name then they are not creating anything; they are looking for that one, and
+// the refusal hands over the id they were missing. That is the opposite of the
+// rule in mcp_target.go, where a refusal must never reveal the answer — and
+// deliberately so. There the agent's id is a second opinion to compare against;
+// here there is nothing to compare, only a duplicate to prevent.
+//
+// The browser keeps its freedom: s.createWorkspace in workspaces.go is the
+// human path, and a person making a second "Stockbook" on purpose is not making
+// this mistake.
 func (s *Server) mcpCreateWorkspace(userID, name string) (string, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
@@ -111,6 +156,13 @@ func (s *Server) mcpCreateWorkspace(userID, name string) (string, error) {
 	}
 	if len([]rune(name)) > 80 {
 		return "", fmt.Errorf("name is too long")
+	}
+	if id, existing := s.workspaceNamed(userID, name); id != "" {
+		return "", fmt.Errorf(
+			"you are already in a workspace called %q (id: %s), so this would make a second one "+
+				"nobody can tell apart. If you came here because a write asked for workspace_id, "+
+				"that id is the answer — pass it and do not create anything. If you really want a "+
+				"separate workspace, give it a name that distinguishes the two", existing, id)
 	}
 	id := newID()
 	if _, err := s.db.Exec(`INSERT INTO workspaces (id, name, created_at, owner_id) VALUES (?, ?, ?, ?)`, id, name, now(), userID); err != nil {

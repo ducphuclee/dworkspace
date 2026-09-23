@@ -151,7 +151,19 @@ func (s *Server) mcpPlacementWorkspace(u *user, declared, derived, what string) 
 
 	// A declared workspace is checked as a workspace first, so "that is not a
 	// workspace you can write to" never comes back dressed as a mismatch.
+	//
+	// The choices come along because a bare "not found" is a dead end, and an
+	// agent at a dead end holding a workspace NAME it was given reaches for the
+	// one move that cannot fail: creating a workspace by that name. Listing what
+	// exists turns the dead end back into a lookup. (mcpCreateWorkspace refuses
+	// the duplicate as well, but by then the agent has already gone the wrong
+	// way — this is the earlier of the two places to stop it.)
 	if !s.isMember(u.ID, declared) || !s.credentialMayEnter(u, declared) {
+		if choices := s.mcpWritableWorkspaces(u); len(choices) > 0 {
+			return "", fmt.Errorf(
+				"workspace %q not found. You can write to: %s — one of these is the one you mean, "+
+					"so pick it rather than creating anything", declared, listChoices(choices))
+		}
 		return "", fmt.Errorf("workspace %q not found", declared)
 	}
 	if s.workspaceRole(u.ID, declared) == "viewer" {

@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -108,8 +109,8 @@ func New(dataDir string, dist fs.FS) (*Server, error) {
 		loginSem:  make(chan struct{}, 4),
 		events:    newEventHub(),
 		collab:    newCollabHub(),
-		mcpRate:   newRateLimiter(240, 60), // 240 writes/min per token, burst 60
-		loginRate: newRateLimiter(30, 10),  // 30 login attempts/min per IP, burst 10
+		mcpRate:   mcpRateLimiterFromEnv(),
+		loginRate: newRateLimiter(30, 10), // 30 login attempts/min per IP, burst 10
 		// Fed by REJECTED tokens only, so a working agent never touches it.
 		tokenRate:   newRateLimiter(60, 20),
 		formRate:    newRateLimiter(20, 8), // 20 public form submits/min per IP, burst 8
@@ -544,4 +545,27 @@ func httpErrorFrom(w http.ResponseWriter, status int, err error) {
 		return
 	}
 	httpError(w, status, err.Error())
+}
+
+// mcpRateLimiterFromEnv builds the per-account MCP tool-call limiter.
+//
+// It is off unless DWORKSPACE_MCP_RATE_PER_MINUTE is set to a positive number:
+// this instance serves one team whose own agents are the heavy callers, and a
+// limit there only turned bursts of legitimate reads into failed calls. Login,
+// token and form limiters are unaffected — they guard credentials, not load.
+// DWORKSPACE_MCP_RATE_BURST sets the burst; it defaults to a quarter of the
+// per-minute rate, which is the ratio the old fixed 240/60 limit used.
+func mcpRateLimiterFromEnv() *rateLimiter {
+	perMinute, err := strconv.ParseFloat(strings.TrimSpace(os.Getenv("DWORKSPACE_MCP_RATE_PER_MINUTE")), 64)
+	if err != nil || perMinute <= 0 {
+		return nil
+	}
+	burst, err := strconv.ParseFloat(strings.TrimSpace(os.Getenv("DWORKSPACE_MCP_RATE_BURST")), 64)
+	if err != nil || burst < 1 {
+		burst = perMinute / 4
+		if burst < 1 {
+			burst = 1
+		}
+	}
+	return newRateLimiter(perMinute, burst)
 }

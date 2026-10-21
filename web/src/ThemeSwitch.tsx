@@ -22,7 +22,7 @@ export default function ThemeSwitch({
   // t() once at import time and keep the first language forever.
   const OPTIONS: { value: ThemePref; icon: typeof Sun; label: string }[] = [
     { value: 'light', icon: Sun, label: t('Light') },
-    { value: 'auto', icon: Monitor, label: t('Automatic — follows the system') },
+    { value: 'auto', icon: Monitor, label: t('Automatic (follows the system)') },
     { value: 'dark', icon: Moon, label: t('Dark') },
   ];
   return (

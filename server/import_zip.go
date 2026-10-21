@@ -117,7 +117,7 @@ func (s *Server) handleImportZip(w http.ResponseWriter, r *http.Request) {
 
 	// Root parent: optional form value, else top level of the default workspace.
 	var rootParent *string
-	workspaceID := s.defaultWorkspaceFor(u)
+	workspaceID := s.createWorkspaceFor(u)
 	if pid := r.FormValue("parentId"); pid != "" {
 		if !s.canWriteReq(r, pid) {
 			httpError(w, 403, "forbidden")
@@ -130,7 +130,7 @@ func (s *Server) handleImportZip(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if workspaceID == "" {
-		httpError(w, 400, "no workspace")
+		httpErrorCode(w, 403, "no_writable_workspace", "There is no workspace this account may create pages in.")
 		return
 	}
 

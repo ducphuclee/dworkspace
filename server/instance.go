@@ -64,10 +64,9 @@ func (s *Server) handleAdminBackup(w http.ResponseWriter, r *http.Request) {
 	// Owner, not admin: this archive holds EVERY workspace, all uploads,
 	// password hashes and session tokens. Handed to an admin, the whole
 	// separation would be void — a per-workspace export would just be the more
-	// laborious route to
-	// denselben Daten.
+	// laborious route to the same data.
 	if !s.isOwner(requestUser(r).ID) {
-		httpErrorCode(w, 403, "owner_only_backup", "Only the owner can download an instance backup — it contains every workspace.")
+		httpErrorCode(w, 403, "owner_only_backup", "Only the owner can download an instance backup. It contains every workspace.")
 		return
 	}
 	tmp, err := os.CreateTemp("", "dworkspace-backup-*.tar.gz")

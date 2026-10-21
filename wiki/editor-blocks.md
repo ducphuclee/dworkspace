@@ -3,19 +3,19 @@
 The body of a document is a stack of **blocks**. A paragraph is a block, so is a
 heading, a list item, a table, an image, a callout, a whole two-column layout.
 You reach every one of them the same three ways: the slash menu, a Markdown
-shortcut, or a keyboard shortcut. This page is the complete catalogue — what
+shortcut, or a keyboard shortcut. This page is the complete catalogue: what
 each block is, how to get it, what it does when you click it, and what happens
 to it when the page leaves dworkspace as Markdown.
 
 Everything here applies to **documents** and to **collection rows** (a row is a
 page with a body like any other). A collection page itself shows its table
-instead of a body — see [Collections](collections.md).
+instead of a body. See [Collections](collections.md).
 
 ## Before the blocks: how the editor behaves
 
 **It saves itself.** There is no save button. Your keystrokes go to the other
 people on the page immediately over the realtime connection, and a copy of the
-document is written to the server after **1.5 seconds** of quiet — that copy is
+document is written to the server after **1.5 seconds** of quiet. That copy is
 what search, the exports, the backlink index and the API read. If a write fails
 you get the notice *Page content not saved* and it retries on your next change
 and again when you leave the page. See [Collaboration](collaboration.md).
@@ -23,20 +23,21 @@ and again when you leave the page. See [Collaboration](collaboration.md).
 **It is read-only when you may not write.** A viewer sees the document rendered
 with no cursor, no slash menu, no drag handles, rather than an editable-looking
 page whose writes the server would reject. Dropping a file onto such a page does
-nothing and says nothing — the drop zone, the dashed outline and the bar at the
+nothing and says nothing: the drop zone, the dashed outline and the bar at the
 bottom are all switched off. See [Permissions](permissions.md).
 
 **An agent writing into the page replaces what you see.** When something writes
-through the API or MCP with `write_content` — in any of its three modes — the
+through the API or MCP with `write_content`, in any of its three modes, the
 live document is discarded and your editor reloads the stored content. Unsaved
-keystrokes from the last moment before that are lost. `append` is the default
+keystrokes from the last moment before that do not make it into the new text;
+they are kept in the page's version history. `append` is the default
 mode because it is the one that cannot destroy what is already on the page, not
 because it spares open editors. See [Agents](agents.md).
 
 **The editor's own menus are English**, always, including on an instance running
 in another language. The four blocks dworkspace adds itself are translated; the
-menus that come with the editor — the slash menu's built-in entries, the block
-menu, the formatting toolbar — are not.
+menus that come with the editor (the slash menu's built-in entries, the block
+menu, the formatting toolbar) are not.
 
 ## Getting a block
 
@@ -53,39 +54,41 @@ other text, the new block is inserted **after** it.
 | Entry | Group | Shortcut shown |
 | --- | --- | --- |
 | **Heading 1**, **Heading 2**, **Heading 3** | Headings | `Mod-Alt-1` … `3` |
-| **Quote** | Basic blocks | — |
+| **Quote** | Basic blocks | none |
 | **Toggle List** | Basic blocks | `Mod-Shift-6` |
 | **Numbered List** | Basic blocks | `Mod-Shift-7` |
 | **Bullet List** | Basic blocks | `Mod-Shift-8` |
 | **Check List** | Basic blocks | `Mod-Shift-9` |
 | **Paragraph** | Basic blocks | `Mod-Alt-0` |
 | **Code Block** | Basic blocks | `Mod-Alt-c` |
-| **Divider** | Basic blocks | — |
-| **Columns** | Basic blocks | — |
-| **Callout** | Basic blocks | — |
-| **Embed a collection** | Basic blocks | — |
-| **Table of contents** | Basic blocks | — |
-| **Table** | Advanced | — |
-| **Diagram** | Advanced | — |
-| **Image**, **Video**, **Audio**, **File** | Media | — |
-| **Bookmark / Embed** | Media | — |
-| **Toggle Heading 1** … **3** | Subheadings | — |
+| **Divider** | Basic blocks | none |
+| **Columns** | Basic blocks | none |
+| **Callout** | Basic blocks | none |
+| **Embed a collection** | Basic blocks | none |
+| **Table of contents** | Basic blocks | none |
+| **Sub-pages** | Basic blocks | none |
+| **Table** | Advanced | none |
+| **Diagram** | Advanced | none |
+| **Image**, **Video**, **Audio**, **File** | Media | none |
+| **Bookmark / Embed** | Media | none |
+| **Toggle Heading 1** … **3** | Subheadings | none |
 | **Heading 4**, **Heading 5**, **Heading 6** | Subheadings | `Mod-Alt-4` … `6` |
-| **Emoji** | Others | — |
+| **Emoji** | Others | none |
 
 `Mod` is ⌘ on a Mac and Ctrl elsewhere. Every shortcut in that column works
-whether or not the menu is open — **except `Mod-Alt-c`**, which is printed
+whether or not the menu is open, **except `Mod-Alt-c`**, which is printed
 beside **Code Block** but is bound to no key at all. One shortcut goes the other
 way and is advertised nowhere: `Mod-Alt-q` turns the current block into a quote.
 
-The six dworkspace blocks carry a one-line description in the menu:
+The seven dworkspace blocks carry a one-line description in the menu:
 
-- **Columns** — *Two blocks side by side*
-- **Diagram** — *A flow chart written as text*
-- **Callout** — *A highlighted note with an emoji*
-- **Bookmark / Embed** — *A link card, or a YouTube/Vimeo player*
-- **Embed a collection** — *Show an existing collection inside the document*
-- **Table of contents** — *Auto-generated list of every heading*
+- **Columns**: *Two blocks side by side*
+- **Diagram**: *A flow chart written as text*
+- **Callout**: *A highlighted note with an emoji*
+- **Bookmark / Embed**: *A link card, or a YouTube/Vimeo player*
+- **Embed a collection**: *Show an existing collection inside the document*
+- **Table of contents**: *Auto-generated list of every heading*
+- **Sub-pages**: *List of pages below this one*
 
 **Columns** is a block that holds nothing itself. Inserting it gives you two
 empty blocks side by side; the small **2 / 3** control at its right edge, which
@@ -98,8 +101,8 @@ their widths. Both are worth having; neither was worth a component whose licence
 would have to be renegotiated the day any part of dworkspace is closed.
 
 **Diagram** is written, not drawn. The block holds
-[Mermaid](https://mermaid.js.org) source — `A --> B` rather than coordinates for
-every box — and draws it. Click the picture to get back to the text; leave the
+[Mermaid](https://mermaid.js.org) source (`A --> B` rather than coordinates for
+every box) and draws it. Click the picture to get back to the text; leave the
 box and it is redrawn. Escape discards.
 
 Written rather than drawn is the point: an agent can produce one. Placing boxes
@@ -109,7 +112,7 @@ agent changes it with an ordinary write.
 
 The drawing is kept on the block beside its source. That is what puts it in a
 PDF: the print view is built by the server, which cannot draw. A diagram that an
-agent wrote and nobody has opened yet has no drawing — the export prints its
+agent wrote and nobody has opened yet has no drawing: the export prints its
 source instead, which is worth more than a gap. Open the page once and the
 picture is there from then on.
 
@@ -120,13 +123,13 @@ the English words.
 ### Markdown shortcuts
 
 Type these at the start of an empty block; the shortcut fires on the space that
-follows — except `---`, which fires on the third hyphen with no space involved.
+follows, except `---`, which fires on the third hyphen with no space involved.
 
 | You type | You get |
 | --- | --- |
 | `# ` … `###### ` | Heading 1 to 6 |
 | `- `, `* `, `+ ` | Bullet list item |
-| `1. ` | Numbered list item — any number, and the list starts there |
+| `1. ` | Numbered list item (any number, and the list starts there) |
 | `[] ` | Check list item, unchecked |
 | `[x] ` | Check list item, checked |
 | `> ` | Quote |
@@ -141,7 +144,7 @@ Inline, while you write anywhere in a block:
 | `*italic*` or `_italic_` | *italic* | `Mod+I` |
 | `~~strike~~` | struck through | `Mod+Shift+S` |
 | `` `code` `` | inline code | `Mod+E` |
-| — | underline | `Mod+U` |
+| none | underline | `Mod+U` |
 
 Underscores are only read as emphasis when the opening one starts the line or
 follows a space, so `my_var_name` stays literal.
@@ -152,8 +155,8 @@ Typing `:` followed by at least two letters opens the **emoji picker**; typing
 ### The block handles
 
 Hover a block and two controls appear in the left margin: **Add block** (`+`),
-which opens the slash menu — on the current block if it is empty, otherwise on a
-fresh paragraph below it — and **Open block menu** (the grip), which is also the
+which opens the slash menu (on the current block if it is empty, otherwise on a
+fresh paragraph below it), and **Open block menu** (the grip), which is also the
 drag handle. The menu holds **Delete** and **Colors** (text and background, nine
 named colours plus *Auto*).
 
@@ -168,12 +171,13 @@ their widths.
 | --- | --- |
 | `Tab` | Nest the current block under the one above it |
 | `Shift+Tab` | Unnest it |
-| `Shift+Mod+↑` / `↓` | Move the block up or down past its neighbour |
+| `Shift+Mod+↑` / `↓`, or `Alt+↑` / `↓` | Move the block up or down past its neighbour |
+| `Ctrl+Enter` | Tick or untick a checklist item; with several lines selected, every item in them |
 | `Mod+Z` | Undo |
 | `Mod+Shift+Z`, `Mod+Y` | Redo |
 
 **Undo is yours alone.** In a document two people are editing, undo takes back
-*your* last change, not whatever happened most recently — a co-author's
+*your* last change, not whatever happened most recently: a co-author's
 paragraph cannot be undone out from under them.
 
 `Tab` has two exceptions: inside a table it moves to the next cell, and inside a
@@ -205,7 +209,7 @@ by the outline of the exported HTML.
 
 **Toggle Heading 1–3** is a heading that can be collapsed, with the blocks under
 it as its content. It is an ordinary heading carrying one extra setting, not a
-block type of its own — which is why it exports as a plain heading (below).
+block type of its own, which is why it exports as a plain heading (below).
 
 ### Lists
 
@@ -228,7 +232,7 @@ differently inside it:
 
 - **Tab** inserts two spaces instead of nesting the block.
 - **Shift+Enter** leaves the block and starts a paragraph underneath.
-- **Enter** at the end inserts a line break — until two blank lines have piled
+- **Enter** at the end inserts a line break, until two blank lines have piled
   up, at which point the next Enter removes them and puts the cursor in a
   paragraph below. That is the other way out.
 - **Delete** in an empty code block removes the block.
@@ -244,7 +248,7 @@ A horizontal rule. Type `---`.
 ### Table
 
 A table of text with editable cells, **three columns and two rows** to start. A
-cell holds inline content — text, bold, italic, links — not blocks.
+cell holds inline content (text, bold, italic, links), not blocks.
 
 Moving around: **Tab** goes to the next cell, **Shift+Tab** to the previous one,
 **Enter** to the cell below. **Backspace** at the start of a cell does nothing,
@@ -268,31 +272,31 @@ merged or split, a cell has no background colour of its own, and there is no
 header row to mark. The Markdown export writes a separator line after the first
 row anyway, so the top row reads as the heading wherever the file lands.
 
-The slash menu does open inside a cell, but a cell has no room for blocks — what
+The slash menu does open inside a cell, but a cell has no room for blocks: what
 you pick is inserted **after** the table.
 
 This is a table of text, not a database. If the rows need types, filters, a
-board or a calendar, use a [collection](collections.md) instead — and if you
+board or a calendar, use a [collection](collections.md) instead, and if you
 want it inside this document, embed it (below).
 
 ### Columns
 
 **Two Columns** and **Three Columns** insert a layout of empty columns. Blocks
 are dragged in and out; column widths are dragged. Columns are a layout, not
-content — a Markdown export flattens them back into one sequence.
+content: a Markdown export flattens them back into one sequence.
 
 ### Image, Video, Audio, File
 
 Four blocks around one uploaded byte. An empty one shows **Add image** /
 **Add video** / **Add audio** / **Add file** and opens a panel with two tabs:
 
-- **Upload** — pick a file from this machine.
-- **Embed** — paste an address that is already on the web (*Enter URL*), then
+- **Upload**: pick a file from this machine.
+- **Embed**: paste an address that is already on the web (*Enter URL*), then
   **Embed image** / **Embed video** / **Embed audio** / **Embed file**.
 
 Once filled, the toolbar over the block offers **Edit caption**, **Replace
 file**, **Rename file**, **Download file**, **Delete file** and **Toggle
-preview** — and those four middle labels name the block's own type, so an image
+preview**, and those four middle labels name the block's own type, so an image
 block says **Replace image**, **Rename image** and so on. An image or video
 shown as a preview is resized by dragging the handle at either edge.
 
@@ -305,7 +309,7 @@ byte on this instance.
 **A PDF file block opens in a viewer instead of downloading.** Click the file
 name and the document opens full screen with its name, a **Download** button and
 **Close**; Escape closes it too. This only happens for PDFs that were uploaded
-to this instance — a file block pointing at somebody else's server keeps opening
+to this instance. A file block pointing at somebody else's server keeps opening
 the ordinary way, because a foreign address is not something dworkspace will frame.
 Office formats are not previewed: no browser reads them without help, and the
 help costs either the single-binary install or the promise that a self-hosted
@@ -313,9 +317,11 @@ instance keeps its documents to itself.
 
 ### Callout
 
-A boxed note with an emoji at the left. Click the emoji to cycle it — the
-tooltip says *Change symbol* — through 💡 ⚠️ ❗ ✅ 📌 🔥 ℹ️ and back to the
-start. The text beside it is ordinary inline content.
+A boxed note with an emoji at the left. Click the emoji to cycle it (the
+tooltip says *Change symbol*) through 💡 ⚠️ ❗ ✅ 📌 🔥 ℹ️ and back to the
+start. Its background follows the symbol: light gray for 💡 and 📌, yellow for
+⚠️, red for ❗, green for ✅, amber for 🔥, and light blue for ℹ️. Dark mode uses
+muted shades of the same colors. The text beside it is ordinary inline content.
 
 ### Table of contents
 
@@ -327,8 +333,19 @@ With no headings yet it says *No headings.*
 It reaches nested headings too: a heading inside a toggle, or inside a column,
 is listed like any other.
 
-Because it is generated on the spot, it is the one block that exports as
-nothing at all.
+Because it is generated on the spot, it exports as nothing at all.
+
+### Sub-pages
+
+A list of the page's direct sub-pages, in their order in the sidebar, headed
+**Sub-pages**. A click opens one; ⌘-click (Ctrl-click on Windows and Linux) or
+the middle button opens it in a second tab, the same as in the sidebar. It
+lists only sub-pages you may read, so a colleague's private sub-page does not
+appear for you. With none it says *No sub-pages.*
+
+Like the table of contents it is built on the spot, so it exports as nothing:
+not in Markdown, not in the HTML download, not on paper and not on a shared
+page.
 
 ### Bookmark / Embed
 
@@ -344,7 +361,7 @@ What you get back depends on the address:
 | anything else | a link card: 🔖, the full address, and the host underneath |
 
 Anything that is not `http`, `https` or `mailto` is refused as a destination and
-the card leads nowhere — a link planted through the API or through the realtime
+the card leads nowhere: a link planted through the API or through the realtime
 connection cannot smuggle a script into the page that way.
 
 ### Embed a collection
@@ -353,7 +370,7 @@ Puts an existing [collection](collections.md) inside the document, with text
 above and below it. Insert the block and a picker appears: *Search collections…*
 lists up to eight matching collections you can see; *No collection found* when
 none match. Pick one and the collection renders in place, with its title as a
-button — clicking it, or **Open as page ↗**, goes to the collection's own page.
+button: clicking it, or **Open as page ↗**, goes to the collection's own page.
 
 **The block stores only a reference.** The collection stays one object in one
 place, so the same collection can appear in several documents and an edit shows
@@ -361,21 +378,32 @@ up in all of them at once. If it is later deleted, or lives in a workspace you
 cannot read, the block says *This collection is no longer available.* rather
 than failing.
 
-The [views](views.md) shown are the collection's own views. This is the same
-thing an agent gets with `embed_database`.
+The [views](views.md) shown are the collection's own views, but **how an embed
+looks at them is its own**: which view it shows, and per view its filters and
+its sort, are kept with the block. Filtering the Tasks embedded in one project
+to that project leaves the same Tasks embedded elsewhere, and the collection's
+own page, exactly as they were. The rows themselves stay shared, so editing a
+row in an embed edits it everywhere. Somebody who may read the document but not
+change it can still filter what they see; it is not kept for them.
+
+An embed is a window onto the rows rather than a second copy of the collection,
+so its toolbar keeps to the filter, the sort and **New**, and fades in when the
+pointer comes to the embed (on a touch screen, and while a filter is on, it
+stays visible: rows quietly missing from a table are worse than a toolbar). Columns, properties and the views themselves are
+changed on the collection's page, which the title or **Open as page ↗**
+reaches. This is the same block an agent makes with `embed_database`.
 
 ## Page links
 
 Two triggers, one menu:
 
-- **`@`** — mention a page.
-- **`[[`** — the same menu, for wiki-link habits. The trigger is really the
-  first `[`; a second one, and closing brackets, are ignored when matching.
+- **`@`**: mention a page.
+- **`[[`**: the same menu, for wiki-link habits.
 
 The menu lists up to **twelve** pages whose titles contain what you typed, each
 marked *Page* or *Database*, excluding the page you are on and anything in the
 trash. Once you have typed something it also offers `Create "…"`, which makes a
-page with that title and links it in one motion — **at the top level of your
+page with that title and links it in one motion, **at the top level of your
 default workspace**, not under the page you are writing in.
 
 What you get is a **page link chip**: 🔗 and the page's title, carrying the
@@ -394,7 +422,7 @@ is.
 
 ### Drag from the desktop
 
-Drag one or more files anywhere onto the page — the text, the wide margins, the
+Drag one or more files anywhere onto the page: the text, the wide margins, the
 empty stretch under the last block, the title, the cover. The whole scrolling
 area lights up with a dashed outline and a bar appears at the bottom of the
 screen: **Drop to add to this page**.
@@ -407,7 +435,7 @@ names no position.
 Several files at once are uploaded **one after another**, not in parallel: the
 server sizes its text extraction to the memory it has, and a folder dragged in
 all at once is the shape that has taken an instance down. A file that fails does
-not stop the rest — you get the reason that one failed, and *N files added* once
+not stop the rest: you get the reason that one failed, and *N files added* once
 more than one has gone up.
 
 Dropping a file anywhere else in the application does nothing at all, on
@@ -416,14 +444,14 @@ which would throw the open workspace away.
 
 ### Paste
 
-A file on the clipboard — a screenshot, an image copied from another
-application — is uploaded and inserted at the cursor.
+A file on the clipboard (a screenshot, an image copied from another
+application) is uploaded and inserted at the cursor.
 
 Pasting text is not so plain either. If what you paste **looks like Markdown**,
 it is converted into real blocks: headings, lists, quotes, tables, code fences
 and inline styles all arrive as themselves rather than as literal characters.
 Pasting a URL **over selected text** turns that text into a link. Inside a code
-block none of this happens — see [Code block](#code-block).
+block none of this happens. See [Code block](#code-block).
 
 Copying goes the same way round. Blocks copied out of the editor land on the
 clipboard as **Markdown** in the plain-text flavour, so a block pasted into a
@@ -442,8 +470,8 @@ Insert an **Image**, **Video**, **Audio** or **File** block and use its
 A thin progress bar runs across the top of the screen while it goes up.
 
 The limit is **50 MB per file** and the editor refuses anything larger before
-sending it: *File too large (…) — 50 MB max.* An administrator can raise the
-server's own cap in the instance settings, but that does not lift this one —
+sending it: *File too large (…), 50 MB max.* An administrator can raise the
+server's own cap in the instance settings, but that does not lift this one:
 uploads from a page stay capped at 50 MB either way. Lowering the server's cap
 below 50 MB does change what you see: the file goes up and comes back refused,
 as *The file is too large for this instance.*
@@ -471,25 +499,26 @@ included; for a whole tree see [Import and export](import-export.md).
 | Table | a Markdown table with a separator row after the first line |
 | Image | `![name](url)` |
 | Video, audio, file | `[name](url)` |
-| Callout | `> 💡 text` — a quote led by its emoji |
+| Callout | `> 💡 text` (a quote led by its emoji) |
 | Bookmark | a link to the address |
-| Embedded collection | a link to the collection page, labelled `Datenbank` |
+| Embedded collection | a link to the collection page, labelled `Collection` |
 | Table of contents | nothing |
+| Sub-pages | nothing |
 | Columns | the contents, flattened into one sequence |
 | Page link | `[label](/p/<id>)` |
 | **bold**, *italic*, ~~strike~~, `code` | the Markdown for each |
-| Underline | `<u>…</u>` — Markdown has none, HTML travels |
+| Underline | `<u>…</u>` (Markdown has none, HTML travels) |
 
 **⋯ → Web page (.html)** is the same document as standalone HTML, which keeps
 more of the shape: a toggle list becomes a real `<details>`, columns stay
 side by side, a callout stays a box. **⋯ → Print / as PDF** opens that same HTML
-in a new tab, laid out for printing — which is also how you make a PDF on a
+in a new tab, laid out for printing, which is also how you make a PDF on a
 phone, where the browser's print command does nothing.
 
 **On a collection page the same three entries mean something else.** There is no
 body to export, so **Markdown (.md)** gives you a Markdown table of every row,
 one column per property, titles first. **Web page (.html)** gives you that same
-Markdown table — the HTML form is not offered for a collection, and the download
+Markdown table: the HTML form is not offered for a collection, and the download
 arrives as a `.md` file. **Print / as PDF** hands the job to the browser's own
 print command rather than opening a print view, so it does nothing on a phone.
 
@@ -500,8 +529,8 @@ page**. The importer understands headings, bullet, numbered and check lists
 (nested by indentation), quotes, fenced code with a language, images, tables,
 paragraphs, and the inline styles bold, italic, strike, code and links.
 
-A Markdown link pointing at a page of **this** instance — `/p/<id>`, or the full
-address that sharing hands out — comes back as a real page link rather than a
+A Markdown link pointing at a page of **this** instance (`/p/<id>`, or the full
+address that sharing hands out) comes back as a real page link rather than a
 plain one. That is what closes the round trip: export a page, import it
 elsewhere, and its internal links are still links in the graph.
 
@@ -511,17 +540,17 @@ discover:
 - **Headings 4, 5 and 6 come back as heading 3.** The importer clamps them.
 - **A divider comes back as a paragraph containing `---`.**
 - **Callouts, bookmarks and embedded collections come back as what they
-  exported as** — a quote and two links.
+  exported as**: a quote and two links.
 - **The title heading stays in the body.** The first heading of an imported file
   becomes the page's title *and* remains the first block. Delete it if you do
   not want it twice.
 
-A `.zip` is imported as a whole tree — folders become parent pages, `.md` files
+A `.zip` is imported as a whole tree: folders become parent pages, `.md` files
 become pages named after the file, and a Notion export's database CSVs become
 real collections. That path is [Import and export](import-export.md).
 
 Agents write into a page with the same Markdown converter, through
-`write_content` — see [MCP tools](mcp-tools.md).
+`write_content`. See [MCP tools](mcp-tools.md).
 
 ## Limits worth knowing
 

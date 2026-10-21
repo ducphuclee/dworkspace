@@ -3,15 +3,15 @@
 A **form** is one of the seven view types a collection can have. It draws the
 collection's properties as fields to fill in, and submitting it creates a row.
 Published as a link, it lets somebody with no account create a row in one
-collection of your instance — a contact form, a leave request, a bug report, a
+collection of your instance: a contact form, a leave request, a bug report, a
 signup list.
 
 This page covers how to turn a collection into a form, what you can and cannot
 put on it, how to publish and withdraw the link, what a visitor sees, what the
 server checks before it accepts an entry, and where the entries end up. The
 collection itself is covered in [Collections](collections.md), the other view
-types in [Views](views.md), and read-only page sharing — a different thing
-entirely — in [Sharing](sharing.md).
+types in [Views](views.md), and read-only page sharing (a different thing
+entirely) in [Sharing](sharing.md).
 
 ## What a form is, exactly
 
@@ -24,7 +24,7 @@ board on the same collection, and it has two faces:
   signing in. The row is created anonymously.
 
 The public half is optional. A form view with no link published is a perfectly
-useful thing on its own — a tidy entry screen for a database with fifteen
+useful thing on its own: a tidy entry screen for a database with fifteen
 columns, where the table is unpleasant to type into.
 
 One thing to hold on to before anything else: **the public link belongs to the
@@ -50,7 +50,7 @@ To rename it, double-click the tab, or open the `⋯` button on the view bar
 with the current name filled in; its confirm button reads **Rename**.
 
 The same `⋯` menu holds **Move left** and **Move right**, which change the tab
-order — and, since the public link serves the first form view, they also decide
+order, and, since the public link serves the first form view, they also decide
 which form the world sees. It also holds **Remove view**, which deletes the view
 you are on. All four of these appear only when the collection has more than one
 view: a collection with no view has nothing to render, so the last one cannot be
@@ -65,7 +65,7 @@ set_view(page_id: "<collection id>", type: "form", name: "Intake")
 ## Building the form
 
 The form itself is the card in the middle of the screen. Two things on it are
-editable in place — the heading and the description — and every change saves as
+editable in place (the heading and the description), and every change saves as
 you type.
 
 ### Heading and description
@@ -73,15 +73,15 @@ you type.
 The large text at the top is the form's heading. Its placeholder reads **Form**;
 leave it blank and the public page falls back to the collection's own title, and
 to the word *Form* if the collection has no title either. The box under it is the
-description, placeholder **Description (optional) — explains what the form is
+description, placeholder **Description (optional): explains what the form is
 for.** Both are shown to visitors exactly as written, and the description is left
 out of the public page entirely when it is empty.
 
-Neither can be set over MCP — `set_view` does not carry them. An agent can make
+Neither can be set over MCP: `set_view` does not carry them. An agent can make
 a form view; a person writes what it says.
 
 Both boxes accept typing from anybody who can open the collection, including
-somebody with read-only access — and nothing on screen says the change was
+somebody with read-only access, and nothing on screen says the change was
 refused. What you typed stays in the box until you reload the page, at which
 point the saved text comes back. If you have read access and not write access,
 treat the heading and description as read-only regardless of what the cursor
@@ -110,16 +110,16 @@ property types qualify.
 | `date` | yes | the browser's own date picker |
 | `checkbox` | yes | a checkbox |
 | `person` | yes | a single-line text box (see below) |
-| `url` | no | — |
-| `checklist` | no | — |
-| `relation` | no | — |
-| `backrelation` | no | — |
-| `rollup` | no | — |
-| `formula` | no | — |
+| `url` | no | none |
+| `checklist` | no | none |
+| `relation` | no | none |
+| `backrelation` | no | none |
+| `rollup` | no | none |
+| `formula` | no | none |
 
 The last four are derived or linked: there is nothing to type into a rollup, and
 a stranger cannot be asked to pick a row out of a database they cannot see.
-`url` and `checklist` are simply not offered — if you need a link from a form,
+`url` and `checklist` are simply not offered; if you need a link from a form,
 collect it in a `text` property.
 
 Two details worth knowing before you design the schema around a form:
@@ -138,8 +138,8 @@ Two details worth knowing before you design the schema around a form:
 
 ### The order the fields appear in
 
-Fields follow the collection's schema order — the order the properties are listed
-in the **Properties** dialog — both on the form inside the app and on the public
+Fields follow the collection's schema order (the order the properties are listed
+in the **Properties** dialog), both on the form inside the app and on the public
 page. Nothing in the interface reorders that list, and no MCP tool does either:
 `set_view` carries no field order, and `update_schema` merges into the properties
 it finds and appends new ones at the end. The one way to move a property is to
@@ -152,10 +152,10 @@ The **Columns** button on the view bar works on a form view the same way it work
 on a table: the properties under **Shown** appear on the form, the ones under
 **Hidden** do not. **Hide all** and **Show all** move the whole list at once. This
 is how you keep a form short when the collection has columns that only the team
-fills in — a status, an internal note, an owner.
+fills in: a status, an internal note, an owner.
 
 Once anything is hidden, the button reads **Columns** followed by a count in
-brackets — `(4/7)`, shown over total. That count is the only sign on the bar that
+brackets: `(4/7)`, shown over total. That count is the only sign on the bar that
 the form has been shortened.
 
 Hiding is per view, so hiding a property on the form leaves the table untouched,
@@ -167,7 +167,7 @@ hidden column is a tidiness measure, not a lock.
 
 **Properties** on the same bar opens the schema editor, for adding or retyping a
 property ([Collections](collections.md)). A form view has no filter, no sort and
-no **New** button — it creates rows rather than listing them.
+no **New** button: it creates rows rather than listing them.
 
 ## Filling it in from inside
 
@@ -178,7 +178,7 @@ button that clears the form for the next entry.
 An entry made this way is an ordinary row creation by the signed-in member: it
 appears immediately in everyone else's open table or board, and it triggers the
 `page.created` webhook if one is configured ([Webhooks](webhooks.md)). None of
-the coercion rules described below apply to it — it goes down the same path as
+the coercion rules described below apply to it: it goes down the same path as
 typing into a table cell.
 
 ## Publishing the link
@@ -189,7 +189,7 @@ for a reader the buttons answer with a **Sharing failed** toast and nothing
 changes.
 
 1. Press **Share publicly**.
-2. The link is created and copied to your clipboard — a toast says **Public link
+2. The link is created and copied to your clipboard; a toast says **Public link
    copied** (or **Public link created** if the browser refused the clipboard).
 3. The URL also appears in a read-only box under the bar. Clicking it selects the
    whole thing.
@@ -204,7 +204,7 @@ https://dworkspace.example.com/form/8c1f4a2e9b7d05c3a6e1f8b4d29c7053ab6e
 ```
 
 The token is 36 hexadecimal characters from random bytes. The host part is not
-your browser's address bar — the server builds the link from the instance's
+your browser's address bar: the server builds the link from the instance's
 configured public address, so a link created on the local network still works for
 somebody outside it. If no public address is configured, the link is built from
 the address you are on, which will be the local one. See [Domain](domain.md).
@@ -215,7 +215,7 @@ The URL box disappears the moment you leave the page. Come back to the form late
 and the bar reads **Public** / **Copy link** / **Revoke** with no URL under it:
 the instance can confirm that a live link exists, and cannot tell you what it is.
 
-That is not an oversight — see the next section for why — but it is the situation
+That is not an oversight (see the next section for why), but it is the situation
 that makes people press **Copy link** to "get the link back", which is the one
 button on this page that does not do that.
 
@@ -227,13 +227,13 @@ does the same thing **Share publicly** did: it revokes the current link and
 creates a fresh one. Anybody still holding the old URL gets *Form not found* from
 that moment.
 
-So keep the link somewhere the moment you create it — a page in your workspace,
+So keep the link somewhere the moment you create it: a page in your workspace,
 the message you sent it in. Pressing **Copy link** is how you *rotate* a link that
 went to the wrong person, not how you look one up.
 
 ## What a visitor sees
 
-The link opens a standalone page — no sidebar, no workspace, nothing of your
+The link opens a standalone page: no sidebar, no workspace, nothing of your
 instance around it. While the form is being fetched, the card reads **Loading…**;
 on a fast connection that is a flicker, on a slow one it is what the visitor looks
 at first. Then, from top to bottom:
@@ -250,14 +250,14 @@ entries without reloading. If sending fails for any reason, a toast says **Sendi
 failed** and what they typed stays in the fields.
 
 A link that has been revoked, or that points at a collection now in the trash,
-shows **Form not found** — *This link is not valid or has been switched off.* The
+shows **Form not found**: *This link is not valid or has been switched off.* The
 same page appears if the form view itself has been deleted while the link is
 still live.
 
-The submit button carries the label stored on the view. Nothing in the interface
-writes that label, so in practice every form's button reads `Absenden`. It can be
-set through the HTTP API, which stores a view's settings as they are given — see
-the route table at the end of this page — but there is no MCP tool for it and no
+The submit button carries the label stored on the view, or the interface
+language's word for Submit when none is stored. It can be
+set through the HTTP API, which stores a view's settings as they are given (see
+the route table at the end of this page), but there is no MCP tool for it and no
 box in the browser.
 
 ## What the server checks
@@ -272,19 +272,19 @@ silently and the rest of the entry is saved.
 | Title length | at most 2000 characters, otherwise rejected |
 | Unknown property | dropped |
 | A property that cannot be filled in | dropped, even if the browser sent it |
-| `text`, `person`, `date` | must be text; trimmed; empty is dropped; longer than 4000 characters is cut. A date is not parsed — the browser's picker sends a calendar day, but any text is accepted |
+| `text`, `person`, `date` | must be text; trimmed; empty is dropped; longer than 4000 characters is cut. A date is not parsed: the browser's picker sends a calendar day, but any text is accepted |
 | `select` | must be one of that property's option ids; anything else dropped |
 | `multiselect` | must be a list; unknown ids dropped; if none survive, the whole value is dropped |
 | `number` | must be a number |
 | `checkbox` | must be true or false |
 
 On top of that, submissions are rate-limited to **20 per minute per IP address**,
-with a burst of 8 — eight in quick succession, then one every three seconds. Over
+with a burst of 8: eight in quick succession, then one every three seconds. Over
 the limit, the visitor gets *Sending failed*.
 
 That address is the visitor's only when the instance is told to trust its proxy's
 headers. Without that, everybody arriving through the same reverse proxy or
-tunnel counts as one visitor and shares the twenty between them — and arriving
+tunnel counts as one visitor and shares the twenty between them. And arriving
 through a proxy is the normal way a public form is reachable from outside at all.
 The switch is **Run behind a reverse proxy** in the administration dialog; the
 built-in Cloudflare tunnel turns it on by itself when it connects
@@ -326,8 +326,8 @@ database is a separate job.
 
 **Revoke** on the share bar deletes the link. The toast reads **Public link
 revoked**, and the URL stops working immediately for everybody. There is no way
-to bring the same link back — the next **Share publicly** creates a different one.
-If revoking is refused — a reader pressing it, for instance — the toast reads
+to bring the same link back; the next **Share publicly** creates a different one.
+If revoking is refused (a reader pressing it, for instance), the toast reads
 **That did not work** and the link stays live.
 
 Four other things also switch a form off:
@@ -351,13 +351,13 @@ otherwise closed instance.
 
 - **A form cannot read anything back.** The public page receives the collection's
   title, its icon, the form's heading and description, and the definitions of the
-  visible fillable fields — each field's internal id, name and type, and for a
-  `select` or `multiselect` the option ids, names and colours. It never receives
+  visible fillable fields (each field's internal id, name and type, and for a
+  `select` or `multiselect` the option ids, names and colours). It never receives
   rows, not even the visitor's own.
 - **A form cannot reach the rest of the workspace.** No other page, no member
   list, no search.
 - **A form cannot upload a file.** There is no file property anywhere in a
-  collection — attachments live in a page's body, which a form does not write.
+  collection; attachments live in a page's body, which a form does not write.
   See [Files](files.md).
 - **A form has no required fields except the Title.** Every property field may be
   left blank.
@@ -365,7 +365,7 @@ otherwise closed instance.
   of the abuse protection. A form on a link that has been posted publicly will
   collect what public forms collect.
 - **A form does not know who filled it in.** No name, no account, no address is
-  recorded on the row — only that the entry came through a public form.
+  recorded on the row, only that the entry came through a public form.
 
 If you need any of that, the answer is an account and a workspace invitation
 rather than a form ([Permissions](permissions.md)).
@@ -382,7 +382,7 @@ What an agent can and cannot do to the form itself:
 | --- | --- |
 | Create a form view | `set_view` with `type: "form"` |
 | Rename it, hide fields | `set_view` (`name`, `hidden`) |
-| Reorder the fields | not available — a form follows the schema order, and `update_schema` appends rather than reorders |
+| Reorder the fields | not available: a form follows the schema order, and `update_schema` appends rather than reorders |
 | Remove it | `delete_view` |
 | Set the heading, description or button label | not available |
 | Publish or revoke the public link | not available |
@@ -393,19 +393,19 @@ do accept an API token, though, so an agent holding a write-scoped one can mint
 and revoke a link without a browser ([Agents](agents.md)).
 
 Over the HTTP API the whole feature is five routes ([API](api.md)). The first
-three need a credential — reading the status needs read access to the collection,
+three need a credential: reading the status needs read access to the collection,
 minting and revoking need write access. The last two need nothing at all, which
 is the point of them.
 
 | Route | Does |
 | --- | --- |
-| `GET /api/collections/{id}/form-share` | says whether a live link exists — never the link itself |
+| `GET /api/collections/{id}/form-share` | says whether a live link exists, never the link itself |
 | `POST /api/collections/{id}/form-share` | mints a link, replacing any current one |
 | `DELETE /api/collections/{id}/form-share` | revokes it |
 | `GET /api/public/form/{token}` | the fields a visitor's browser renders |
 | `POST /api/public/form/{token}/submit` | one entry |
 
-A view's settings are stored as one block, so `PUT /api/collections/{id}` — the
-route the browser uses when you type in the heading — writes whatever a view
+A view's settings are stored as one block, so `PUT /api/collections/{id}` (the
+route the browser uses when you type in the heading) writes whatever a view
 carries, the submit label included. That is the one way to change the label the
 button shows.

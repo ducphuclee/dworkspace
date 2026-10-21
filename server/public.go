@@ -11,10 +11,12 @@ import (
 // login screen to anonymous visitors. Password-protected shares render a
 // minimal form that POSTs back to the same URL.
 
-func sharePasswordForm(token string, wrong bool) string {
+// The password prompt for a protected share. notice is "" on the first
+// visit, then says why the last attempt did not open the page.
+func sharePasswordForm(token string, notice string) string {
 	msg := ""
-	if wrong {
-		msg = `<p style="color:#c4554d">Wrong password.</p>`
+	if notice != "" {
+		msg = `<p style="color:#c4554d">` + html.EscapeString(notice) + `</p>`
 	}
 	return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>dworkspace — protected page</title><style>` + htmlDocStyle + `</style></head><body>` +
 		`<h1>🔒 Protected page</h1><p>This page is protected by a password.</p>` + msg +
@@ -34,19 +36,32 @@ func (s *Server) handlePublicView(w http.ResponseWriter, r *http.Request) {
 		password = r.PostFormValue("pw")
 		submitted = true
 	}
-	pageID, needPW, pwOK, found := s.resolveShare(token, password)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("X-Robots-Tag", "noindex")
+	// Stop sharing has to end the page everywhere at once. Without a word on
+	// caching, a proxy or the tunnel's edge may keep a copy of a page whose link
+	// was revoked, which is exactly the report in #68.
+	w.Header().Set("Cache-Control", "private, no-store")
+	// Before the comparison, so a guess past the limit costs nothing and tells
+	// nothing, the right password included.
+	if password != "" && !s.sharePwRate.allow(sharePwKey(token, s.clientIP(r))) {
+		w.WriteHeader(http.StatusTooManyRequests)
+		w.Write([]byte(sharePasswordForm(token, "Too many attempts. Wait a minute and try again.")))
+		return
+	}
+	pageID, needPW, pwOK, found := s.resolveShare(token, password)
 	if !found {
 		w.WriteHeader(404)
 		w.Write([]byte(`<!doctype html><html><head><meta charset="utf-8"><title>dworkspace</title><style>` + htmlDocStyle + `</style></head><body><h1>Not found</h1><p>This link is invalid or has expired.</p></body></html>`))
 		return
 	}
 	if needPW && !pwOK {
+		notice := ""
 		if submitted {
 			w.WriteHeader(403)
+			notice = "Wrong password."
 		}
-		w.Write([]byte(sharePasswordForm(token, submitted)))
+		w.Write([]byte(sharePasswordForm(token, notice)))
 		return
 	}
 	p, err := s.getPage(pageID)
@@ -58,7 +73,7 @@ func (s *Server) handlePublicView(w http.ResponseWriter, r *http.Request) {
 	if p.Type == "collection" {
 		// A database renders as its Markdown table inside <pre> — faithful and
 		// dependency-free. (Rows only; never children pages.)
-		md, err := s.collectionMarkdown(p)
+		md, err := s.collectionMarkdown(p, "")
 		if err != nil {
 			httpError(w, 500, err.Error())
 			return
@@ -67,5 +82,31 @@ func (s *Server) handlePublicView(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>` + title + `</title><style>` + htmlDocStyle + `</style></head><body><pre style="white-space:pre-wrap">` + html.EscapeString(md) + `</pre></body></html>`))
 		return
 	}
-	w.Write([]byte(s.pageHTML(p, false, s.printOptionsFor(p))))
+	opts := publicPrintOptions(s.printOptionsFor(p))
+	docCSP(w, &opts)
+	w.Write([]byte(s.pageHTML(p, false, opts)))
+}
+
+// publicPrintOptions trims the print view down to what an anonymous visitor
+// may read. The signed-in print view renders every optional part and hides the
+// unchosen ones by class, so its side panel can switch them on without asking
+// the server. A visitor has no panel, so a hidden part is only data sitting in
+// the source: every comment on the page with its author's name, and the names
+// of the workspace and the instance. The names go out only when the house style
+// actually shows them, on a cover. Comments never do: a discussion about a page
+// is not part of what was published.
+func publicPrintOptions(o printOptions) printOptions {
+	o.Comments = false
+	o.CommentL = nil
+	if !o.Cover || !o.Workspace {
+		o.WSName, o.Instance = "", ""
+	}
+	return o
+}
+
+// sharePwKey keys the password limit by link and address together: by address
+// alone one guesser would lock everybody behind the same proxy out of every
+// protected page, by link alone a stranger could lock the link for everyone.
+func sharePwKey(token, ip string) string {
+	return tokenHash(token)[:16] + "|" + ip
 }

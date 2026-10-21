@@ -1,5 +1,5 @@
 # --- Frontend build (its output is the same for every target arch) ---
-FROM --platform=$BUILDPLATFORM node:20-alpine AS web
+FROM --platform=$BUILDPLATFORM node:22-alpine AS web
 ARG VERSION=dev
 WORKDIR /src/web
 COPY web/package.json web/package-lock.json* ./
@@ -22,7 +22,7 @@ COPY server /src/server
 RUN DWORKSPACE_VERSION=${VERSION} npm run build
 
 # --- Backend build (cross-compiled to the requested target arch) ---
-FROM --platform=$BUILDPLATFORM golang:1.25-alpine AS build
+FROM --platform=$BUILDPLATFORM golang:1.27-alpine AS build
 ARG TARGETOS
 ARG TARGETARCH
 ARG VERSION=dev

@@ -10,8 +10,9 @@
 // build is the only version of "we'll remember" that works.
 //
 // Both sections are enforced. Section 2 became enforceable the moment the last
-// string was wrapped: from here on, a bare string or a stale catalog fails the
-// build, so rot is mechanically impossible rather than merely discouraged.
+// string was wrapped: from here on, a bare string or a stale German catalog
+// fails the build, so rot is mechanically impossible rather than merely
+// discouraged. Other languages are reported, not enforced (see REQUIRED).
 
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, dirname } from 'node:path';
@@ -310,7 +311,7 @@ const germanLines = [];
 // an id or a URL — anything ambiguous belongs in the line list above, not here.
 // Verbs and participles — what a BUTTON says.
 const GERMAN_STRONG =
-  /(?<![\w-])(fehlgeschlagen|umbenennen|umbenannt|verschieben|verschoben|loeschen|löschen|geloescht|gelöscht|gespeichert|speichern|hochladen|hochgeladen|anlegen|angelegt|erstellen|erstellt|schliessen|schließen|abbrechen|hinzufuegen|hinzufügen|entfernen|entfernt|bearbeiten|suchen|senden|gesendet|teilen|geteilt|beitritt|importierter|einsammeln|referenzierte|auswaehlen|auswählen|verbinden|verbunden|zurueck|zurück|weiter|fertig|ungueltig|ungültig|vorhanden|erforderlich|aufklappen|zuklappen|einklappen|ausklappen|umbenannt|gespeicherte|geoeffnet|geöffnet|geschlossen|verworfen|uebernehmen|übernehmen|bestaetigen|bestätigen|wiederherstellen|zuruecksetzen|zurücksetzen)(?![\w])/iu;
+  /(?<![\w-])(absenden|abmelden|anmelden|angemeldet|eingeladen|wurdest|fehlgeschlagen|umbenennen|umbenannt|verschieben|verschoben|loeschen|löschen|geloescht|gelöscht|gespeichert|speichern|hochladen|hochgeladen|anlegen|angelegt|erstellen|erstellt|schliessen|schließen|abbrechen|hinzufuegen|hinzufügen|entfernen|entfernt|bearbeiten|suchen|senden|gesendet|teilen|geteilt|beitritt|importierter|einsammeln|referenzierte|auswaehlen|auswählen|verbinden|verbunden|zurueck|zurück|weiter|fertig|ungueltig|ungültig|vorhanden|erforderlich|aufklappen|zuklappen|einklappen|ausklappen|umbenannt|gespeicherte|geoeffnet|geöffnet|geschlossen|verworfen|uebernehmen|übernehmen|bestaetigen|bestätigen|wiederherstellen|zuruecksetzen|zurücksetzen)(?![\w])/iu;
 
 // Nouns and adjectives — what a MENU ENTRY or a description says, and the class
 // both other rules were blind to. "Hervorgehobener Hinweis mit Emoji" sat in
@@ -328,11 +329,14 @@ const GERMAN_NOUNS =
  *  gefunden" has no umlaut and two words, and the line rule would never see it. */
 const stringReadsGerman = (s) => GERMAN_STRONG.test(s) || GERMAN_NOUNS.test(s);
 
-// Every quoted string in the source, JSX text included via the line rule above.
+// Every quoted string in the source, and every run of JSX text between a `>`
+// and the next `<`. The text was the gap: "Abmelden &amp; neu anmelden" sat on
+// the invitation page as plain JSX, too short for the line rule and no string
+// for this one, so neither saw it.
 const germanStrings = [];
 {
   const stack = [src];
-  const STR = /(['"`])((?:\\.|(?!\1)[^\\])*?)\1/g;
+  const STR = /(['"`])((?:\\.|(?!\1)[^\\])*?)\1|>([^<>{}]+)</g;
   while (stack.length) {
     const d = stack.pop();
     for (const name of readdirSync(d)) {
@@ -346,7 +350,7 @@ const germanStrings = [];
           .forEach((line, i) => {
             if (/i18n-ok:\s*\S/.test(line)) return;
             for (const m of line.matchAll(STR)) {
-              const text = m[2];
+              const text = m[2] ?? m[3];
               if (!/[A-Za-zÄÖÜäöüß]{3}/.test(text)) continue;
               if (stringReadsGerman(text)) {
                 germanStrings.push(`${rel}:${i + 1}  ${text.slice(0, 60)}`);
@@ -378,6 +382,15 @@ if (process.argv.includes('--german')) {
 
 // Catalogs: an entry nobody asks for any more is an orphan (usually the source
 // text was edited); a source string with no entry is simply untranslated.
+//
+// Only the catalogs in REQUIRED fail the build. German is the one this project
+// answers for: somebody here reads it, and a gap in it is a bug. Every other
+// language is a contribution and may lag behind, because a missing entry shows
+// its English source, which t() does anyway. Enforcing them all would make
+// whoever renames a button deliver Spanish, and French, and whatever arrives
+// next, which is the surest way to stop people contributing. They are topped up
+// before a release instead: node scripts/translate.mjs <locale>.
+const REQUIRED = new Set(['de.json']);
 const localeDir = join(src, 'locales');
 const report = [];
 for (const name of readdirSync(localeDir).filter((f) => f.endsWith('.json'))) {
@@ -459,7 +472,10 @@ else {
 }
 
 console.log();
-const stale = report.filter((r) => r.missing > 0 || r.orphans.length > 0);
+const behind = (r) => r.missing > 0 || r.orphans.length > 0;
+const stale = report.filter((r) => REQUIRED.has(r.name) && behind(r));
+for (const r of report.filter((r) => !REQUIRED.has(r.name) && behind(r)))
+  console.log(`  note — ${r.name} is behind (${r.missing} untranslated, ${r.orphans.length} orphaned); missing entries show in English`);
 if (errors.length || unwrapped > 0 || stale.length || germanLines.length || germanStrings.length) {
   if (errors.length) console.log(`  FAILED — ${errors.length} formatting violation(s)`);
   if (unwrapped > 0)
@@ -475,4 +491,4 @@ if (errors.length || unwrapped > 0 || stale.length || germanLines.length || germ
   console.log('  For the German list: node scripts/check-i18n.mjs --german');
   process.exit(1);
 }
-console.log('  ok — every string wrapped, every catalog current, source is English');
+console.log('  ok — every string wrapped, the German catalog current, source is English');

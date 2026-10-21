@@ -1,12 +1,13 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { api } from '../api';
+import { confirm } from '../dialog';
 import type { ChecklistItem, PropDef, PropOption } from '../types';
 import Portal from './Portal';
 import { OPTION_HEXES, optionPalette, optionSlug } from '../selectOptions';
 import { daysUntil, formatDay, formatMoment, formatNumber } from '../format';
 import { showActivityFor } from './ActivityLogHost';
 import { initials, nameColor } from './CommentsPanel';
-import { Check, Link2 as LinkIcon, Plus, Trash2 } from 'lucide-react';
+import { Check, ExternalLink, Link2 as LinkIcon, Plus, Trash2 } from 'lucide-react';
 import { PageIcon } from '../pageIcon';
 import { t } from '../i18n';
 
@@ -147,7 +148,10 @@ function SelectCell({
     onOptionsChange?.(options.map((o) => (o.id === oid ? { ...o, color: hex } : o)));
     setColorFor(null);
   };
-  const remove = (oid: string) => {
+  const remove = async (oid: string) => {
+    close();
+    const ok = await confirm(t('Delete option “{name}”?', { name: options.find((o) => o.id === oid)?.name ?? oid }), { confirmText: t('Delete option'), danger: true });
+    if (!ok) return;
     onOptionsChange?.(options.filter((o) => o.id !== oid));
     if (multi) onChange(vals.filter((v) => v !== oid));
     else if (String(value) === oid) onChange('');
@@ -246,7 +250,7 @@ function SelectCell({
                     </button>
                   )}
                   {filtered.length === 0 && !query && (
-                    <div className="select-empty">{t('No options — type to create one.')}</div>
+                    <div className="select-empty">{t('No options. Type to create one.')}</div>
                   )}
                 </div>
               </>
@@ -444,10 +448,10 @@ function ChecklistValue({ value, onChange, readOnly, compact }: Props) {
 // person value written as a name (by hand or by an agent) still finds its face.
 // One request per workspace, shared by every cell — a table with 200 person
 // cells must not make 200 calls.
-type Member = { userId: string; name: string; color: string; avatar: string };
+export type Member = { userId: string; name: string; color: string; avatar: string };
 let memberCache: Promise<Member[]> | null = null;
 
-function loadMembers(): Promise<Member[]> {
+export function loadMembers(): Promise<Member[]> {
   if (!memberCache) {
     memberCache = api
       .listWorkspaces()
@@ -548,9 +552,17 @@ export function PersonStack({ values, max = 3 }: { values: string[]; max?: numbe
  *  looked broken), and even once open it asked you to type a colleague's name
  *  exactly — with the roster sitting right there. Picking stores the USER ID, so
  *  the cell follows a rename; free text is kept as a fallback and stored as
- *  typed. */
-function PersonValue({ value, onChange, readOnly, compact }: Props) {
-  const raw = String(value ?? '').trim();
+ *  typed.
+ *
+ *  A property may allow several people and may name who can be picked (#11).
+ *  The value is then a list; either shape is READ either way, because a
+ *  property switched between one and several keeps what its rows already hold.
+ *  With a list of who can be picked, nobody else can be typed in either. */
+function PersonValue({ def, value, onChange, readOnly, compact }: Props) {
+  const values = (Array.isArray(value) ? value : [value])
+    .map((v) => String(v ?? '').trim())
+    .filter(Boolean);
+  const multiple = !!def.personMultiple;
   const [members, setMembers] = useState<Member[]>([]);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -574,14 +586,35 @@ function PersonValue({ value, onChange, readOnly, compact }: Props) {
     return () => document.removeEventListener('pointerdown', onDown);
   }, [open]);
 
-  if (ro || compact) return raw ? <PersonChip raw={raw} members={members} /> : null;
+  // One face and a name, or for several people one stack of faces — a cell
+  // that printed every name would grow a line per person.
+  const shown =
+    values.length === 0 ? null : values.length === 1 ? (
+      <PersonChip raw={values[0]} members={members} />
+    ) : (
+      <PersonStack values={values} max={4} />
+    );
+  if (ro || compact) return shown;
 
+  const pool = def.personPool?.length ? new Set(def.personPool) : null;
+  const candidates = pool ? members.filter((m) => pool.has(m.userId)) : members;
   const q = query.trim().toLowerCase();
-  const filtered = members.filter((m) => m.name.toLowerCase().includes(q));
-  const pick = (v: string) => {
-    onChange!(v || null);
+  const filtered = candidates.filter((m) => m.name.toLowerCase().includes(q));
+  const holds = (m: Member) => values.includes(m.userId) || values.includes(m.name);
+  const write = (next: string[]) => {
+    if (multiple) onChange!(next.length ? next : null);
+    else onChange!(next[0] || null);
+  };
+  const choose = (v: string) => {
+    if (!multiple) {
+      write(v ? [v] : []);
+      setOpen(false);
+    } else {
+      const m = members.find((x) => x.userId === v);
+      const on = m ? holds(m) : values.includes(v);
+      write(on ? values.filter((x) => x !== v && (!m || x !== m.name)) : [...values, v]);
+    }
     setQuery('');
-    setOpen(false);
   };
 
   return (
@@ -589,14 +622,14 @@ function PersonValue({ value, onChange, readOnly, compact }: Props) {
       {/* Always a real hit target: an empty cell says "＋ Person" instead of
           being an invisible nothing. */}
       <button type="button" className="relation-open" onClick={() => setOpen((v) => !v)}>
-        {raw ? <PersonChip raw={raw} members={members} /> : <span className="prop-empty">{t('＋ Person')}</span>}
+        {shown ?? <span className="prop-empty">{t('＋ Person')}</span>}
       </button>
       {open && (
         <div className="menu relation-menu">
           <input
             className="prop-input"
             autoFocus
-            placeholder={t('Search or type a name…')}
+            placeholder={pool ? t('Search…') : t('Search or type a name…')}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => {
@@ -604,8 +637,8 @@ function PersonValue({ value, onChange, readOnly, compact }: Props) {
               // without an account can be entered without leaving the keyboard.
               if (e.key !== 'Enter') return;
               e.preventDefault();
-              if (filtered.length === 1) pick(filtered[0].userId);
-              else if (query.trim()) pick(query.trim());
+              if (filtered.length === 1) choose(filtered[0].userId);
+              else if (query.trim() && !pool) choose(query.trim());
             }}
           />
           <div className="relation-options">
@@ -613,22 +646,29 @@ function PersonValue({ value, onChange, readOnly, compact }: Props) {
               <button
                 key={m.userId}
                 type="button"
-                className={'relation-option' + (m.userId === raw || m.name === raw ? ' on' : '')}
-                onClick={() => pick(m.userId)}
+                className={'relation-option' + (holds(m) ? ' on' : '')}
+                onClick={() => choose(m.userId)}
               >
-                <span className="relation-check">{m.userId === raw || m.name === raw ? '✓' : ''}</span>
+                <span className="relation-check">{holds(m) ? '✓' : ''}</span>
                 <PersonChip raw={m.userId} members={members} />
               </button>
             ))}
-            {q && !filtered.some((m) => m.name.toLowerCase() === q) && (
-              <button type="button" className="relation-option" onClick={() => pick(query.trim())}>
+            {q && !pool && !filtered.some((m) => m.name.toLowerCase() === q) && (
+              <button type="button" className="relation-option" onClick={() => choose(query.trim())}>
                 <span className="relation-check" />
                 {t('Use “{name}”', { name: query.trim() })}
               </button>
             )}
-            {!members.length && !q && <div className="relation-empty">{t('No members')}</div>}
-            {raw && (
-              <button type="button" className="relation-option danger" onClick={() => pick('')}>
+            {!candidates.length && !q && <div className="relation-empty">{t('No members')}</div>}
+            {values.length > 0 && (
+              <button
+                type="button"
+                className="relation-option danger"
+                onClick={() => {
+                  write([]);
+                  setOpen(false);
+                }}
+              >
                 <span className="relation-check" />
                 {t('Remove')}
               </button>
@@ -826,6 +866,50 @@ function RelationValue({ def, value, onChange, readOnly, compact, maxChips, onNa
   );
 }
 
+// Editing and following a URL are separate actions. A filled cell must not
+// become impossible to correct merely because it already contains a link.
+function UrlValue({ def, value, onChange, readOnly, compact }: Props) {
+  const raw = String(value ?? '').trim();
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(raw);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const cancelled = useRef(false);
+  let href = '';
+  let label = raw;
+  // The chip shows the host, the full address is what opens; a whole URL on a
+  // board card is noise. A scheme counts only when no port number follows its
+  // colon: "intranet.local:8080/wiki" would otherwise parse as the scheme
+  // "intranet.local:" and lose the link it always had. Only http and https may
+  // be opened, so a stored javascript: address stays text.
+  try {
+    const url = new URL(/^[a-z][a-z\d+.-]*:(?!\d)/i.test(raw) ? raw : 'https://' + raw);
+    if (url.protocol === 'http:' || url.protocol === 'https:') {
+      href = url.href;
+      label = url.hostname.replace(/^www\./, '');
+    }
+  } catch { /* An unfinished address can still be edited. */ }
+  const begin = () => { cancelled.current = false; setDraft(raw); setEditing(true); };
+  const finish = () => {
+    if (!cancelled.current && draft.trim() !== raw) onChange?.(draft.trim());
+    setEditing(false);
+  };
+  const restoreFocus = () => requestAnimationFrame(() => trigger.current?.focus());
+  const chip = <><LinkIcon size={11} /><span>{label}</span></>;
+  if (readOnly || !onChange || compact) {
+    if (!raw) return compact ? null : <span className="prop-empty">—</span>;
+    return href ? <a className="prop-url-chip" href={href} target="_blank" rel="noopener noreferrer" title={raw} onClick={(e) => e.stopPropagation()}>{chip}</a> : <span className="prop-url-chip">{chip}</span>;
+  }
+  if (editing) return <input className="prop-input" aria-label={def.name} autoFocus value={draft} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setDraft(e.target.value)} onBlur={finish} onKeyDown={(e) => {
+    e.stopPropagation();
+    if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); restoreFocus(); }
+    if (e.key === 'Escape') { e.preventDefault(); cancelled.current = true; setEditing(false); restoreFocus(); }
+  }} />;
+  return <div className="prop-url-value">
+    <button ref={trigger} type="button" className="prop-url-edit prop-url-chip" aria-label={t('Edit') + ': ' + def.name} title={raw || def.name} onClick={(e) => { e.stopPropagation(); begin(); }}>{raw ? chip : <span className="prop-empty">—</span>}</button>
+    {href && <a className="prop-url-open" href={href} target="_blank" rel="noopener noreferrer" aria-label={t('Open link')} title={t('Open link')} onClick={(e) => e.stopPropagation()}><ExternalLink size={13} /></a>}
+  </div>;
+}
+
 export default function PropertyValue({
   def,
   value,
@@ -993,34 +1077,8 @@ export default function PropertyValue({
           onChange={(e) => onChange!(e.target.value)}
         />
       );
-    case 'url': {
-      // Without a case of its own a URL landed in the text branch and sat on
-      // the card as a full line of raw text ("https://trello.com/c/yksGXxLh")
-      // — on a board that is pure noise. The host is what is shown, the full
-      // address is what is opened.
-      const href = String(value ?? '').trim();
-      if (!href) return compact ? null : <span className="prop-empty">—</span>;
-      let label = href;
-      try {
-        const u = new URL(href.includes('://') ? href : 'https://' + href);
-        label = u.hostname.replace(/^www\./, '');
-      } catch {
-        /* not a valid URL — then leave it unshortened */
-      }
-      return (
-        <a
-          className="prop-url-chip"
-          href={href.includes('://') ? href : 'https://' + href}
-          target="_blank"
-          rel="noopener noreferrer"
-          title={href}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <LinkIcon size={11} />
-          {label}
-        </a>
-      );
-    }
+    case 'url':
+      return <UrlValue def={def} value={value} onChange={onChange} readOnly={readOnly} compact={compact} />;
     case 'person':
       return <PersonValue def={def} value={value} onChange={onChange} readOnly={readOnly} compact={compact} />;
     case 'text':

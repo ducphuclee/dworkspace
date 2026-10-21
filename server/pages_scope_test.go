@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// scopeFixture builds one small tree that every scope below is asked about, so
+// treeScopeFixture builds one small tree that every scope below is asked about, so
 // the scopes are compared against the same world rather than each against a
 // convenient one.
 //
@@ -16,13 +16,13 @@ import (
 //	root-gone                        (trashed)
 //	db1        ── row-bare           (a bare database row: not a tree page)
 //	tpl                              (a template, with tpl-kid under it)
-type scopeFixture struct {
+type treeScopeFixture struct {
 	s      *Server
 	cookie string
 	ws     string
 }
 
-func newScopeFixture(t *testing.T) scopeFixture {
+func newTreeScopeFixture(t *testing.T) treeScopeFixture {
 	t.Helper()
 	s := testServer(t)
 	uid, cookie := signedIn(t, s, "a@example.com")
@@ -56,10 +56,10 @@ func newScopeFixture(t *testing.T) scopeFixture {
 	mk("row-bare", "db1", "doc", "A row", false, false)
 	mk("tpl", "", "doc", "Template", false, true)
 	mk("tpl-kid", "tpl", "doc", "Under a template", false, false)
-	return scopeFixture{s: s, cookie: cookie, ws: ws}
+	return treeScopeFixture{s: s, cookie: cookie, ws: ws}
 }
 
-func (f scopeFixture) list(t *testing.T, query string) []pageMeta {
+func (f treeScopeFixture) list(t *testing.T, query string) []pageMeta {
 	t.Helper()
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest("GET", "/api/pages"+query, nil)
@@ -86,7 +86,7 @@ func ids(list []pageMeta) map[string]bool {
 // The change that moved the bytes: the bin was in every answer, and it was 88%
 // of them, for a section the sidebar keeps collapsed.
 func TestListPagesDefaultScopeLeavesTheBinBehind(t *testing.T) {
-	f := newScopeFixture(t)
+	f := newTreeScopeFixture(t)
 	got := ids(f.list(t, ""))
 	if got["root-gone"] {
 		t.Errorf("trashed page came back in the default scope")
@@ -106,7 +106,7 @@ func TestListPagesDefaultScopeLeavesTheBinBehind(t *testing.T) {
 }
 
 func TestListPagesTrashedScopeIsTheBinOnly(t *testing.T) {
-	f := newScopeFixture(t)
+	f := newTreeScopeFixture(t)
 	list := f.list(t, "?trashed=1")
 	got := ids(list)
 	if !got["root-gone"] {
@@ -120,7 +120,7 @@ func TestListPagesTrashedScopeIsTheBinOnly(t *testing.T) {
 }
 
 func TestListPagesRootScopeIsRootsWithChevrons(t *testing.T) {
-	f := newScopeFixture(t)
+	f := newTreeScopeFixture(t)
 	list := f.list(t, "?scope=roots")
 	got := ids(list)
 	for _, want := range []string{"root-kids", "root-bare", "db1"} {
@@ -146,7 +146,7 @@ func TestListPagesRootScopeIsRootsWithChevrons(t *testing.T) {
 }
 
 func TestListPagesParentScopeIsOneLevel(t *testing.T) {
-	f := newScopeFixture(t)
+	f := newTreeScopeFixture(t)
 	got := ids(f.list(t, "?parent=root-kids"))
 	for _, want := range []string{"child-a", "child-b"} {
 		if !got[want] {
@@ -162,7 +162,7 @@ func TestListPagesParentScopeIsOneLevel(t *testing.T) {
 // hasChildren and the parent scope ever disagreed, the tree would offer an
 // arrow that unfolds to nothing, or hide a subtree behind a missing one.
 func TestChevronAgreesWithWhatUnfoldingReturns(t *testing.T) {
-	f := newScopeFixture(t)
+	f := newTreeScopeFixture(t)
 	for _, p := range f.list(t, "?scope=roots") {
 		kids := f.list(t, "?parent="+p.ID)
 		if p.HasChildren == nil {
@@ -179,7 +179,7 @@ func TestChevronAgreesWithWhatUnfoldingReturns(t *testing.T) {
 // A database row is deliberately not a tree page and can still be open in a
 // tab, so this scope must not apply the tree rules.
 func TestListPagesIDScopeIgnoresTreeRules(t *testing.T) {
-	f := newScopeFixture(t)
+	f := newTreeScopeFixture(t)
 	got := ids(f.list(t, "?ids=row-bare,child-a"))
 	for _, want := range []string{"row-bare", "child-a"} {
 		if !got[want] {
@@ -194,7 +194,7 @@ func TestListPagesIDScopeIgnoresTreeRules(t *testing.T) {
 // A workspace the caller is not a member of must not become readable by naming
 // its pages directly — the id scope skips the tree rules, not the permissions.
 func TestListPagesIDScopeStaysInsideVisibleWorkspaces(t *testing.T) {
-	f := newScopeFixture(t)
+	f := newTreeScopeFixture(t)
 	other, _ := signedIn(t, f.s, "b@example.com")
 	ws2 := makeWorkspace(t, f.s, other)
 	if _, err := f.s.db.Exec(`INSERT INTO pages (id, parent_id, title, content, position, created_at, updated_at, workspace_id, owner_id, visibility, type)

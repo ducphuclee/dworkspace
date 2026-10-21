@@ -60,7 +60,7 @@ func (s *Server) moveSubtreeToWorkspace(userID, pageID, targetWS string, tokenOK
 	// stop and say why.
 	for _, id := range ids {
 		if !s.canRead(userID, id) {
-			return 0, fmt.Errorf("this subtree contains private pages owned by someone else — they cannot be moved along")
+			return 0, fmt.Errorf("this subtree contains private pages owned by someone else. They cannot be moved along")
 		}
 	}
 
@@ -98,7 +98,7 @@ func (s *Server) moveSubtreeToWorkspace(userID, pageID, targetWS string, tokenOK
 	return len(ids), nil
 }
 
-// createWorkspaceFor creates a workspace; the named user becomes its admin.
+// createNamedWorkspace creates a workspace; the named user becomes its admin.
 //
 // This is now only reached from the browser — the REST create handler and the
 // blueprint behind it. The MCP `workspace` tool that used to call it is gone:
@@ -107,7 +107,7 @@ func (s *Server) moveSubtreeToWorkspace(userID, pageID, targetWS string, tokenOK
 // and left a second, empty "Stockbook" on the live instance. Making a workspace
 // is a decision about how a team is organised, and it belongs to the person, in
 // the interface, where they can see what already exists.
-func (s *Server) createWorkspaceFor(userID, name string) (string, error) {
+func (s *Server) createNamedWorkspace(userID, name string) (string, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
 		return "", fmt.Errorf("name is required")

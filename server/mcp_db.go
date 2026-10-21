@@ -28,8 +28,9 @@ func (s *Server) mcpGetSchema(pageID string) (string, error) {
 }
 
 // mcpQueryRows filters/sorts/paginates a database's rows server-side and returns
-// compact JSON including computed rollup/formula values.
-func (s *Server) mcpQueryRows(u *user, pageID string, filters []rowFilter, sort string, limit, offset int) (string, error) {
+// compact JSON including computed rollup/formula values. flat and groups
+// combine as in collectionRowsQuery: "this AND (that OR those)".
+func (s *Server) mcpQueryRows(u *user, pageID string, flat []rowFilter, groups [][]rowFilter, sort string, limit, offset int) (string, error) {
 	var isCollection int
 	if s.db.QueryRow(`SELECT COUNT(*) FROM collections WHERE page_id = ?`, pageID).Scan(&isCollection); isCollection == 0 {
 		return "", fmt.Errorf("page %q is not a database", pageID)
@@ -41,8 +42,11 @@ func (s *Server) mcpQueryRows(u *user, pageID string, filters []rowFilter, sort 
 		offset = 0
 	}
 	// Filter values may arrive as an option NAME as well (see set_properties).
-	filters = s.resolveFilterValues(pageID, filters)
-	rows, total, err := s.collectionRowsQuery(u, pageID, filters, sort, limit, offset)
+	resolved := make([][]rowFilter, len(groups))
+	for i, g := range groups {
+		resolved[i] = s.resolveFilterValues(pageID, g)
+	}
+	rows, total, err := s.collectionRowsQuery(u, pageID, s.resolveFilterValues(pageID, flat), resolved, sort, limit, offset)
 	if err != nil {
 		return "", err
 	}
@@ -128,7 +132,7 @@ func (s *Server) mcpSetProperties(pageID string, properties json.RawMessage, act
 		if blob, err := json.Marshal(diff); err == nil {
 			s.auditChanges("agent", actor.ID, actor.Name+" (MCP)", "set_properties", pageID,
 				s.pageWorkspace(pageID),
-				fmt.Sprintf("%s — %s", title, strings.Join(changed, ", ")), string(blob))
+				fmt.Sprintf("%s: %s", title, strings.Join(changed, ", ")), string(blob))
 		}
 	}
 	return fmt.Sprintf("Set %d propert%s on row %s", len(changed), plural(len(changed), "y", "ies"), pageID), nil

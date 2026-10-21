@@ -162,6 +162,11 @@ func (s *Server) userByID(id string) *user {
 // API bearer token. Returns nil when unauthenticated.
 func (s *Server) currentUser(r *http.Request) *user {
 	if auth := r.Header.Get("Authorization"); strings.HasPrefix(auth, "Bearer ") {
+		// Before the key is even looked up, so an address that is turned away
+		// learns nothing about whether its key is good.
+		if !s.agentAddressAllowed(r) {
+			return nil
+		}
 		tok := strings.TrimPrefix(auth, "Bearer ")
 		// Guessing gets cut off before the lookup once an address has burned
 		// through its budget of WRONG tokens. Only failures pay in, so an agent
@@ -228,6 +233,10 @@ func (s *Server) auth(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		u := s.currentUser(r)
 		if u == nil {
+			if hasBearer(r) && !s.agentAddressAllowed(r) {
+				s.refuseAgentAddress(w, r)
+				return
+			}
 			httpError(w, http.StatusUnauthorized, "unauthorized")
 			return
 		}
@@ -489,7 +498,7 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	// Deactivated account: refuse only AFTER the password check, or the response
 	// would give away that this address exists at all.
 	if disabled != 0 {
-		httpErrorCode(w, http.StatusForbidden, "account_disabled", "This account has been deactivated — talk to an admin.")
+		httpErrorCode(w, http.StatusForbidden, "account_disabled", "This account has been deactivated. Talk to an admin.")
 		return
 	}
 	// Second factor: password was correct, now require a valid TOTP code. The
@@ -501,7 +510,7 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if !verifyTOTP(totpSecret, body.Code) {
-			httpErrorCode(w, http.StatusUnauthorized, "2fa_invalid", "Wrong code — try again.")
+			httpErrorCode(w, http.StatusUnauthorized, "2fa_invalid", "Wrong code. Try again.")
 			return
 		}
 	}
@@ -660,7 +669,7 @@ func (s *Server) handleUpdateUser(w http.ResponseWriter, r *http.Request) {
 		// dialog you have open (every further action falls to 403) — and you
 		// cannot promote yourself back. So: forbidden.
 		if me.ID == id {
-			httpError(w, 400, "you cannot remove your own admin rights — ask another admin")
+			httpError(w, 400, "you cannot remove your own admin rights. Ask another admin")
 			return
 		}
 		var others int
@@ -672,7 +681,7 @@ func (s *Server) handleUpdateUser(w http.ResponseWriter, r *http.Request) {
 		// Taking is_admin from the owner would leave them half locked out: they
 		// would keep the owner role, but every adminOnly route would be shut.
 		if s.isOwner(id) {
-			httpErrorCode(w, 400, "owner_rights_locked", "The owner's rights cannot be revoked — hand the owner role on first.")
+			httpErrorCode(w, 400, "owner_rights_locked", "The owner's rights cannot be revoked. Hand the owner role on first.")
 			return
 		}
 	}
@@ -767,7 +776,7 @@ func (s *Server) handleDeleteUser(w http.ResponseWriter, r *http.Request) {
 	// no password reset, no instance backup. Repairable only by hand in the
 	// database. Hand it over first, then delete.
 	if s.isOwner(id) {
-		httpErrorCode(w, 400, "owner_cannot_be_deleted", "The owner cannot be deleted — hand the owner role to another account first.")
+		httpErrorCode(w, 400, "owner_cannot_be_deleted", "The owner cannot be deleted. Hand the owner role to another account first.")
 		return
 	}
 	// Order: first RECORD what hangs off the account (after this the memberships
@@ -780,7 +789,7 @@ func (s *Server) handleDeleteUser(w http.ResponseWriter, r *http.Request) {
 	if plan.Err != nil {
 		// An empty plan would look like "nothing hangs off this" and leave every
 		// one of the account's workspaces orphaned. Better not to delete at all.
-		httpErrorCode(w, 500, "impact_unavailable", "The consequences of this deletion could not be determined — please try again.")
+		httpErrorCode(w, 500, "impact_unavailable", "The consequences of this deletion could not be determined. Please try again.")
 		return
 	}
 	target := s.userByID(id)

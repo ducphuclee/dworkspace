@@ -14,12 +14,12 @@ old version of a page back.
 | Who is knocking on the sign-in? | **Rejected sign-ins** | the server's own log |
 
 A fifth thing looks like a record and is not quite one: the **raw trail** on a
-page — dated, append-only notes somebody wrote *while* working. It is the only
+page (dated, append-only notes somebody wrote *while* working). It is the only
 one that can say why an approach was dropped. See
 [Comments and notes](comments-and-notes.md).
 
 None of the four answers "who is on this page right now". That question has its
-own answer, and it is live rather than recorded — see [Who is here right
+own answer, and it is live rather than recorded. See [Who is here right
 now](#who-is-here-right-now) at the end of this page.
 
 ## Taking an agent's change back
@@ -34,8 +34,8 @@ offer **Take back**.
 
 **A take-back never overwrites your own work.** Before putting a value back it
 compares what is there now against what the agent wrote. If somebody has edited
-that property since, it is left exactly as it is and reported as skipped —
-restoring it quietly is the one failure this feature must not have. So a
+that property since, it is left exactly as it is and reported as skipped.
+Restoring it quietly is the one failure this feature must not have. So a
 half-reverted entry is a correct outcome, not an error.
 
 Only property changes on database rows are recorded this way. Body text is
@@ -60,7 +60,7 @@ hands you back:
 Three rules decide what ends up in the list:
 
 - **At most one snapshot per page every two minutes.** A save inside that window
-  adds nothing — twenty minutes of typing leaves ten revisions, not hundreds.
+  adds nothing: twenty minutes of typing leaves ten revisions, not hundreds.
 - **The newest 50 per page are kept.** When a fifty-first snapshot arrives, the
   oldest goes. (A restore made over MCP writes its pre-restore copy past that
   ceiling; the next ordinary snapshot on the page prunes back to 50.)
@@ -69,6 +69,14 @@ Three rules decide what ends up in the list:
 
 The dialog says the same thing in one line: *Snapshots are taken on save (at
 most every 2 minutes, the latest 50).*
+
+**A save that comes too late is kept here too.** When a page is replaced (an
+agent's rewrite, a restore, an import) while an editor still holds the old text,
+that editor's next save would put the old text back. The server refuses it and
+files it as a revision under its author's name instead, outside the two-minute
+rule; the same copy arriving twice, from two tabs, is filed once. So what
+somebody typed into a page in the moment it was replaced is one **Restore**
+away rather than gone.
 
 **Properties are not part of a revision.** Changing a row's status or its due
 date writes no snapshot, because the body did not change. Version history is for
@@ -84,13 +92,13 @@ properties are.
 4. Click **Restore**. dworkspace asks first: *Restore the version from …? The
    current state is saved as a version first.*
 5. On success a *Version restored* message appears, the dialog closes, and the
-   live document is reset — anybody with that page open in an editor gets the
+   live document is reset: anybody with that page open in an editor gets the
    restored text rather than carrying on from the old one.
 
 If a page has no revisions yet the dialog says *No versions yet.*
 
-**One kind of row names no person.** Content appended over MCP — the
-`write_content` tool in its default append mode — records the author as `agent`
+**One kind of row names no person.** Content appended over MCP (the
+`write_content` tool in its default append mode) records the author as `agent`
 rather than the account behind the call. Every other write path records the
 account's own name. *unknown* appears only for a revision that carries no author
 name at all.
@@ -107,7 +115,7 @@ Two things about restoring that are easy to be surprised by:
   keeps whatever title it has now. Restoring over MCP puts back both.
 
 **Who may do what.** Anyone who can read the page can open its history. Restoring
-needs write access — the same permission as editing. The Restore button is shown
+needs write access, the same permission as editing. The Restore button is shown
 to viewers as well, and the server refuses it, so the click ends in an error
 rather than a change. See [Permissions](permissions.md).
 
@@ -127,7 +135,7 @@ The `revisions` tool covers all three moves on one page:
 
 | Action | What it does |
 | --- | --- |
-| list (the default) | the newest revisions — 20 unless a limit is given — with author, time, size, and whether a **human** or an **agent** caused it |
+| list (the default) | the newest revisions (20 unless a limit is given) with author, time, size, and whether a **human** or an **agent** caused it |
 | get | one older state, rendered as Markdown, without changing anything |
 | restore | put the page back to it |
 
@@ -137,7 +145,7 @@ week's state without putting the whole page back. Both get and restore need the
 revision id from the list.
 
 The limit on **list** is 20 by default, and 100 is the largest value that is
-honoured — anything above it, or below 1, silently falls back to 20 rather than
+honoured: anything above it, or below 1, silently falls back to 20 rather than
 being capped. An agent asking for 500 gets 20 rows and no warning, which reads
 exactly like a page with only 20 revisions. The dialog in the browser has no
 limit at all and shows every kept revision.
@@ -158,7 +166,7 @@ The same three steps are HTTP routes if you prefer them:
 ## The activity log
 
 Who did what, when, and whether it was a person or an agent. Open the **account
-menu** — your name at the bottom of the sidebar — and choose **Activity log**.
+menu** (your name at the bottom of the sidebar) and choose **Activity log**.
 Every signed-in account has it; there is no admin switch.
 
 Each row carries a badge reading *human* or *agent*, the name of whoever acted,
@@ -173,7 +181,7 @@ tail. An instance where nothing has happened says *Nothing has happened yet.*
 
 | Wording in the log | What happened |
 | --- | --- |
-| created | a page was created — the detail is its title |
+| created | a page was created; the detail is its title |
 | changed | a page's title, icon, cover, description, visibility or tags was changed over MCP (`update_page`) |
 | uploaded a file to | a file was attached over MCP |
 | moved to trash / permanently deleted | a page was trashed or deleted for good from the browser or the API |
@@ -205,7 +213,7 @@ writes its own entry with the note as the detail, and `note` writes nothing here
 because the raw trail on the page already is the record.
 
 A [form](forms.md) submitted by somebody with no account appears as *public
-form* creating a page — the form is the actor.
+form* creating a page: the form is the actor.
 
 ### What is not recorded
 
@@ -215,20 +223,20 @@ second list would drown everything else. The log answers "what happened to this
 workspace", the history answers "what did this page say".
 
 Reads are not recorded either. Opening a page writes nothing to any of the four
-records — though it is not invisible while it happens, see [Who is here right
+records, though it is not invisible while it happens: see [Who is here right
 now](#who-is-here-right-now).
 
 ### Who sees what
 
 - **Anybody signed in** sees events from the workspaces they can see, and only
   those. Within a workspace, entries pointing at a page they may not read are
-  filtered out one by one — the detail of a *created* entry is the page title,
+  filtered out one by one: the detail of a *created* entry is the page title,
   and a private sub-tree must not leak its titles through a log.
 - **The instance owner and instance admins** additionally see events that hang
   off no workspace at all: an account deactivated, reactivated or deleted, a
   workspace deleted, and the instance handed to another owner. Those events
   belong to no workspace, so the ordinary filter made them invisible to
-  everybody — precisely the events a log is kept for. They name accounts and
+  everybody, precisely the events a log is kept for. They name accounts and
   workspaces, never page titles.
 - **A workspace handover is not one of those.** It is filed against the
   workspace it concerns and follows the ordinary filter like any other entry. An
@@ -246,37 +254,37 @@ deletions would be the first thing to vanish from the record.
 ## The emergency access log
 
 The instance owner can look into a workspace they are not a member of. There is
-no way to make that impossible — whoever runs the server has the database file —
+no way to make that impossible (whoever runs the server has the database file),
 so dworkspace makes it deliberate and **visible** instead.
 
 **Taking it.** In *Manage users*, the owner opens their own account, finds a
 workspace they have no access to under *Workspace access*, and clicks **Emergency
-access**. dworkspace asks *Emergency access to “…” — why?* and will not proceed on
+access**. dworkspace asks *Emergency access to “…”: why?* and will not proceed on
 less than 10 characters of reason. The reason is stored (up to 500 characters),
 written to the activity log, and emailed to that workspace's admins. The
-confirmation names the end time: *Read access to “…” until … — the people in
+confirmation names the end time: *Read access to “…” until 16:30. The people in
 charge have been told.*
 
-**What it grants.** Reading, for **two hours**. Not writing and not trashing — an
+**What it grants.** Reading, for **two hours**. Not writing and not trashing: an
 emergency grant carries no workspace role at all, so nothing on a page can be
 changed. Three things do come with the reading, and they are worth knowing before
 you take a grant:
 
 - The workspace's pages become findable through [search](search.md) and
-  reachable by direct link. The workspace does **not** join the sidebar switcher
-  — that list is memberships only.
+  reachable by direct link. The workspace does **not** join the sidebar switcher:
+  that list is memberships only.
 - The workspace's entries enter the owner's **activity log** scope, because that
   log follows readable workspaces rather than memberships.
 - The **workspace export** answers (`/api/workspaces/{id}/export`), so a full
-  copy of the workspace — pages, files, schema — can be taken over the API while
+  copy of the workspace (pages, files, schema) can be taken over the API while
   the grant runs. In the browser that button sits in *Workspace settings*, which
   opens only for a workspace admin of a workspace they belong to, so it is not
   offered there.
 
 **What it refuses.** A workspace you are already a member of (you do not need
 it), and a **personal space**, which cannot be looked into at all: it belongs to
-exactly one account, and an exception there would make the whole promise hollow —
-the export above is precisely why.
+exactly one account, and an exception there would make the whole promise hollow.
+The export above is precisely why.
 
 **Ending it.** It expires on its own after two hours. It can be ended early from
 the log. Handing the instance to another owner ends every running grant of the
@@ -286,8 +294,8 @@ outgoing one immediately.
 access log**. Each row names the person, when they looked in, the reason they
 gave, and its state: *runs until …* while it is live, then *ended early* or
 *expired*. A live one carries an **End it now** button. A workspace nobody has
-looked into says so plainly — *There has been no emergency access to this
-workspace so far.* — so an empty record cannot be mistaken for a broken one. The
+looked into says so plainly (*There has been no emergency access to this
+workspace so far.*), so an empty record cannot be mistaken for a broken one. The
 dialog states the rule at the top: emergency access allows reading only, expires
 after two hours, and can be ended early at any time.
 
@@ -300,7 +308,7 @@ the *Emergency access log* row inside it is shown to the **instance owner**. So 
 workspace admin who gets the email cannot open that dialog; the record and the
 early revocation are reachable for them through
 `/api/workspaces/{id}/break-glass` instead. And the owner who took the access on
-a workspace they do not belong to has no workspace settings there either — for
+a workspace they do not belong to has no workspace settings there either; for
 them the entry in the [activity log](#the-activity-log) is the readable copy.
 
 The visibility is the safeguard, not the permission.
@@ -317,7 +325,7 @@ auth: rejected token from 203.0.113.9
 ```
 
 Those two only. A wrong password on a password-protected shared page, and a
-sign-in that fails through an identity provider, write no such line — worth
+sign-in that fails through an identity provider, write no such line. Worth
 knowing, because this log is what a firewall jail reads.
 
 Under systemd that means the journal. The line carries the address, because that
@@ -326,25 +334,25 @@ weighed differently from a wrong API token. It deliberately carries **neither th
 email address nor the token**: this log ends up in journald, in log shipping and
 in backups, and "who did what" belongs in the activity log behind a sign-in.
 
-A wrong **second factor** is not one of these lines either — the password was
+A wrong **second factor** is not one of these lines either: the password was
 right, and that attempt is throttled but not written.
 
 dworkspace throttles by itself as well: 30 sign-in attempts a minute per address,
 and a separate budget for rejected API tokens that only failures pay into, so an
 agent working with a valid token is never slowed by it. The log line exists for
-the layer above that — a firewall ban costs an attacker a TCP connection instead
+the layer above that: a firewall ban costs an attacker a TCP connection instead
 of a request. A ready-made fail2ban filter and jail ship in the repository under
 `docs/fail2ban/`.
 
 **Behind a proxy or a tunnel, turn on "Run behind a reverse proxy (trust
 `X-Forwarded-For`)"** in *Instance settings* → *Domain & proxy* first. Without it
 every visitor arrives as the proxy, every line reads the same local address, and
-a ban would lock out everybody. Only turn it on when the proxy is the only way in
-— see [Domain and proxy](domain.md) and [Administration](administration.md).
+a ban would lock out everybody. Only turn it on when the proxy is the only way in.
+See [Domain and proxy](domain.md) and [Administration](administration.md).
 
 ## What none of them keep
 
-- **Reads.** No record is written when you open a page — not to the history, not
+- **Reads.** No record is written when you open a page: not to the history, not
   to the activity log. It is not invisible while it happens, though: see
   [below](#who-is-here-right-now).
 - **Text as it is typed.** Live editing is relayed between browsers and never
@@ -363,7 +371,7 @@ tense, and neither is written down:
   you are there. See [Collaboration](collaboration.md).
 - **Agents.** An agent that has checked in with `working_on` shows as a badge
   beside those dots, in its own colour and with its own logo, carrying the note
-  it gave — "reworking the intro" rather than "working". The account behind the
+  it gave: "reworking the intro" rather than "working". The account behind the
   agent travels with the name, because the name itself is only a claim. A
   check-in stays until the agent checks out; the badge fades after ten quiet
   minutes and the tooltip changes from *active just now* to *last seen … ago*.
@@ -373,7 +381,7 @@ tense, and neither is written down:
 
 By default, **forever**. Nothing is ever removed, and an instance that has run
 for years carries every change it has seen. That costs roughly 300 bytes per
-change, so a million changes is about 270 MB — real, but small beside the files
+change, so a million changes is about 270 MB: real, but small beside the files
 most instances hold.
 
 An admin can shorten it in **Instance settings → Maintenance → Keep the activity
@@ -390,11 +398,11 @@ Two consequences worth knowing before you shorten it:
   taken first. Download a backup if the record matters to you.
 
 The default is deliberate. A log that quietly forgets is worse than no log,
-because people trust it — so the shortening has to be somebody's decision.
+because people trust it. So the shortening has to be somebody's decision.
 
 ## The raw trail, and clearing it
 
-The notes on a page cannot be edited or removed one by one — that is what makes
+The notes on a page cannot be edited or removed one by one; that is what makes
 them worth reading later, and the panel says so. They can be discarded **all at
 once**, by anybody with write access to the page: open the trail and click
 **Discard the whole trail**. dworkspace asks first, the notes are gone afterwards,
@@ -402,7 +410,7 @@ and there is no undo.
 
 The act itself is recorded in the activity log, with the number of notes removed
 as the detail, so the gap in the record is a recorded decision rather than a
-silence. Only a signed-in person can do it — the route refuses an API token, so
+silence. Only a signed-in person can do it: the route refuses an API token, so
 it is never the agent whose trail it is. See
 [Comments and notes](comments-and-notes.md).
 
@@ -410,7 +418,7 @@ it is never the agent whose trail it is. See
 
 The activity log is readable in the interface and at `/api/audit`, newest first,
 with `?before=` and `?limit=` for paging. The limit is 50 by default and **200 at
-most** — a larger or malformed value falls back to 50 rather than erroring, which
+most**: a larger or malformed value falls back to 50 rather than erroring, which
 is easy to miss when paging the log out of the instance. The version history of
 one page is readable per page over the API and over MCP.
 
@@ -418,12 +426,12 @@ For a live feed rather than a poll, use a [webhook](webhooks.md). dworkspace
 delivers `page.created`, `page.updated` and `page.trashed` to a URL you give it,
 each signed with an `X-Dworkspace-Signature` header. A `page.updated` fires on any save
 that changed the body or the metadata, whether it came from the browser, the API
-or an agent — that is the built-in way to feed page changes into a SIEM or
+or an agent. That is the built-in way to feed page changes into a SIEM or
 another system as they happen. The payload names the page and never carries its
 content.
 
-For everything else — keeping the trail after the instance is gone, running your
-own queries over it — take the database. It is one SQLite file, and the
+For everything else (keeping the trail after the instance is gone, running your
+own queries over it), take the database. It is one SQLite file, and the
 revisions, the log and the emergency grants are ordinary tables in it. An admin
 can download the whole instance from *Instance settings* → **Download backup
 (.tar.gz)** without shell access; that file is what `./dworkspace restore` reads back.

@@ -166,7 +166,7 @@ func renderBlocks(b *strings.Builder, blocks []mdBlock, depth int) {
 			// in the database page. So the Markdown carries a link there — a dump
 			// of the rows would be a copy that goes stale at once.
 			if id := strProp(blk.Props, "collectionId", ""); id != "" {
-				b.WriteString(indent + "[Datenbank](/p/" + id + ")\n\n")
+				b.WriteString(indent + "[Collection](/p/" + id + ")\n\n")
 			}
 		case "embed":
 			// An embedded page, by the same argument as the database above: the
@@ -180,6 +180,8 @@ func renderBlocks(b *strings.Builder, blocks []mdBlock, depth int) {
 			}
 		case "toc":
 			// Generated client-side from headings; nothing meaningful to export.
+		case "subpages":
+			// Generated client-side from the page tree; nothing to export.
 		case "columnList", "column":
 			// Layout containers: flatten children at the SAME depth (an indent
 			// would misread as nesting). Children handled below via the generic
@@ -315,8 +317,9 @@ func safeFilename(name string) string {
 	return name
 }
 
-// collectionMarkdown renders a database page as a Markdown table of its rows.
-func (s *Server) collectionMarkdown(p *page) (string, error) {
+// collectionMarkdown renders a database page as a Markdown table of the rows
+// userID may read. "" is an anonymous visitor of a shared link.
+func (s *Server) collectionMarkdown(p *page, userID string) (string, error) {
 	var schemaJSON string
 	if err := s.db.QueryRow(`SELECT schema FROM collections WHERE page_id = ?`, p.ID).Scan(&schemaJSON); err != nil {
 		return pageMarkdown(p), nil
@@ -354,7 +357,9 @@ func (s *Server) collectionMarkdown(p *page) (string, error) {
 	}
 	b.WriteString("\n")
 
-	rows, err := s.db.Query(`SELECT title, props FROM pages WHERE parent_id = ? AND trashed_at IS NULL ORDER BY position, created_at`, p.ID)
+	rule, ruleArgs := s.privateRowRule(userID, p.ID)
+	rows, err := s.db.Query(`SELECT title, props FROM pages WHERE parent_id = ? AND trashed_at IS NULL AND `+rule+` ORDER BY position, created_at`,
+		append([]any{p.ID}, ruleArgs...)...)
 	if err != nil {
 		return "", err
 	}
@@ -430,6 +435,7 @@ func (s *Server) handleExportPage(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("X-Robots-Tag", "noindex")
 			opts := applyPrintQuery(s.printOptionsFor(p), r.URL.Query())
 			opts.Region, opts.Language = s.formatLocaleParts(requestUser(r).ID)
+			docCSP(w, &opts)
 			w.Write([]byte(s.pageHTML(p, true, opts)))
 		} else {
 			w.Header().Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": safeFilename(p.Title) + ".html"}))
@@ -439,7 +445,7 @@ func (s *Server) handleExportPage(w http.ResponseWriter, r *http.Request) {
 	}
 	md := ""
 	if p.Type == "collection" {
-		md, err = s.collectionMarkdown(p)
+		md, err = s.collectionMarkdown(p, requestUser(r).ID)
 		if err != nil {
 			httpError(w, 500, err.Error())
 			return

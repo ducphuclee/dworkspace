@@ -124,7 +124,7 @@ export default function PublicForm({ token }: { token: string }) {
         </div>
         <div className="form-actions">
           <button className="btn-sm primary form-submit" disabled={busy || !title.trim()} onClick={() => void submit()}>
-            <Send size={14} /> {cfg.formSubmit?.trim() || 'Absenden'}
+            <Send size={14} /> {cfg.formSubmit?.trim() || t('Submit')}
           </button>
         </div>
         <div className="public-form-footer">

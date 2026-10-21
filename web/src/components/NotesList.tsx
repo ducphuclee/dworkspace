@@ -5,6 +5,7 @@ import { PageIcon } from '../pageIcon';
 import { tagColorClass } from '../tags';
 import { formatRelative } from '../format';
 import { t } from '../i18n';
+import { openPage, openPageAux } from '../pageOpen';
 
 // Bear-style middle column: a flat, recency-sorted list of note cards with
 // snippet + thumbnail previews. Documents only — databases and their rows keep
@@ -20,10 +21,14 @@ interface Props {
   tagFilter?: string | null;
   onClearTag?: () => void;
   onNavigate: (id: string) => void;
+  onOpenInNewTab?: (id: string) => void;
   onCreate: () => void;
+  // Inside the phone's drawer: no column of its own and no scroller of its
+  // own, the drawer already scrolls.
+  inline?: boolean;
 }
 
-export default function NotesList({ pages, currentWs, activeId, tagColors, tagFilter, onClearTag, onNavigate, onCreate }: Props) {
+export default function NotesList({ pages, currentWs, activeId, tagColors, tagFilter, onClearTag, onNavigate, onOpenInNewTab, onCreate, inline = false }: Props) {
   const [list, setList] = useState<'all' | 'untagged'>('all');
 
   const notes = useMemo(() => {
@@ -45,7 +50,7 @@ export default function NotesList({ pages, currentWs, activeId, tagColors, tagFi
   }, [pages, currentWs, list, tagFilter]);
 
   return (
-    <div className="notes-list">
+    <div className={'notes-list' + (inline ? ' notes-list--inline' : '')}>
       <div className="notes-head">
         <span className="notes-title">{t('Notes')}</span>
         <span className="notes-count">{notes.length}</span>
@@ -76,7 +81,8 @@ export default function NotesList({ pages, currentWs, activeId, tagColors, tagFi
           <button
             key={n.id}
             className={'note-card' + (n.id === activeId ? ' active' : '')}
-            onClick={() => onNavigate(n.id)}
+            onClick={(e) => openPage(e, n.id, { onNavigate, onOpenInNewTab })}
+            onAuxClick={(e) => openPageAux(e, n.id, { onNavigate, onOpenInNewTab })}
           >
             <span className="note-card-main">
               <span className="note-card-title">
@@ -106,7 +112,7 @@ export default function NotesList({ pages, currentWs, activeId, tagColors, tagFi
               ? t('No notes tagged #{tag}.', { tag: tagFilter })
               : list === 'untagged'
                 ? t('Everything is tagged. 🎉')
-                : t('No notes yet — write the first one.')}
+                : t('No notes yet. Write the first one.')}
           </div>
         )}
       </div>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { api } from '../api';
 import type { FontPref } from '../App';
 import type { PageMeta, User, Workspace } from '../types';
@@ -9,10 +9,13 @@ import FileList from './FileList';
 import { promptText } from '../dialog';
 import { toast } from '../toast';
 import Portal from './Portal';
+import AnchoredMenu from './AnchoredMenu';
 import IconPicker from './IconPicker';
 import { PageIcon } from '../pageIcon';
+import TrashSection from './TrashSection';
 import { compare } from '../format';
 import { plural, t } from '../i18n';
+import { openPage, openPageAux } from '../pageOpen';
 import AgentConnectModal from './AgentConnect';
 import BreakGlassLog from './BreakGlassLog';
 import TemplateGallery from './TemplateGallery';
@@ -20,11 +23,14 @@ import BlueprintLibrary from './BlueprintLibrary';
 import { openSkills } from './SkillsApp';
 import WorkspaceSettings from './WorkspaceSettings';
 import StrandedWorkspaces from './StrandedWorkspaces';
-import { useExclusiveModal, useMenuDismiss } from '../modal';
-import { Sun, Moon, Search, Library, Sparkles, Plus, Table2, FileText, Trash2, LayoutTemplate, Tag, ChevronRight, ChevronDown, Users, Check, Download, Upload, Image, PanelLeftClose, PanelLeftOpen, Pencil, Star, ShieldAlert, ScrollText, Paperclip, SquareArrowOutUpRight, Copy, CornerUpRight, CornerLeftUp, Undo2, X, MoreHorizontal, Settings2 } from 'lucide-react';
+import { modalOpen, useExclusiveModal, useMenuDismiss } from '../modal';
+import { chordFor, hint, useShortcut } from '../keys';
+import { focusRegion, focusedKey, navItem, useNavRegion, withFocusSurvival } from '../nav';
+import { Sun, Moon, Search, Library, Sparkles, Plus, Table2, FileText, Trash2, LayoutTemplate, Tag, ChevronRight, ChevronDown, Users, Check, Download, Upload, Image, PanelLeftClose, PanelLeftOpen, Pencil, Star, ShieldAlert, ScrollText, Paperclip, SquareArrowOutUpRight, Copy, CornerUpRight, CornerLeftUp, Undo2, X, MoreHorizontal, Settings2, Globe } from 'lucide-react';
 import { AgentDot } from './AgentBadge';
 import { tagColorClass } from '../tags';
 import { childrenForSection, topLevelForDocs } from '../treeMode';
+import SyncButton from './SyncButton';
 import ThemeSwitch, { type ThemePref } from '../ThemeSwitch';
 
 // Drag-to-resize width bounds: narrow enough to still show a title, wide
@@ -51,7 +57,9 @@ interface Props {
   onNavigate: (id: string) => void;
   onOpenInNewTab: (id: string) => void;
   onCreate: (parentId: string | null, type?: 'doc' | 'collection') => void;
-  onTrash: (id: string) => void;
+  // Promise-aware: the keyboard path (⌘⌫) has to know when the page is actually
+  // gone before it can hand the focus to the next row.
+  onTrash: (id: string) => void | Promise<void>;
   onDuplicate: (id: string) => void;
   onRestore: (id: string) => void;
   onDeleteForever: (id: string) => void;
@@ -67,11 +75,15 @@ interface Props {
   // documents appear, so the sidebar drops its document tree and its tag chips
   // filter THAT list instead of the tree.
   notesMode?: boolean;
+  // On a phone there is no middle column, so the notes list comes into the
+  // drawer itself, where the document tree would otherwise be.
+  notesList?: React.ReactNode;
   activeTag?: string | null;
   onSelectTag?: (tag: string | null) => void;
   // Raw user setting (independent of viewport) + toggle, shown in the UserMenu.
   notesModeSetting?: boolean;
   onToggleNotesMode?: () => void;
+  onOpenShortcuts?: () => void;
   // Choice of typeface: it belongs to the person, not to the instance.
   fontPref?: FontPref;
   onSetFont?: (f: FontPref) => void;
@@ -132,6 +144,12 @@ interface TreeCtx {
   drop: (p: PageMeta, e: React.DragEvent) => void;
   dragEnd: () => void;
 }
+
+// The children of an open row hang on a hairline through the middle of its
+// chevron, so a group reads as one at a glance (theme.css draws it from
+// --guide). A row's left padding is 6 + 14 per level and its chevron 22 wide,
+// so that middle sits at 17 + 14 per level.
+const guideAt = (depth: number) => ({ '--guide': `${17 + depth * 14}px` }) as CSSProperties;
 
 // DbRows lazily loads and lists a database's rows when it is expanded in the
 // tree — Notion-style "open a database to see its entries". A row that carries
@@ -207,9 +225,12 @@ function DbRows({
         return (
           <div key={r.id}>
             <div
-              className="tree-db-row"
+              className={'tree-db-row' + (r.id === ctx.currentId ? ' active' : '')}
               style={pad}
-              onClick={() => ctx.onNavigate(r.id)}
+              {...navItem(r.id)}
+              data-expanded={kids.length > 0 ? (isOpen ? 'true' : 'false') : undefined}
+              onClick={(e) => openPage(e, r.id, { onNavigate: ctx.onNavigate, onOpenInNewTab: ctx.onOpenInNewTab })}
+              onAuxClick={(e) => openPageAux(e, r.id, { onNavigate: ctx.onNavigate, onOpenInNewTab: ctx.onOpenInNewTab })}
               onContextMenu={(e) => {
                 e.preventDefault();
                 ctx.setAddFor(null);
@@ -219,12 +240,14 @@ function DbRows({
               {kids.length > 0 ? (
                 <button
                   className="chevron"
+                  aria-expanded={isOpen}
+                  aria-label={isOpen ? t('Collapse') : t('Expand')}
                   onClick={(e) => {
                     e.stopPropagation();
                     ctx.toggleExpand(r.id);
                   }}
                 >
-                  {isOpen ? '▾' : '▸'}
+                  <ChevronRight size={14} />
                 </button>
               ) : (
                 <span className="chevron spacer" />
@@ -241,7 +264,11 @@ function DbRows({
                   to open it first and hope its own menu had what you wanted. */}
               <RowActions id={r.id} title={r.title} parentId={collectionId} workspaceId={workspaceId} ctx={ctx} />
             </div>
-            {isOpen && kids.map((k) => <TreeItem key={k.id} p={k} depth={depth + 1} ctx={ctx} section="dbs" />)}
+            {isOpen && (
+              <div className="tree-children" style={guideAt(depth)}>
+                {kids.map((k) => <TreeItem key={k.id} p={k} depth={depth + 1} ctx={ctx} section="dbs" />)}
+              </div>
+            )}
           </div>
         );
       })}
@@ -319,7 +346,7 @@ function SidebarSection({
           <span className="sb-section-label">{label}</span>
           <span className="sb-section-count">{count}</span>
           <span className="sb-section-caret">
-            {open ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
+            <ChevronRight size={15} />
           </span>
         </button>
         {onCreate && (
@@ -349,16 +376,22 @@ function FlatRow({
   active,
   parentLabel,
   onNavigate,
+  onOpenInNewTab,
   action,
 }: {
   p: PageMeta;
   active: boolean;
   parentLabel?: string;
   onNavigate: (id: string) => void;
+  onOpenInNewTab?: (id: string) => void;
   action?: React.ReactNode;
 }) {
   return (
-    <div className={'tree-item sb-flat' + (active ? ' active' : '')} onClick={() => onNavigate(p.id)}>
+    <div
+      className={'tree-item sb-flat' + (active ? ' active' : '')}
+      onClick={(e) => openPage(e, p.id, { onNavigate, onOpenInNewTab })}
+      onAuxClick={(e) => openPageAux(e, p.id, { onNavigate, onOpenInNewTab })}
+    >
       <span className="chevron spacer" />
       <span className="tree-icon">
         <PageIcon
@@ -408,7 +441,7 @@ function RowActions({
           ctx.setAddFor(ctx.addFor === id ? null : id);
         }}
       >
-        +
+        <Plus size={14} />
       </button>
       {ctx.addFor === id && <AddMenu id={id} ctx={ctx} />}
       <button
@@ -418,7 +451,7 @@ function RowActions({
           ctx.setMenuFor(ctx.menuFor === id ? null : id);
         }}
       >
-        <MoreHorizontal size={13} />
+        <MoreHorizontal size={14} />
       </button>
       {ctx.menuFor === id && (
         <PageMenu id={id} title={title} parentId={parentId} workspaceId={workspaceId} ctx={ctx} />
@@ -438,7 +471,7 @@ function RowActions({
 // sensible reply. Only where the type is genuinely open does it get asked.
 function AddMenu({ id, ctx }: { id: string; ctx: TreeCtx }) {
   return (
-    <div className="menu add-menu">
+    <AnchoredMenu className="menu add-menu">
       <button
         onClick={() => {
           ctx.setAddFor(null);
@@ -455,7 +488,7 @@ function AddMenu({ id, ctx }: { id: string; ctx: TreeCtx }) {
       >
         <Table2 size={16} /> {t('Collection')}
       </button>
-    </div>
+    </AnchoredMenu>
   );
 }
 
@@ -473,7 +506,7 @@ function PageMenu({
   ctx: TreeCtx;
 }) {
   return (
-    <div className="menu">
+    <AnchoredMenu>
               {/* The visible way to get a second tab — ⌘-click and middle-click
                   exist too, but nothing in the interface said so. */}
               <button
@@ -578,9 +611,12 @@ function PageMenu({
                   ctx.onTrash(id);
                 }}
               >
+                {/* Read from the registry rather than typed in here, so the
+                    menu cannot go on advertising a chord that has moved. */}
                 <Trash2 size={16} /> {t('Move to trash')}
+                <kbd className="menu-chord">{chordFor('page.trash')}</kbd>
               </button>
-    </div>
+    </AnchoredMenu>
   );
 }
 
@@ -634,6 +670,14 @@ function TreeItem({
           (dt === 'after' ? ' drop-after' : '')
         }
         style={{ paddingLeft: 6 + depth * 14 }}
+        // A step for the arrow keys, and an element a keyboard can reach at
+        // all: these rows were divs with an onClick.
+        {...navItem(p.id)}
+        // Plain DOM state rather than aria-expanded: a real treeitem has to be
+        // owned by a role="tree" through a chain of role="group"s, and the
+        // sidebar's sections are not that chain. Claiming the role without the
+        // structure describes the tree wrongly, which is worse than not at all.
+        data-expanded={hasExpand ? (isExpanded ? 'true' : 'false') : undefined}
         draggable
         onDragStart={(e) => ctx.dragStart(p.id, e)}
         onDragOver={(e) => ctx.dragOver(p, e)}
@@ -659,18 +703,25 @@ function TreeItem({
         {hasExpand ? (
           <button
             className="chevron"
+            aria-expanded={isExpanded}
+            aria-label={isExpanded ? t('Collapse') : t('Expand')}
             onClick={(e) => {
               e.stopPropagation();
               ctx.toggleExpand(p.id);
             }}
           >
-            {isExpanded ? '▾' : '▸'}
+            <ChevronRight size={14} />
           </button>
         ) : (
           <span className="chevron spacer" />
         )}
         <span className="tree-icon"><PageIcon icon={p.icon} size={15} fallback={p.type === 'collection' ? <Table2 size={15} /> : <FileText size={15} />} /></span>
         <span className="tree-title">{p.title || 'Untitled'}</span>
+        {p.shared && (
+          <span className="tree-shared" title={t('Shared')}>
+            <Globe size={12} />
+          </span>
+        )}
         <span className="tree-actions" onClick={(e) => e.stopPropagation()} ref={actionsRef}>
           <button
             title={t('Add inside')}
@@ -679,7 +730,7 @@ function TreeItem({
               ctx.setAddFor(ctx.addFor === p.id ? null : p.id);
             }}
           >
-            +
+            <Plus size={14} />
           </button>
           {ctx.addFor === p.id && <AddMenu id={p.id} ctx={ctx} />}
           <button
@@ -689,17 +740,22 @@ function TreeItem({
               ctx.setMenuFor(ctx.menuFor === p.id ? null : p.id);
             }}
           >
-            ⋯
+            <MoreHorizontal size={14} />
           </button>
           {ctx.menuFor === p.id && (
             <PageMenu id={p.id} title={p.title} parentId={p.parentId} workspaceId={p.workspaceId} ctx={ctx} />
           )}
         </span>
       </div>
-      {isExpanded && isDb && <DbRows collectionId={p.id} workspaceId={p.workspaceId} depth={depth + 1} ctx={ctx} />}
-      {isExpanded &&
-        !isDb &&
-        kids.map((k) => <TreeItem key={k.id} p={k} depth={depth + 1} ctx={ctx} section={section} />)}
+      {isExpanded && (
+        <div className="tree-children" style={guideAt(depth)}>
+          {isDb ? (
+            <DbRows collectionId={p.id} workspaceId={p.workspaceId} depth={depth + 1} ctx={ctx} />
+          ) : (
+            kids.map((k) => <TreeItem key={k.id} p={k} depth={depth + 1} ctx={ctx} section={section} />)
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -734,10 +790,12 @@ export default function Sidebar({
   onSetTheme,
   onLogout,
   notesMode = false,
+  notesList,
   activeTag = null,
   onSelectTag,
   notesModeSetting = false,
   onToggleNotesMode,
+  onOpenShortcuts,
   fontPref = 'brand',
   onSetFont,
   collapsed = false,
@@ -746,7 +804,6 @@ export default function Sidebar({
   onLoadTrash,
 }: Props) {
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
-  const [trashOpen, setTrashOpen] = useState(false);
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [addFor, setAddFor] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
@@ -860,6 +917,9 @@ export default function Sidebar({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [allTemplates, currentWs],
   );
+  // So the tree region's onActivate (below) can tell a template row from an
+  // ordinary one by id alone, without reaching into the DOM for it.
+  const templateIds = useMemo(() => new Set(templatePages.map((p) => p.id)), [templatePages]);
 
   const instantiateTemplate = async (id: string) => {
     try {
@@ -871,7 +931,23 @@ export default function Sidebar({
   };
   // ⋯ menu on a template row (remove the flag / trash the snapshot).
   const [tplMenuFor, setTplMenuFor] = useState<string | null>(null);
+  // The template menu closed only through its own button: a click anywhere
+  // else left it hanging open, unlike every other menu in the sidebar.
+  const tplActionsRef = useRef<HTMLSpanElement>(null);
+  useMenuDismiss(tplMenuFor !== null, tplActionsRef, () => setTplMenuFor(null));
   const [galleryOpen, setGalleryOpen] = useState(false);
+  // 't' for a page from a template, under the same single-letter rule as the
+  // others in App.tsx: never while something is being typed.
+  useShortcut({
+    id: 'template.new',
+    keys: ['t'],
+    label: () => t('New page from a template'),
+    group: () => t('General'),
+    run: () => {
+      if (modalOpen()) return false;
+      setGalleryOpen(true);
+    },
+  });
   const unflagTemplate = (id: string) =>
     void api.updatePage(id, { isTemplate: false }).catch(() => toast(t('Could not be changed')));
 
@@ -961,6 +1037,76 @@ export default function Sidebar({
     }
   };
 
+  // The tree is the region; the rows carry navItem() and nothing else. See
+  // nav.ts for why the DOM, not a selected-index, is the state here.
+  const asideRef = useRef<HTMLElement>(null);
+  useNavRegion({
+    id: 'sidebar.tree',
+    ref: asideRef,
+    scope: 'view',
+    next: 'content',
+    // Enter opens the page AND follows it into the document: reaching a page
+    // with the keyboard is almost always the first half of reading it.
+    //
+    // A template is the deliberate exception: its own click already does not
+    // navigate there (see the row below) — it makes a fresh page and opens
+    // THAT — so Enter has to agree, or arrowing onto one and pressing Enter
+    // would open the template itself and put someone's work inside it.
+    onActivate: (_el, id) => {
+      if (templateIds.has(id)) {
+        void instantiateTemplate(id);
+        return;
+      }
+      onNavigate(id);
+      focusRegion('content');
+    },
+    // → unfolds a closed row and only leaves the tree when there is nothing
+    // left to unfold (the treeview convention), ← folds. The fold is read off
+    // the row: the attribute is already the truth.
+    onExpand: (el, id) => {
+      if (el.dataset.expanded !== 'false') return false;
+      toggleExpand(id);
+      return true;
+    },
+    onCollapse: (el, id) => {
+      if (el.dataset.expanded !== 'true') return false;
+      toggleExpand(id);
+      return true;
+    },
+    labels: {
+      group: () => t('Navigation'),
+      next: () => t('Next item'),
+      prev: () => t('Previous item'),
+      activate: () => t('Open'),
+      expand: () => t('Expand'),
+      collapse: () => t('Collapse'),
+    },
+  });
+
+  // ⌘⌫ on the focused row. Deliberately NOT whileTyping: in a text field that
+  // chord means "delete to the start of the line", and losing a page to it is
+  // not a trade anyone would accept — so from inside a document the page's ⋯
+  // menu is the way, and it shows this chord next to the entry.
+  //
+  // No confirmation either: trashing is reversible, and a dialog on a reversible
+  // act only teaches people to confirm without reading.
+  useShortcut({
+    id: 'page.trash',
+    keys: ['mod+backspace'],
+    scope: 'view',
+    when: () => !!focusedKey('sidebar.tree'),
+    label: () => t('Move to trash'),
+    group: () => t('Page'),
+    run: () => {
+      const id = focusedKey('sidebar.tree');
+      if (!id) return false;
+      void withFocusSurvival('sidebar.tree', async () => {
+        await onTrash(id);
+        toast(t('Moved to trash'));
+      });
+    },
+  });
+
   const ctx: TreeCtx = {
     childrenMap,
     mixed,
@@ -1034,6 +1180,9 @@ export default function Sidebar({
   };
 
   const activeWs = workspaces.find((w) => w.id === currentWs);
+  // A viewer may only read the workspace; the server refuses anything new at
+  // its top level, so the sidebar offers nothing that would fail.
+  const canCreateTop = activeWs?.role !== 'viewer';
   // Split the top level into documents vs databases so the sidebar shows them
   // as clearly separated sections (nested items stay under their parent).
   // MIXED: one tree, everything where it was filed. A documentation workspace
@@ -1178,7 +1327,7 @@ export default function Sidebar({
         throw new Error(err?.error || t('Import failed (HTTP {status})', { status: res.status }));
       }
       const out = (await res.json()) as { workspaceId: string; name: string; pages: number };
-      toast(t('Imported “{name}” — {pages}', { name: out.name, pages: plural(out.pages, '{n} page', '{n} pages') }));
+      toast(t('Imported “{name}” ({pages})', { name: out.name, pages: plural(out.pages, '{n} page', '{n} pages') }));
       onWorkspacesChanged();
       onSwitchWorkspace(out.workspaceId);
     } catch (err) {
@@ -1190,6 +1339,7 @@ export default function Sidebar({
     <aside
       className={'sidebar' + (open ? ' open' : '') + (resizing ? ' resizing' : '')}
       style={{ '--sidebar-w': `${width}px` } as React.CSSProperties}
+      ref={asideRef}
     >
       <div className="sidebar-header">
         <div className="ws-switcher" ref={wsMenuRef}>
@@ -1264,13 +1414,13 @@ export default function Sidebar({
           >
             <Sparkles size={17} />
           </button>
-          <button className="icon-btn" title={t('Library — every page')} onClick={onOpenIndex}>
+          <button className="icon-btn" title={t('Library (every page)')} onClick={onOpenIndex}>
             <Library size={17} />
           </button>
           {collapsed ? (
             <button
               className="icon-btn collapse-btn pin-btn"
-              title={t('Pin the sidebar')}
+              title={hint(t('Pin the sidebar'), 'sidebar.toggle')}
               onClick={() => onExpand?.()}
             >
               <PanelLeftOpen size={17} />
@@ -1278,7 +1428,7 @@ export default function Sidebar({
           ) : (
             <button
               className="icon-btn collapse-btn"
-              title={t('Collapse the sidebar')}
+              title={hint(t('Collapse the sidebar'), 'sidebar.toggle')}
               onClick={(e) => {
                 // This button lives inside the sidebar, so after the click it keeps
                 // focus and the collapsed sidebar would stay revealed via the
@@ -1294,7 +1444,11 @@ export default function Sidebar({
       </div>
       <button className="sidebar-search" onClick={onOpenSearch}>
         <span className="sidebar-item-label"><Search size={15} /> {t('Search')}</span>
-        <span className="kbd">⌘K</span>
+        {/* Was hardcoded to ⌘K, which was simply wrong everywhere search.open
+            is Ctrl+K (every non-Apple platform). Read from the registry
+            instead, the same source the shortcut sheet and every menu use, so
+            this can never say something the keyboard does not back up. */}
+        <span className="kbd">{chordFor('search.open')}</span>
       </button>
       {favPages.length > 0 && (
         <SidebarSection id="fav" label={t('Favourites')} icon={<Star size={17} />} count={favPages.length}>
@@ -1304,9 +1458,10 @@ export default function Sidebar({
                 p={p}
                 active={p.id === currentId}
                 onNavigate={onNavigate}
+                onOpenInNewTab={onOpenInNewTab}
                 action={
                   <button title={t('Remove from favourites')} onClick={() => onToggleFavorite(p.id)}>
-                    ★
+                    <Star size={14} fill="currentColor" />
                   </button>
                 }
               />
@@ -1354,7 +1509,9 @@ export default function Sidebar({
               key={p.id}
               className={'tree-item' + (p.id === currentId ? ' active' : '')}
               style={{ paddingLeft: 6 }}
-              onClick={() => onNavigate(p.id)}
+              {...navItem(p.id)}
+              onClick={(e) => openPage(e, p.id, { onNavigate, onOpenInNewTab })}
+              onAuxClick={(e) => openPageAux(e, p.id, { onNavigate, onOpenInNewTab })}
             >
               <span className="chevron spacer" />
               <span className="tree-icon">
@@ -1369,6 +1526,7 @@ export default function Sidebar({
         </div>
       ) : (
         <div className="tree">
+          {notesList}
           {/* In notes mode the middle column IS the document list — repeating
               the tree here would be pure duplication (user feedback W58). */}
           {!notesMode && (
@@ -1381,7 +1539,7 @@ export default function Sidebar({
               icon={<FileText size={17} />}
               count={allDocs.length}
               createTitle={t('New page')}
-              onCreate={() => onCreate(null)}
+              onCreate={canCreateTop ? () => onCreate(null) : undefined}
             >
               {topDocs.length ? (
                 topDocs.map((p) => <TreeItem key={p.id} p={p} depth={0} ctx={ctx} />)
@@ -1400,7 +1558,7 @@ export default function Sidebar({
             icon={<Table2 size={17} />}
             count={allDbs.length}
             createTitle={t('New collection')}
-            onCreate={() => onCreate(null, 'collection')}
+            onCreate={canCreateTop ? () => onCreate(null, 'collection') : undefined}
           >
             {topDbs.length ? (
               topDbs.map((p) => <TreeItem key={p.id} p={p} depth={0} ctx={ctx} section="dbs" />)
@@ -1432,6 +1590,9 @@ export default function Sidebar({
               <div
                 key={p.id}
                 className={'tree-item sb-flat' + (p.id === currentId ? ' active' : '')}
+                // A step for the arrow keys, same as every tree row — Enter is
+                // special-cased for this id in onActivate above.
+                {...navItem(p.id)}
                 /* Clicking a template USES it: it makes a page from the template and
                    opens THAT. It used to open the template itself, which is what every
                    other row in this sidebar does and therefore the obvious thing to try
@@ -1440,24 +1601,33 @@ export default function Sidebar({
                    work all the same. Editing the template is the deliberate act now. */
                 title={t('New page from this template')}
                 onClick={() => void instantiateTemplate(p.id)}
+                // The same right-click as a page or a collection row (#20).
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setTplMenuFor(p.id);
+                }}
               >
                 <span className="chevron spacer" />
                 <span className="tree-icon">
                   <PageIcon icon={p.icon} size={15} fallback={<LayoutTemplate size={15} />} />
                 </span>
                 <span className="tree-title">{p.title || 'Untitled'}</span>
-                <span className="tree-actions" onClick={(e) => e.stopPropagation()}>
+                <span
+                  className="tree-actions"
+                  ref={tplMenuFor === p.id ? tplActionsRef : undefined}
+                  onClick={(e) => e.stopPropagation()}
+                >
                   <button title={t('New page from this template')} onClick={() => void instantiateTemplate(p.id)}>
-                    ＋
+                    <Plus size={14} />
                   </button>
                   <button
                     title={t('More')}
                     onClick={() => setTplMenuFor(tplMenuFor === p.id ? null : p.id)}
                   >
-                    ⋯
+                    <MoreHorizontal size={14} />
                   </button>
                   {tplMenuFor === p.id && (
-                    <div className="menu">
+                    <AnchoredMenu>
                       <button
                         onClick={() => {
                           setTplMenuFor(null);
@@ -1485,7 +1655,7 @@ export default function Sidebar({
                       >
                         <Trash2 size={16} /> {t('Move to trash')}
                       </button>
-                    </div>
+                    </AnchoredMenu>
                   )}
                 </span>
               </div>
@@ -1498,35 +1668,13 @@ export default function Sidebar({
           bin has been fetched can never be opened to fetch it. The count
           appears once there is one to show. */}
       {(trashRoots.length > 0 || !!onLoadTrash) && (
-        <div className="trash-section">
-          <button
-            className="trash-toggle"
-            onClick={() => {
-              if (!trashOpen) onLoadTrash?.();
-              setTrashOpen(!trashOpen);
-            }}
-          >
-            <span className="sidebar-item-label"><Trash2 size={15} /> {t('Trash')}</span>{' '}
-            {trashRoots.length > 0 && <span className="trash-count">{trashRoots.length}</span>}
-          </button>
-          {trashOpen &&
-            trashRoots.map((p) => (
-              <div key={p.id} className="trash-item">
-                <span className="tree-icon"><PageIcon icon={p.icon} size={15} fallback={<FileText size={15} />} /></span>
-                <span className="tree-title">{p.title || 'Untitled'}</span>
-                <button title={t('Restore')} onClick={() => onRestore(p.id)}>
-                  <Undo2 size={14} />
-                </button>
-                <button
-                  title={t('Delete forever')}
-                  className="danger"
-                  onClick={() => onDeleteForever(p.id)}
-                >
-                  <X size={14} />
-                </button>
-              </div>
-            ))}
-        </div>
+        <TrashSection
+          roots={trashRoots}
+          pages={pages}
+          onRestore={onRestore}
+          onDeleteForever={onDeleteForever}
+          onLoadTrash={onLoadTrash}
+        />
       )}
       <div className="sidebar-footer">
         <div className="sidebar-footer-row">
@@ -1537,9 +1685,11 @@ export default function Sidebar({
             onOpenAgents={() => setAgentOpen(true)}
             notesMode={notesModeSetting}
             onToggleNotesMode={onToggleNotesMode}
+            onOpenShortcuts={onOpenShortcuts}
             fontPref={fontPref}
             onSetFont={onSetFont}
           />
+          <SyncButton />
           <ThemeSwitch value={themePref} onChange={onSetTheme} />
         </div>
         {membersOpen && currentWs && (

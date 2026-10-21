@@ -94,8 +94,12 @@ func (s *Server) handleSetTagColor(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ws := body.WorkspaceID
-	if !s.tokenReachesWorkspace(r, ws) || !s.isMember(userID, ws) {
+	if !s.isMember(userID, ws) || !s.credentialMayEnter(requestUser(r), ws) {
 		httpError(w, 404, "workspace not found")
+		return
+	}
+	if s.workspaceRole(userID, ws) == "viewer" {
+		httpErrorCode(w, 403, "workspace_read_only", "You can only read this workspace, so its tag colours cannot be changed.")
 		return
 	}
 	// The tag key is normalized like normalizeTags (lower-case, first spelling).

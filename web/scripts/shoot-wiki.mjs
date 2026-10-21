@@ -101,7 +101,11 @@ export function fingerprint(shows) {
   return out;
 }
 
-const browser = await chromium.launch();
+// PLAYWRIGHT_CHANNEL=chrome uses the installed Chrome, as readme-hero.mjs and
+// the browser tests already allow, instead of the build Playwright downloads.
+const browser = await chromium.launch(
+  process.env.PLAYWRIGHT_CHANNEL ? { channel: process.env.PLAYWRIGHT_CHANNEL } : {},
+);
 
 /** One signed-in context, reused: signing in for every shot is slow and the
  *  session is the normal state anyway. Fresh-instance shots get their own. */
@@ -200,4 +204,8 @@ if (failed.length) {
   console.log(`  ${failed.length} failed:\n${failed.map((f) => '    ' + f).join('\n')}\n`);
   process.exit(1);
 }
+
+// The README's hero is cut from the board's two shots, so it is remade with
+// them (readme-hero.mjs).
+if (wanted.some((s) => s.id === 'collection-board')) await import('./readme-hero.mjs');
 console.log('');

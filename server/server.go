@@ -28,20 +28,25 @@ type Server struct {
 	// name → the markup INSIDE a Lucide <svg>, for the print view.
 	lucide map[string]string
 	// The third-party licence notices, embedded from the repository root.
-	notices     string
-	addr        string
-	tunnel      tunnelState
-	loginMu     sync.Mutex
-	loginSem    chan struct{}
-	events      *eventHub
-	collab      *collabHub
-	mcpRate     *rateLimiter
-	mcpIcon     string          // data URI of the logo for serverInfo.icons (see mcp.go)
-	ingest      *ingestRegistry // bulk imports in flight (see ingest.go)
-	loginRate   *rateLimiter
-	tokenRate   *rateLimiter
-	formRate    *rateLimiter
-	stopCleanup chan struct{}
+	notices string
+	addr    string
+	tunnel  tunnelState
+	// What the settings show about the cloudflared in use (tunnel_update.go).
+	cloudflared cloudflaredUpdates
+	// Agent keys from listed addresses only; see agent_addresses.go.
+	agentAddressList addressList
+	loginMu          sync.Mutex
+	loginSem         chan struct{}
+	events           *eventHub
+	collab           *collabHub
+	mcpRate          *rateLimiter
+	mcpIcon          string          // data URI of the logo for serverInfo.icons (see mcp.go)
+	ingest           *ingestRegistry // bulk imports in flight (see ingest.go)
+	loginRate        *rateLimiter
+	tokenRate        *rateLimiter
+	formRate         *rateLimiter
+	sharePwRate      *rateLimiter
+	stopCleanup      chan struct{}
 	// webhookTransport overrides how webhook deliveries reach the network. Nil
 	// in every real build; set only by tests, whose receiver lives on an address
 	// safeDial refuses by design (see webhooks.go).
@@ -111,8 +116,11 @@ func New(dataDir string, dist fs.FS) (*Server, error) {
 		mcpRate:   newRateLimiter(240, 60), // 240 writes/min per token, burst 60
 		loginRate: newRateLimiter(30, 10),  // 30 login attempts/min per IP, burst 10
 		// Fed by REJECTED tokens only, so a working agent never touches it.
-		tokenRate:   newRateLimiter(60, 20),
-		formRate:    newRateLimiter(20, 8), // 20 public form submits/min per IP, burst 8
+		tokenRate: newRateLimiter(60, 20),
+		formRate:  newRateLimiter(20, 8), // 20 public form submits/min per IP, burst 8
+		// Passwords on shared pages, per link and address. A share password was
+		// checked as fast as anybody could send guesses.
+		sharePwRate: newRateLimiter(10, 5),
 		stopCleanup: make(chan struct{}),
 	}
 	if err := s.seed(); err != nil {
@@ -248,6 +256,7 @@ func New(dataDir string, dist fs.FS) (*Server, error) {
 	m.HandleFunc("POST /api/pages/{id}/restore", s.auth(s.handleRestorePage))
 	m.HandleFunc("POST /api/reindex-siblings", s.auth(s.handleReindexSiblings))
 	m.HandleFunc("GET /api/pages/{id}/backlinks", s.auth(s.handleBacklinks))
+	m.HandleFunc("GET /api/pages/{id}/preview", s.auth(s.handlePreviewPage))
 	m.HandleFunc("GET /api/graph", s.auth(s.handleGraph))
 	m.HandleFunc("GET /api/tags", s.auth(s.handleListTags))
 	m.HandleFunc("GET /api/comment-counts", s.auth(s.handleCommentCounts))

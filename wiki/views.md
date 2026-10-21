@@ -3,7 +3,7 @@
 A **view** is a saved way of looking at one collection: a type (table, board,
 calendar and four more), the conditions a row must meet to appear, the order the
 rows come in, and which properties are shown. A collection can have as many
-views as you like and they are independent — filtering the board changes nothing
+views as you like and they are independent: filtering the board changes nothing
 about the table. What they never do is change the rows themselves. Every view of
 a collection reads the same rows; only the drawing differs.
 
@@ -15,7 +15,7 @@ columns work. The rows and the schema behind them are in
 
 One thing to know before the rest: **a view is not a personal setting.** It is
 stored on the collection, so a filter you add is the filter everyone sees in
-that view, on every device — the next time they open the collection. If you want
+that view, on every device, the next time they open the collection. If you want
 your own cut of the data, add a view rather than change one.
 
 ## The seven types
@@ -31,11 +31,11 @@ your own cut of the data, add a view rather than change one.
 | `form` | fields that create a row when submitted | nothing |
 
 A collection that has just been created carries two views: **Board**, grouped by
-the Status property, and **Table** — in that order, so the board is what opens
+the Status property, and **Table**, in that order, so the board is what opens
 first.
 
 A database created by an agent gets those same two views, whatever schema the
-agent supplied — including a Board grouped by a property with the id `status`.
+agent supplied, including a Board grouped by a property with the id `status`.
 If the schema has no such property the database opens on *This board needs a
 Select property to group by. Open ⚙ Properties to add one.* Point the board at a
 real property with the **Group** button, or with `set_view` and `group_by`, or
@@ -57,19 +57,19 @@ agent is working on right now.
 
 When the table has rows, its foot is a calculation row. Under each column it
 shows either a sum (`Σ`, for number, rollup and formula columns) or how many
-cells are filled. It is not configurable — there is one aggregate per column and
+cells are filled. It is not configurable: there is one aggregate per column and
 it follows the type. The left-hand cell counts the rows: **42 rows**, in your
 own language. On a table with no rows there is no foot at all, only the
 empty-state line.
 
 **Sub-items.** When the collection has a relation property pointing back at
 itself, the settings bar offers a picker: **No sub-items**, or that property.
-Choose it and the table becomes a tree — a row that points at other rows in the
+Choose it and the table becomes a tree: a row that points at other rows in the
 same collection gets a `▾` to fold them away and a `▸` to bring them back (the
 buttons are labelled **Collapse** and **Expand** for screen readers). Rows drawn
 as children are not repeated at the top level. Two things this does not do: a
 relation that loops back on itself cannot make the display loop, and a row whose
-parent is filtered out is not lost — it simply becomes a top-level row.
+parent is filtered out is not lost (it simply becomes a top-level row).
 
 Which branches are folded is yours alone and is not stored on the view. Leave
 the collection and come back and everything is open again.
@@ -79,16 +79,16 @@ The table scrolls sideways when there are more columns than screen.
 ### `board`
 
 Cards in columns, one column per option of the property it groups by, plus a
-catch-all column at the end whose name is **No** followed by the property's name
-— **No Status** on a board grouped by Status. That last column holds rows with
-no value — and rows whose value points at an option somebody has since deleted,
+catch-all column at the end whose name is **No** followed by the property's name:
+**No Status** on a board grouped by Status. That last column holds rows with
+no value, and rows whose value points at an option somebody has since deleted,
 so a card can never disappear from the board entirely.
 
 ![A board view, grouped by a select property. Each column is one option.](img/collection-board.png)
 
 Each column heading is a chip with the number of cards beside it. A select or
 multi-select lends the chip its option's own colour; columns made from a
-relation, and the catch-all column on every board, are grey — a row has no
+relation, and the catch-all column on every board, are grey: a row has no
 colour to give.
 
 A board can group by a **select**, a **multi-select** or a **relation**:
@@ -97,7 +97,7 @@ A board can group by a **select**, a **multi-select** or a **relation**:
 - Grouping by a **multi-select** puts a card in every column it belongs to. The
   same card is then on screen more than once, and each copy has its own menu.
 - Grouping by a **relation** turns the rows of the *other* collection into the
-  columns — one column per customer, per system, per whatever the rows point at.
+  columns: one column per customer, per system, per whatever the rows point at.
   The column headings are those rows' titles.
 
 Which one it is, is chosen with the **Group** button in the settings bar; it
@@ -112,7 +112,7 @@ top or bottom edge.
 
 Note what a drag onto a multi-select or relation board does: it **replaces** the
 value with that one option. It does not add to what is there. And dragging a card
-into the catch-all column **clears** the value altogether — that is the only way
+into the catch-all column **clears** the value altogether; that is the only way
 to unset a grouped property without opening the row.
 
 Every card also has a `⋯`, and a right-click anywhere on the card opens the same
@@ -132,21 +132,21 @@ plain row with nothing set.
 alike no matter how the schema grew: coloured chips first (select, multi-select,
 relation), then facts with their field name (numbers, dates, checkboxes,
 checklists, rollups, formulas), then one short text, then small icons for the
-values that only need to say "this exists" — email, phone, postal address, link.
+values that only need to say "this exists" (email, phone, postal address, link).
 People from every person property collapse into one stack of faces in the corner.
 The field name is left off a fact only when the card has a single fact and the
 property is called Date, Datum, Number or Zahl, where repeating it would say
 nothing.
 
 A card prints at most **eight** lines of facts and text together, and only ever
-one text — a second one goes below the line however few facts there are. What is
+one text: a second one goes below the line however few facts there are. What is
 left over is counted rather than dropped: **+3 more** opens it in place and
 **less** folds it away again. Open a card's tail and it closes itself when you
 leave the view; it is a glance, not a setting.
 
 The property the board groups by is left off its own cards, since the column
 heading already says it, and empty select fields stay invisible until you hover
-the card — so a status can be set without opening the row, without putting a row
+the card, so a status can be set without opening the row, without putting a row
 of dashes under every title. Open comments show as a speech bubble with their
 count.
 
@@ -154,7 +154,7 @@ count.
 
 One line per row and deliberately not a narrow table: no header row, no column
 grid, nothing scrolls sideways. The icon and title lead, the tags follow, and
-then the first three visible properties trail quietly behind — still editable,
+then the first three visible properties trail quietly behind, still editable,
 so a select can be changed from the line. Which three depends on schema order
 and on what you have hidden; hide a column and the next one moves up. Anyone who
 wants to compare values down a column takes the table instead.
@@ -162,13 +162,13 @@ wants to compare values down a column takes the table instead.
 ### `gallery`
 
 A responsive grid of cards, each at least 200 px wide. The top of the card is the
-row's **cover** — the image or gradient set on the row itself. A row without one
+row's **cover**: the image or gradient set on the row itself. A row without one
 shows its icon on a plain panel instead.
 
 Below the cover: the title, the tags, and the visible properties. Select and
 multi-select are editable straight on the card and are shown even when they are
 empty, so you can set one. Every other property is read-only here and is left off
-entirely when it has no value, which is why gallery cards are different heights —
+entirely when it has no value, which is why gallery cards are different heights,
 and why the table, not the gallery, is where a missing value is visible.
 
 ### `calendar`
@@ -181,16 +181,16 @@ a date simply do not appear.
 
 The head of the calendar has `‹`, the month and year, `›`, and **Today**, which
 jumps back to the current month. Which day the week starts on follows your
-language and region — Monday across most of Europe, Sunday in the US and Japan,
-Saturday in much of the Arab world — and the column headings are rotated to
+language and region (Monday across most of Europe, Sunday in the US and Japan,
+Saturday in much of the Arab world) and the column headings are rotated to
 agree with it. You can override it under **Week starts on** in your
 [account settings](account.md).
 
 A date property is a calendar date and is never shifted by a time zone: a row
 dated the 18th sits on the 18th for everyone.
 
-One limit: the calendar's date property is chosen when the view is created — the
-first date property in the schema — and the settings bar has no control to change
+One limit: the calendar's date property is chosen when the view is created (the
+first date property in the schema) and the settings bar has no control to change
 it afterwards. An agent can change it with `set_view` and `date_prop`. Without a
 usable one the view says *This calendar needs a Date property. Open ⚙ Properties
 to add one.*
@@ -205,7 +205,7 @@ The settings bar carries two pickers for this view, and only for this view:
 
 | Picker | Options | Effect |
 | --- | --- | --- |
-| **Start:** | **Start: —**, or any date property | Where the bar begins. Choosing the dash clears the choice, and the timeline falls back to the first date property in the schema. |
+| **Start:** | **Start: (none)**, or any date property | Where the bar begins. Choosing (none) clears the choice, and the timeline falls back to the first date property in the schema. |
 | **End:** | **End: (none)**, or any date property | Where the bar ends. With none, every bar is one day wide. |
 
 When you create a timeline it takes the first date property as its start and the
@@ -221,7 +221,7 @@ today, not three days before the first bar.
 
 ### `form`
 
-A form view turns the collection into something that can be filled in — by you,
+A form view turns the collection into something that can be filled in: by you,
 or, once published, by anyone with the link. Submitting creates one row.
 
 The form is: a required **Title** field (placeholder *Name of the entry*), then
@@ -237,24 +237,24 @@ one field per **fillable** visible property. Fillable means one of seven types:
 | multi-select | chips you switch on and off (*No options defined* when it has none) |
 | person | a text box |
 
-Everything else — url, checklist, relation, rollup, formula, backrelation — never
+Everything else (url, checklist, relation, rollup, formula, backrelation) never
 appears on a form. There is nothing to type into a calculated value, and a
 relation would mean handing a stranger a list of your other rows.
 
 The heading and the description above the fields are edited in place, on the form
-itself, and are stored on the view (*Description (optional) — explains what the
+itself, and are stored on the view (*Description (optional): explains what the
 form is for.*). A form view has no Filter, Sort or Group button and no **New**
-button — the form is the way rows are made here.
+button: the form is the way rows are made here.
 
 You can use the form yourself before it is published, and pressing Enter in the
 **Title** field submits it. Your own submission is confirmed differently from a
 visitor's: *Sent* / *Your answer has been saved.* with a **Send another answer**
 button.
 
-The submit button reads **Absenden**. Its label is stored on the view, but no
-control in the interface writes it and `set_view` does not accept it, so the
-German fallback is what everybody gets unless the view configuration is written
-directly through `/api/collections/{id}`.
+The submit button carries the label stored on the view, or the interface
+language's word for Submit when none is stored. No
+control in the interface writes it and `set_view` does not accept it, so a
+custom label is written directly through `/api/collections/{id}`.
 
 **Publishing.** The bar above the form has **Share publicly**. Press it and a
 link is created and copied to your clipboard; the bar then shows a **Public**
@@ -264,7 +264,7 @@ whatever address your instance publishes under.
 Two things about that link are worth knowing before you send it out:
 
 - **Copy link mints a new one.** The token is stored only as a hash, so the
-  existing link cannot be recovered — pressing **Copy link** creates a fresh
+  existing link cannot be recovered: pressing **Copy link** creates a fresh
   link, and the one you handed out earlier stops working. A collection has one
   live form link at a time.
 - **The first form view wins.** If a collection has two form views, the published
@@ -277,7 +277,7 @@ heading is the form's own if it has one and **the collection's name otherwise**,
 so give the form a heading when the collection is called something you would not
 send to a stranger.
 
-Beyond that they see nothing: not a row, not the rest of the workspace — the link
+Beyond that they see nothing: not a row, not the rest of the workspace. The link
 grants "write one row", never "read the page". Submissions are rate-limited per
 address, the title is required and a title over 2000 characters is refused,
 values that are not valid for their property are dropped (a select value that is
@@ -297,11 +297,11 @@ configures the current view sits on the right, in this order:
 
 | Control | What it opens |
 | --- | --- |
-| **Start:** / **End:** | Timeline only — which date properties the bars use. |
+| **Start:** / **End:** | Timeline only: which date properties the bars use. |
 | **No sub-items** / a relation | Table only, and only when a relation points back at this collection. |
 | **Filter** | The conditions a row must meet. Shows the count: `Filter (2)`. |
 | **Sort** | One property, ascending or descending. |
-| **Group** | Board only — which property makes the columns. |
+| **Group** | Board only: which property makes the columns. |
 | **Columns** | Which properties this view shows. Shows `Columns (4/7)` when anything is hidden. |
 | **Properties** | The schema editor: add a property, change a type, edit select options. It edits the collection, not the view, so it changes every view at once. This is the **⚙ Properties** the empty-state messages point at. |
 | **⋯** (*View options*) | Rename, move and remove this view. |
@@ -338,16 +338,16 @@ What they mean:
 
 | Operator | Matches |
 | --- | --- |
-| `is` | equal to the value — or, on a list property, containing it |
+| `is` | equal to the value, or, on a list property, containing it |
 | `is_not` | not equal, **and an empty value counts as "is not X"** |
 | `is_empty` | nothing there: no value, an empty text, an empty list |
 | `is_not_empty` | anything there |
 | `contains` | the value as a substring, also inside a list |
-| `gt` | greater than. Numeric as soon as the value you type is a number — a cell holding text then counts as 0. Otherwise both sides are compared as text, which is what makes **after** work on dates. |
+| `gt` | greater than. Numeric as soon as the value you type is a number; a cell holding text then counts as 0. Otherwise both sides are compared as text, which is what makes **after** work on dates. |
 | `lt` | less than, same rule |
-| `between` | inside a range, **inclusive at both ends** — a range named by two dates contains the days it is named after. Takes two values, and does nothing until both are set. |
+| `between` | inside a range, **inclusive at both ends**: a range named by two dates contains the days it is named after. Takes two values, and does nothing until both are set. |
 
-Where the values come from a fixed list — a select, a multi-select, a relation —
+Where the values come from a fixed list (a select, a multi-select, a relation),
 `is` and `is_not` take **several** values at once and read *is any of* and *is
 none of*. That is one condition with two boxes ticked, not two conditions that
 happen to be about the same column: "class is none of A, H" is a single thing to
@@ -355,7 +355,7 @@ read and a single thing to change.
 
 **A condition with nothing filled in does not filter.** It waits, and says so.
 It used to compare against the empty string and therefore match nothing, so the
-table went blank the moment you added a condition — before you had typed
+table went blank the moment you added a condition, before you had typed
 anything. If you want the rows that really have no value, that is `is empty`.
 
 Three behaviours that surprise people:
@@ -376,19 +376,19 @@ title use [Search](search.md).
 collection with fifty thousand rows is narrowed before anything is sent; what is
 left arrives in batches of 200 until all of it is here, which is why a board
 column's count is a true count and not "the first page of results". Then the
-browser applies the same conditions again to what arrived — this time with the
+browser applies the same conditions again to what arrived, this time with the
 calculated values filled in, which the database did not have.
 
 That second pass is the whole reason the next paragraph reads the way it does.
 
 **Filters on calculated values are unreliable.** A rollup, a formula and a
 backrelation are not stored on the row. They are worked out when the rows are
-read, which happens *after* the database has filtered — so to the database they
+read, which happens *after* the database has filtered, so to the database they
 look like nothing at all:
 
 | Operator on a rollup, formula or backrelation | What you get |
 | --- | --- |
-| `is`, `contains`, `>`, `<`, `is not empty` | an empty view — the database matched nothing |
+| `is`, `contains`, `>`, `<`, `is not empty` | an empty view: the database matched nothing |
 | `is not`, `is empty` | every row passes the database, and the browser then narrows it correctly |
 
 So two of the seven happen to give the right answer and five give a blank screen.
@@ -399,12 +399,12 @@ operators are offered in the popover all the same.
 **Sorting is not affected.** A sort on a rollup or a formula works in the
 interface, because every row is loaded and the browser sorts the finished
 values. Over the API and over MCP, where a `limit` cuts the result short, it does
-not — there the sort is the database's alone.
+not: there the sort is the database's alone.
 
 ## Sorting
 
-One property, **Ascending** or **Descending**, or **No sort** — the popover
-behind the **Sort** button. Text is compared the way your language sorts it, so
+One property, **Ascending** or **Descending**, or **No sort** (the popover
+behind the **Sort** button). Text is compared the way your language sorts it, so
 accented letters land beside their plain forms instead of after Z; numbers are
 compared as numbers.
 
@@ -431,7 +431,7 @@ published form.
 and hides Status can no longer find it and falls back to the message *This board
 needs a Select property to group by. Open ⚙ Properties to add one.* The same
 applies to a calendar's date property and a timeline's start. There is no reason
-to hide it anyway — a board already leaves the grouping property off its own
+to hide it anyway: a board already leaves the grouping property off its own
 cards.
 
 ## What a view leaves out without saying so
@@ -442,10 +442,10 @@ Two absences are silent by design.
 who made it. It is filtered out in the database, before the total is counted, so
 it is missing from every view, from the batch loading and from every board column
 count. A workspace admin sees everything. Nothing on screen says a row was left
-out — the count is simply the count of what you may read. See
+out; the count is simply the count of what you may read. See
 [Permissions](permissions.md).
 
-**Nothing at all.** An empty view says *No rows yet — click ＋ New above.* when
+**Nothing at all.** An empty view says *No rows yet. Click ＋ New above.* when
 the collection is empty, and *No rows match the current filter.* when it is not.
 The two are worth telling apart before you go looking for lost data.
 
@@ -455,14 +455,16 @@ The two are worth telling apart before you go looking for lost data.
    menu offers **Table**, **Board**, **Gallery**, **Calendar**, **Timeline**,
    **List**, **Form**. The new view is named after its type, is appended at the
    end, and opens straight away.
-2. **Rename** by double-clicking the tab, or through `⋯` → **Rename view**.
+2. **Rename** by double-clicking the tab, or through `⋯` → **Rename view**. A
+   right-click on any tab offers renaming, moving and removing for that view,
+   without switching to it first; `⋯` acts on the view you are on.
 3. **Move** it along the strip with `⋯` → **Move left** / **Move right**. The
    entries grey out at the ends. The order of the tabs is the order they are in;
    the first tab is what opens when someone opens the collection.
 4. **Remove** with `⋯` → **Remove view**. It happens at once, without a
    confirmation, and takes the view's filters, sort and hidden columns with it.
    The rows are untouched. On a collection with one view the entry is not
-   offered — a collection needs something to draw.
+   offered: a collection needs something to draw.
 
 The `⋯` carries the tooltip *View options* and sits in the settings bar on the
 right, not inside the tab.
@@ -476,11 +478,11 @@ missing.
 Changes save as you make them, and are what everybody gets the next time they
 open the collection. Row changes travel live: a card someone else moves moves on
 your screen too, in this collection and in the same collection embedded in a
-document. A change to the view itself — a filter, the sort, hidden columns, a new
-tab — does not. A second browser that already had the collection open keeps the
+document. A change to the view itself (a filter, the sort, hidden columns, a new
+tab) does not. A second browser that already had the collection open keeps the
 configuration it fetched when it opened, and picks the new one up on a reload.
 
-An embedded collection is the same collection, with the same views — changing a
+An embedded collection is the same collection, with the same views: changing a
 filter there changes it everywhere.
 
 Copying a set of views to another collection is not something the interface can
@@ -512,17 +514,17 @@ Four rules govern it:
 - **Updating merges.** What you do not mention stays as it is, the same way
   `update_schema` behaves. Renaming a view does not drop its filter.
 - **Empty clears.** `filters: []` removes every condition and `sort: ""` removes
-  the sort — without that distinction a filter could be added and never removed.
+  the sort; without that distinction a filter could be added and never removed.
   Clearing a board's `group_by` the same way is refused, because a board with no
   grouping has no columns.
 - **A typo is refused, not ignored.** An unknown property, an unknown operator, a
-  board with no `group_by`, a calendar or timeline with no `date_prop` — all
+  board with no `group_by`, a calendar or timeline with no `date_prop`: all
   rejected with a message naming the offending value. A view that quietly ignored
   a mistake would leave the agent reading unfiltered rows as the truth.
 - **A view's type cannot be changed.** Delete it and create the new one. The type
   is what everything else in the view is describing.
 
-`sort` is spelled `"propertyId:asc"` or `"propertyId:desc"` — the same spelling
+`sort` is spelled `"propertyId:asc"` or `"propertyId:desc"`, the same spelling
 `query_rows` uses, so there is one form to learn rather than two.
 
 `delete_view(page_id:, view_id:)` removes a view; the last one cannot be deleted.
@@ -547,12 +549,12 @@ The same is available over HTTP: `GET /api/collections/{id}/rows` takes
 `filter=<property>:<operator>:<value>` (repeatable, ANDed),
 `sort=<property>:asc|desc`, `limit` (default 100, maximum 500) and `offset`, and
 answers with the rows, the total, and the offset and limit it used. Both routes
-run the same permission checks and the same database filter as a view does —
+run the same permission checks and the same database filter as a view does,
 including the blindness to calculated values described above.
 
 ## Where to go next
 
-- [Collections](collections.md) — rows, the schema dialog, nesting, embedding
-- [Properties](properties.md) — all thirteen types, and what each one is for
-- [Sharing](sharing.md) — publishing a form, and what is never shared
-- [Agents](agents.md) — connecting an agent over MCP in the first place
+- [Collections](collections.md): rows, the schema dialog, nesting, embedding
+- [Properties](properties.md): all thirteen types, and what each one is for
+- [Sharing](sharing.md): publishing a form, and what is never shared
+- [Agents](agents.md): connecting an agent over MCP in the first place

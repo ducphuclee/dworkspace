@@ -121,7 +121,7 @@ func (s *Server) handleRestoreRevision(w http.ResponseWriter, r *http.Request) {
 	content = decodeRevision(content, gz)
 	// Capture the pre-restore state first so a restore can be undone.
 	s.snapshotRevision(pageID, u.ID, u.Name)
-	if _, err := s.db.Exec(`UPDATE pages SET content = ?, updated_at = ? WHERE id = ?`, content, now(), pageID); err != nil {
+	if _, err := s.db.Exec(`UPDATE pages SET content = ?, updated_at = ?, `+bumpDocGen+` WHERE id = ?`, content, now(), pageID); err != nil {
 		httpError(w, 500, err.Error())
 		return
 	}

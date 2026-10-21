@@ -1,3 +1,60 @@
 {
-   "signedContributors": []
+  "signedContributors": [
+    {
+      "name": "facoleur",
+      "id": 88712892,
+      "comment_id": 5745725953,
+      "created_at": "2026-09-19T22:21:32Z",
+      "repoId": 1327775773,
+      "pullRequestNo": 8
+    },
+    {
+      "name": "mungle",
+      "id": 803408,
+      "comment_id": 5745803373,
+      "created_at": "2026-09-19T22:33:18Z",
+      "repoId": 1327775773,
+      "pullRequestNo": 9
+    },
+    {
+      "name": "AbdullahAhmed",
+      "id": 396810,
+      "comment_id": 6029997280,
+      "created_at": "2026-10-07T03:00:47Z",
+      "repoId": 1327775773,
+      "pullRequestNo": 31
+    },
+    {
+      "name": "luisfernandosoni",
+      "id": 12794568,
+      "comment_id": 6044544650,
+      "created_at": "2026-10-07T18:46:46Z",
+      "repoId": 1327775773,
+      "pullRequestNo": 32
+    },
+    {
+      "name": "grootbro",
+      "id": 177860649,
+      "comment_id": 6090141995,
+      "created_at": "2026-10-09T22:14:38Z",
+      "repoId": 1327775773,
+      "pullRequestNo": 35
+    },
+    {
+      "name": "dimitree2k",
+      "id": 45994551,
+      "comment_id": 6097858175,
+      "created_at": "2026-10-10T13:12:12Z",
+      "repoId": 1327775773,
+      "pullRequestNo": 42
+    },
+    {
+      "name": "d-perelygin",
+      "id": 46870035,
+      "comment_id": 6114930452,
+      "created_at": "2026-10-11T23:08:23Z",
+      "repoId": 1327775773,
+      "pullRequestNo": 47
+    }
+  ]
 }

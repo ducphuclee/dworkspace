@@ -65,14 +65,15 @@ func (s *Server) mcpListTemplates(u *user) (string, error) {
 	return wrapUntrusted(string(b)), nil
 }
 
-// mcpCreateFromTemplate instantiates a template. Reading it is enough — the
-// copy lands where the template lives and belongs to whoever asked, so a
-// read-only template can still be a starting point for everyone.
+// mcpCreateFromTemplate instantiates a template in its source workspace.
+// The destination must be writable; duplicatePage enforces this for all callers.
 func (s *Server) mcpCreateFromTemplate(u *user, templateID, title string) (string, error) {
 	if templateID == "" {
 		return "", fmt.Errorf("template_id is required — call list with kind=\"templates\" for the ids")
 	}
-	if !s.canRead(u.ID, templateID) {
+	// The copy lands in the template's workspace, so the credential has to be
+	// allowed there: a token for one workspace instantiated templates of others.
+	if !s.canRead(u.ID, templateID) || !s.credentialMayEnter(u, s.pageWorkspace(templateID)) {
 		return "", fmt.Errorf("template %q not found", templateID)
 	}
 	var isTemplate int

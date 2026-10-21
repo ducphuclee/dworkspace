@@ -11,7 +11,8 @@ import {
 } from './blockContext';
 import { MERMAID_REV, renderMermaid } from './mermaidLoader';
 import { PageIcon } from './pageIcon';
-import CollectionView from './components/CollectionView';
+import { openPage, openPageAux } from './pageOpen';
+import CollectionView, { type EmbedState } from './components/CollectionView';
 import { plural, t } from './i18n';
 
 // Custom dworkspace block types (Welle 17): callout, table of contents, bookmark.
@@ -33,7 +34,16 @@ function safeHref(u: string): string {
 // An emphasized box with a leading emoji. Clicking the emoji cycles through a
 // preset list (kept simple on purpose — no popover to fight the editor focus).
 
-const CALLOUT_EMOJIS = ['💡', '⚠️', '❗', '✅', '📌', '🔥', 'ℹ️'];
+const CALLOUT_TONES: Record<string, string> = {
+  '💡': 'neutral',
+  '⚠️': 'warning',
+  '❗': 'danger',
+  '✅': 'success',
+  '📌': 'neutral',
+  '🔥': 'amber',
+  'ℹ️': 'info',
+};
+const CALLOUT_EMOJIS = Object.keys(CALLOUT_TONES);
 
 export const calloutSpec = createReactBlockSpec(
   {
@@ -53,7 +63,7 @@ export const calloutSpec = createReactBlockSpec(
         editor.updateBlock(block, { props: { emoji: next } } as never);
       };
       return (
-        <div className="bn-callout">
+        <div className="bn-callout" data-tone={CALLOUT_TONES[emoji] ?? 'neutral'}>
           <button
             type="button"
             className="bn-callout-emoji"
@@ -138,6 +148,45 @@ export const tocSpec = createReactBlockSpec(
               }}
             >
               {e.text}
+            </button>
+          ))}
+        </div>
+      );
+    },
+  },
+);
+
+// ---- Sub-pages ----
+// The page's direct children as an inline block, next to Contents. The same
+// data the Structure panel shows, but placed by the author in the document.
+export const subpagesSpec = createReactBlockSpec(
+  {
+    type: 'subpages',
+    propSchema: {},
+    content: 'none',
+  } as const,
+  {
+    render: () => {
+      const { pagesById, pageId, onNavigate, onOpenInNewTab } = useBlockCtx();
+      if (!pageId) return null;
+      const openers = { onNavigate, onOpenInNewTab };
+      const kids = [...pagesById.values()]
+        .filter((p) => p.parentId === pageId && !p.trashed)
+        .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+      return (
+        <div className="bn-toc bn-subpages" contentEditable={false}>
+          <div className="bn-toc-title">{t('Sub-pages')}</div>
+          {kids.length === 0 && <div className="bn-toc-empty">{t('No sub-pages')}</div>}
+          {kids.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              className="bn-toc-entry"
+              onClick={(e) => openPage(e, p.id, openers)}
+              onAuxClick={(e) => openPageAux(e, p.id, openers)}
+              title={p.title || t('Untitled')}
+            >
+              <PageIcon icon={p.icon} size={14} /> {p.title || t('Untitled')}
             </button>
           ))}
         </div>
@@ -261,11 +310,35 @@ export const bookmarkSpec = createReactBlockSpec(
 // document AND a database separately, because a database page cannot have a
 // body of text. Now both live in one document.
 
+type EmbedLocal = { viewId: string; views: EmbedState['views'] };
+
+// Tolerant on purpose: the prop is free text in a document anybody (or any
+// agent) can write, and a malformed value must cost the embed its filters, not
+// the document its rendering.
+function parseEmbedLocal(raw: string): EmbedLocal {
+  try {
+    const v = raw ? JSON.parse(raw) : null;
+    if (v && typeof v === 'object') {
+      return {
+        viewId: typeof v.viewId === 'string' ? v.viewId : '',
+        views: v.views && typeof v.views === 'object' ? v.views : {},
+      };
+    }
+  } catch {
+    /* fall through */
+  }
+  return { viewId: '', views: {} };
+}
+
 export const databaseSpec = createReactBlockSpec(
   {
     type: 'database',
     propSchema: {
       collectionId: { default: '' },
+      // This embed's own way of looking at the collection, as JSON: the view
+      // it shows, and per view the filters and sort it applies (#26). Empty
+      // means "as the collection's views say" — every embed written before.
+      local: { default: '' },
     },
     content: 'none',
   } as const,
@@ -273,8 +346,24 @@ export const databaseSpec = createReactBlockSpec(
     render: (props) => {
       const { block, editor } = props;
       const collectionId = (block.props as { collectionId: string }).collectionId;
-      const { pagesById, tagColors, onNavigate, onPagesChanged } = useBlockCtx();
+      const localRaw = (block.props as { local?: string }).local ?? '';
+      const { pagesById, tagColors, onNavigate, onOpenInNewTab, onPagesChanged } = useBlockCtx();
       const [q, setQ] = useState('');
+      // Somebody who may read the document but not change it can still filter
+      // what they see; it just stays with them instead of being written back.
+      const [unsaved, setUnsaved] = useState<EmbedLocal | null>(null);
+      const local = unsaved ?? parseEmbedLocal(localRaw);
+      const keep = (next: EmbedLocal) => {
+        if (editor.isEditable) editor.updateBlock(block, { props: { local: JSON.stringify(next) } } as never);
+        else setUnsaved(next);
+      };
+      const embed: EmbedState = {
+        viewId: local.viewId,
+        views: local.views,
+        onViewId: (viewId) => keep({ ...local, viewId }),
+        onView: (viewId, patch) =>
+          keep({ ...local, views: { ...local.views, [viewId]: { ...local.views[viewId], ...patch } } }),
+      };
 
       if (!collectionId) {
         const dbs = [...pagesById.values()]
@@ -328,7 +417,9 @@ export const databaseSpec = createReactBlockSpec(
             pages={pagesById}
             tagColors={tagColors}
             onNavigate={onNavigate}
+            onOpenInNewTab={onOpenInNewTab}
             onPagesChanged={onPagesChanged}
+            embed={embed}
           />
         </div>
       );
@@ -575,7 +666,7 @@ export const embedSpec = createReactBlockSpec(
     render: (props) => {
       const { block, editor } = props;
       const pageId = (block.props as { pageId: string }).pageId;
-      const { pagesById, onOpenInNewTab } = useBlockCtx();
+      const { pagesById, onNavigate, onOpenInNewTab } = useBlockCtx();
       const { depth, ancestors } = useEmbedDepth();
       const [q, setQ] = useState('');
       const [content, setContent] = useState<unknown[] | null>(null);
@@ -649,7 +740,7 @@ export const embedSpec = createReactBlockSpec(
 
       const meta = pagesById.get(pageId);
       const title = meta?.title || t('Untitled');
-      const open = () => onOpenInNewTab(pageId);
+      const open = () => (onOpenInNewTab ?? onNavigate)(pageId);
 
       // The title comes from the page list, which is permission-filtered, so a
       // page the reader cannot see has no entry and is not named here either.

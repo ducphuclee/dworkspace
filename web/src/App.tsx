@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { api } from './api';
+import { api, ApiError } from './api';
 import { serverMessage } from './serverErrors';
 import { WifiOff } from 'lucide-react';
 import type { Me, PageMeta, User, Workspace } from './types';
@@ -19,11 +19,16 @@ import OAuthConsent from './components/OAuthConsent';
 import { UploadBar, ImageLightbox } from './components/Overlays';
 import Toaster from './components/Toaster';
 import { DialogHost, confirm, promptText } from './dialog';
-import { announceModal } from './modal';
+import { announceModal, modalOpen } from './modal';
 import { toast } from './toast';
+import { onRefresh } from './pwa';
+import PullToRefresh from './components/PullToRefresh';
 import Logo from './Logo';
 import ThemeSwitch, { type ThemePref } from './ThemeSwitch';
 import { applyPrefs, plural, t } from './i18n';
+import { useShortcut } from './keys';
+import { focusKey, useNavEntry } from './nav';
+import ShortcutSheet from './components/ShortcutSheet';
 import { guardDrops } from './dropFiles';
 
 /** Injected by the build; false everywhere except the website's framed demo. */
@@ -108,11 +113,13 @@ export default function App() {
   const [notesMode, setNotesMode] = useState(() => localStorage.getItem('dworkspace-notes-mode') === '1');
   // Tag selected in the sidebar while in notes mode — filters the notes list.
   const [notesTag, setNotesTag] = useState<string | null>(null);
-  // The notes list only exists ≥900px; below that the sidebar must keep its
-  // document tree or mobile loses all navigation.
-  const [isDesktop, setIsDesktop] = useState(() => window.matchMedia('(min-width: 900px)').matches);
+  // The notes list is a column of its own from 901px, the width at which the
+  // stylesheet stops treating the screen as a phone. Below that it moves into
+  // the drawer, where the document tree would be; it used to simply vanish
+  // there, so on a phone the setting did nothing at all.
+  const [isDesktop, setIsDesktop] = useState(() => window.matchMedia('(min-width: 901px)').matches);
   useEffect(() => {
-    const mq = window.matchMedia('(min-width: 900px)');
+    const mq = window.matchMedia('(min-width: 901px)');
     const onChange = () => setIsDesktop(mq.matches);
     mq.addEventListener('change', onChange);
     return () => mq.removeEventListener('change', onChange);
@@ -127,7 +134,7 @@ export default function App() {
     });
   }, []);
   // Ref mirror so the []-deps ⌥N handler always calls the current createPage.
-  const createPageRef = useRef<((parentId: string | null) => Promise<void>) | null>(null);
+  const createPageRef = useRef<((parentId: string | null, type?: 'doc' | 'collection') => Promise<void>) | null>(null);
   // The Skills section owns everything under /skills (see SkillsApp). Held as
   // state rather than read during render so that back/forward moves through it,
   // like every other route here.
@@ -162,7 +169,15 @@ export default function App() {
       /* best-effort persistence */
     }
   }, [openTabs]);
+  // Page metas for open tabs that /api/pages does not carry — a database ROW is
+  // excluded from that list, so without this its chip has no title and the
+  // "alive" filter below would drop the tab the moment it stopped being active,
+  // which is what made a row impossible to keep open in a second tab. Fetched
+  // once per id (see the resolver below) and forgotten when its tab closes.
+  const [extraPages, setExtraPages] = useState<Map<string, PageMeta>>(() => new Map());
+  const resolvingRef = useRef<Set<string>>(new Set());
   const [searchOpen, setSearchOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const [indexOpen, setIndexOpen] = useState(false);
   // Set when the library was opened via "See related graph" on a page —
   // lands on the graph tab scoped to that page instead of the whole library.
@@ -197,6 +212,22 @@ export default function App() {
     setSidebarOpen(true);
     setSidebarCollapsed(false);
   };
+  // One button for both worlds: on mobile the sidebar is a drawer, and
+  // "collapse" there simply means closed. On the desktop it becomes a hover
+  // overlay — the collapsed state applies only there, or it would linger
+  // after a phone tap as an invisible side effect. Shared by the sidebar's
+  // own button and the '[' shortcut below, so the two can't drift apart.
+  const collapseSidebar = useCallback(() => {
+    setSidebarOpen(false);
+    if (window.matchMedia('(min-width: 769px)').matches) {
+      setSidebarCollapsed(true);
+      setHoverLock(true);
+    }
+  }, []);
+  const expandSidebar = useCallback(() => {
+    setSidebarCollapsed(false);
+    setHoverLock(false);
+  }, []);
   // What is stored is the CHOICE ('auto' included); what is applied is the
   // theme derived from it. Anyone who had already stored 'light'/'dark' before
   // this change keeps it — that was a deliberate setting, not something to
@@ -532,7 +563,7 @@ export default function App() {
         // here too, one frame later (W112).
         if (m.authenticated && m.prefs) void applyPrefs(m.prefs);
         if (m.version && m.version !== BUILD_VERSION) {
-          toast(t('A new version is available — reload the page'));
+          toast(t('A new version is available: reload the page'));
         }
         if (m.authenticated) void loadAll();
       })
@@ -589,28 +620,136 @@ export default function App() {
     };
   }, []);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault();
-        setSearchOpen((v) => !v);
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, []);
+  // Both mod+K and ctrl+K: ⌃K has always worked on a Mac here, and taking it
+  // away from a hand that has learnt it would be a regression dressed up as a
+  // cleanup.
+  useShortcut({
+    id: 'search.open',
+    keys: ['mod+k', 'ctrl+k'],
+    // Has to work mid-sentence: looking something up is what interrupts it.
+    whileTyping: true,
+    label: () => t('Search'),
+    group: () => t('General'),
+    run: () => setSearchOpen((v) => !v),
+  });
+
+  // `?`, and deliberately WITHOUT whileTyping: a question mark is a character
+  // before it is a shortcut.
+  //
+  // Three spellings, because punctuation is the one case where neither e.key nor
+  // e.code suffices. '?' sits on a different physical key per layout: Shift+/ on
+  // QWERTY, Shift+, on AZERTY, Shift+ß on QWERTZ. // i18n-ok: naming a German
+  // keycap is the point of the line
+  //
+  // So e.code cannot name the key, while e.key reports the composed character
+  // only when the browser composed one — which a synthetic keypress may not.
+  useShortcut({
+    id: 'help.shortcuts',
+    // '?' first: the first spelling is the one menus and the sheet print, and
+    // "⇧?" reads as two keys where there is one — on a German board the
+    // question mark is Shift+ß anyway. // i18n-ok: naming a German keycap is the point
+    keys: ['?', 'shift+?', 'shift+/'],
+    label: () => t('Keyboard shortcuts'),
+    group: () => t('General'),
+    run: () => setHelpOpen((v) => !v),
+  });
 
   // ⌥N = new note (⌘N is reserved by browsers and can't be intercepted).
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.altKey && !e.metaKey && !e.ctrlKey && e.code === 'KeyN') {
-        e.preventDefault();
-        void createPageRef.current?.(null);
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, []);
+  //
+  // whileTyping, because the moment you want a new note is almost always
+  // mid-sentence in the one you are writing. What makes that safe is testing
+  // what the keystroke PRODUCES rather than where the caret is: on a US Mac
+  // layout ⌥N is the DEAD KEY for ˜, so creating a note and typing ñ are the
+  // same chord. 'Dead' is what such a key reports; a single character that is
+  // not the letter itself catches the layouts that compose something else.
+  useShortcut({
+    id: 'page.new',
+    keys: ['alt+n'],
+    whileTyping: true,
+    label: () => t('New note'),
+    group: () => t('General'),
+    run: (e) => {
+      if (e.key === 'Dead' || (e.key.length === 1 && e.key.toLowerCase() !== 'n')) return false;
+      void createPageRef.current?.(null);
+    },
+  });
+
+  // '[', to match the bracket printed on the sidebar's own collapse/pin
+  // button. Not whileTyping: '[' is an ordinary character (and the first half
+  // of a wiki-link), so this only fires when the caret isn't in a text field.
+  useShortcut({
+    id: 'sidebar.toggle',
+    keys: ['['],
+    label: () => t('Toggle sidebar'),
+    group: () => t('General'),
+    run: () => (sidebarCollapsed ? expandSidebar() : collapseSidebar()),
+  });
+
+  // Single letters, the way Linear does it (#3, #23). They act only while the
+  // caret is NOT in a text field, where every one of them is simply a letter —
+  // the rule '[' and '?' already follow — so none needs a modifier that a
+  // browser or a keyboard layout has already claimed (⌘N, ⌘L, ⌥ on a Mac).
+  useShortcut({
+    id: 'collection.new',
+    keys: ['shift+n'],
+    label: () => t('New collection'),
+    group: () => t('General'),
+    // Not behind an open dialog: a letter pressed there belongs to the dialog.
+    // Checked in run, not in `when`, because the help sheet is a dialog too and
+    // lists only what `when` allows — the letters would vanish from the one
+    // place that names them. Returning false lets the key through untouched.
+    run: () => {
+      if (modalOpen()) return false;
+      void createPageRef.current?.(null, 'collection');
+    },
+  });
+
+  useShortcut({
+    id: 'library.open',
+    keys: ['l'],
+    label: () => t('Library'),
+    group: () => t('General'),
+    run: () => {
+      if (modalOpen()) return false;
+      announceModal(); // close any open modal + collapse the sidebar
+      setIndexOpen(true);
+    },
+  });
+
+  useShortcut({
+    id: 'notes.toggle',
+    keys: ['m'],
+    label: () => t('Notes mode'),
+    group: () => t('General'),
+    run: () => {
+      if (modalOpen()) return false;
+      toggleNotesMode();
+    },
+  });
+
+  useShortcut({
+    id: 'page.favorite',
+    keys: ['f'],
+    when: () => !!currentId,
+    label: () => t('Add or remove favorite'),
+    group: () => t('Page'),
+    run: () => {
+      if (modalOpen() || !currentId) return false;
+      void toggleFavorite(currentId);
+    },
+  });
+
+  // The arrows, from outside every region: the regions bind them only once you
+  // are already in one, so without this the keyboard cannot get in at all
+  // without the mouse. The wording lives here, not in nav.ts, because it names
+  // THESE two regions and check-i18n wants a literal t('…') at the call site.
+  useNavEntry({
+    labels: {
+      group: () => t('Navigation'),
+      prev: () => t('Focus the sidebar'),
+      next: () => t('Focus the page'),
+    },
+  });
 
   // A file dropped anywhere the application does not handle itself would be
   // NAVIGATED TO by the browser — the whole app replaced by a PDF viewer, with
@@ -629,6 +768,34 @@ export default function App() {
   // stream has gone silent — a stalled connection never errors, so closing and
   // reopening is the only way back.
   const [liveNonce, setLiveNonce] = useState(0);
+
+  // The home-screen shortcut (long-press the icon) starts the app at
+  // /?action=search. Wired here rather than left in the manifest as decoration:
+  // a shortcut that opens the app and then does nothing is worse than no
+  // shortcut. The parameter is cleared straight away so a reload does not
+  // re-open the search box.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('action') !== 'search') return;
+    setSearchOpen(true);
+    const url = window.location.pathname + window.location.hash;
+    window.history.replaceState(window.history.state, '', url || '/');
+  }, []);
+
+  // Pull-to-refresh and the sync button land here. Both halves matter: fetch
+  // the tree again, AND throw the live stream away and open a new one. After a
+  // phone has slept the stream is often gone without having errored, so a
+  // refresh that only refetched once would leave the app looking current and
+  // then quietly stop updating — which is the state people describe as "it
+  // does not sync".
+  useEffect(
+    () =>
+      onRefresh(() => {
+        void loadPages();
+        setLiveNonce((n) => n + 1);
+      }),
+    [loadPages],
+  );
+
   useEffect(() => {
     if (!me?.authenticated) return;
     const es = new EventSource('/api/events');
@@ -681,7 +848,7 @@ export default function App() {
         };
         if (msg.type === 'hello' && msg.version && msg.version !== BUILD_VERSION && !warnedVersion) {
           warnedVersion = true;
-          toast(t('A new version is available — reload the page'));
+          toast(t('A new version is available: reload the page'));
         }
         if (msg.type === 'pages') {
           window.clearTimeout(reloadTimer.current);
@@ -816,6 +983,14 @@ export default function App() {
     if (i < 0) return;
     const next = prev.filter((x) => x !== id);
     setOpenTabs(next);
+    // A row's meta was fetched for its tab alone; the tab is gone, so is the
+    // reason to keep it.
+    setExtraPages((p) => {
+      if (!p.has(id)) return p;
+      const n = new Map(p);
+      n.delete(id);
+      return n;
+    });
     if (activeRef.current === id) {
       const neighbour = next[i] ?? next[i - 1] ?? null;
       pushTabHistory(next, neighbour, true);
@@ -823,24 +998,34 @@ export default function App() {
     }
   }, []);
 
-  // Ctrl+Alt+←/→ cycles open tabs. metaKey is intentionally excluded: Cmd+Alt+←/→
-  // is the macOS browser tab-switch shortcut. Ignored while typing.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.ctrlKey && !e.metaKey && e.altKey && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
-        const el = document.activeElement as HTMLElement | null;
-        if (el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName))) return;
-        const tabs = tabsRef.current;
-        if (tabs.length < 2) return;
-        e.preventDefault();
-        const i = activeRef.current ? tabs.indexOf(activeRef.current) : -1;
-        const d = e.key === 'ArrowRight' ? 1 : -1;
-        navigate(tabs[(i + d + tabs.length) % tabs.length]);
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [navigate]);
+  // Ctrl+Alt+←/→ cycles open tabs. `ctrl` literally rather than `mod`: on macOS
+  // ⌘⌥←/→ is the browser's own tab switch and has to stay the browser's.
+  const cycleTab = useCallback(
+    (d: 1 | -1) => {
+      const tabs = tabsRef.current;
+      // Nothing to cycle through: let the keystroke go where it was headed.
+      if (tabs.length < 2) return false;
+      const i = activeRef.current ? tabs.indexOf(activeRef.current) : -1;
+      navigate(tabs[(i + d + tabs.length) % tabs.length]);
+    },
+    [navigate],
+  );
+
+  useShortcut({
+    id: 'tabs.next',
+    keys: ['ctrl+alt+arrowright'],
+    label: () => t('Next tab'),
+    group: () => t('Tabs'),
+    run: () => cycleTab(1),
+  });
+
+  useShortcut({
+    id: 'tabs.prev',
+    keys: ['ctrl+alt+arrowleft'],
+    label: () => t('Previous tab'),
+    group: () => t('Tabs'),
+    run: () => cycleTab(-1),
+  });
 
   // Pick a landing page when nothing is selected, and bounce away from a page
   // that was trashed. IMPORTANT: a selected id that is simply absent from the
@@ -848,19 +1033,57 @@ export default function App() {
   // are deliberately excluded from /api/pages, so clicking one must NOT be
   // treated as an invalid selection (that caused a jump back to the home page).
   // Genuinely-gone pages are handled by the editor's onMissing callback.
-  // Keep a tab only if its page is live in the tree, or it is the active page.
-  // This drops trashed pages and stale ids left in localStorage (e.g. pages
-  // deleted in another session), so no "Untitled" ghost tabs accumulate. The
-  // trade-off: a database row (absent from /api/pages) survives only while it
-  // is the active tab — an accepted minor limitation, not data loss.
+  // Keep a tab only if its page is live in the tree, or it is the active page,
+  // or it is an id the tree cannot answer for. That last case matters now that a
+  // board card can open in a second tab: a database ROW is not in /api/pages, so
+  // testing its tab by absence alone would drop it the moment it stopped being
+  // active. Such an id is left alone here and settled by the resolver below,
+  // which closes it only when the server says the page is really gone. The
+  // trade-off: a stale id from localStorage lives a little longer (a request)
+  // instead of vanishing on faith. Pages that ARE in the tree still drop the
+  // moment they are trashed, and handleMissing closes deleted ones.
   useEffect(() => {
     if (!pages) return;
-    const alive = new Set(pages.filter((p) => !p.trashed).map((p) => p.id));
+    const known = new Map(pages.map((p) => [p.id, p]));
     setOpenTabs((prev) => {
-      const next = prev.filter((id) => alive.has(id) || id === currentId);
+      const next = prev.filter((id) => {
+        const p = known.get(id);
+        return p ? !p.trashed || id === currentId : true;
+      });
       return next.length === prev.length && next.every((v, i) => v === prev[i]) ? prev : next;
     });
   }, [pages, currentId]);
+
+  // Resolve every open tab the page list does not know about: a deferred
+  // database row comes back with its title and icon, and anything the server no
+  // longer has (a stale id, a row deleted or trashed in another session) closes
+  // its tab rather than lingering as "Untitled".
+  useEffect(() => {
+    if (!pages) return;
+    const known = new Set(pages.map((p) => p.id));
+    for (const id of openTabs) {
+      if (known.has(id) || extraPages.has(id) || resolvingRef.current.has(id)) continue;
+      resolvingRef.current.add(id);
+      void api
+        .getPage(id)
+        .then((p) => {
+          if (p.trashed) {
+            closeTab(id);
+            return;
+          }
+          if (tabsRef.current.includes(id)) {
+            setExtraPages((prev) => (prev.has(id) ? prev : new Map(prev).set(id, p)));
+          }
+        })
+        .catch((e) => {
+          // A page the server no longer has (or will not show) closes its tab; a
+          // transient failure just leaves it for the next run to retry, rather
+          // than throwing a tab away over a blip.
+          if (e instanceof ApiError && e.status === 404) closeTab(id);
+        })
+        .finally(() => resolvingRef.current.delete(id));
+    }
+  }, [pages, openTabs, extraPages, closeTab]);
 
   useEffect(() => {
     if (!pages) return;
@@ -898,9 +1121,32 @@ export default function App() {
   const createPage = useCallback(
     async (parentId: string | null, type: 'doc' | 'collection' = 'doc') => {
       // Root pages land in the selected workspace; children inherit the parent's.
-      const p = await api.createPage(parentId, '', type, undefined, parentId ? undefined : currentWs);
+      let p: PageMeta;
+      try {
+        p = await api.createPage(parentId, '', type, undefined, parentId ? undefined : currentWs);
+      } catch (e) {
+        // A refusal (a read-only workspace, say) used to end here unseen.
+        toast((e as Error).message || t('Could not be created'));
+        return;
+      }
       setPages((prev) => (prev ? [...prev, p] : [p]));
       navigate(p.id);
+      // Land in the title: a new page is created to be named, and from ⌥N there
+      // was no pointer involved to leave anywhere useful. Across frames rather
+      // than immediately — the editor mounts on a later render (see focusKey).
+      //
+      // 30 tries (~0.5s of rAF) was tuned for "React hasn't committed yet", but
+      // this call sits behind TWO network round trips first — the create above,
+      // then Editor's own api.getPage once `navigate` swaps the current page —
+      // and `page` is null (so 'content' isn't even registered) for all of it.
+      // On anything slower than localhost that budget ran out before the page
+      // existed to focus, and the retry gave up silently.
+      //
+      // The guard matters just as much as the count: right after `navigate`,
+      // the OUTGOING page's Editor is still what's mounted in 'content' for at
+      // least this tick, title and all — so an unguarded retry succeeds
+      // immediately against the wrong page's title and never waits for `p`'s.
+      focusKey('content', 'title', 180, (root) => root.dataset.pageId === p.id);
     },
     [navigate, currentWs],
   );
@@ -908,6 +1154,15 @@ export default function App() {
 
   const updateMeta = useCallback((id: string, patch: Partial<PageMeta>) => {
     setPages((prev) => prev?.map((p) => (p.id === id ? { ...p, ...patch } : p)) ?? prev);
+    // A row opened in its own tab is not in the page list, so its tab title
+    // would keep the old name after a rename.
+    setExtraPages((prev) => {
+      const p = prev.get(id);
+      if (!p) return prev;
+      const next = new Map(prev);
+      next.set(id, { ...p, ...patch });
+      return next;
+    });
   }, []);
 
   // Import for the empty-state (no pages yet). The primary import entry point is
@@ -943,14 +1198,24 @@ export default function App() {
 
   const trashPage = useCallback(
     async (id: string) => {
+      // Collection rows are excluded from the tree list. Resolve their parent
+      // before trashing them, while the server can still return the page.
+      const deleted = activeRef.current === id ? await api.getPage(id) : null;
       await api.trashPage(id);
-      // Leaving you on the page you just threw away was harmless while this was
-      // reachable from the sidebar only — there you are usually looking at
-      // something else. The page's own menu can do it now, so it has to move.
-      if (id === currentId) navigate(null);
+      // Check the current selection after the request: the user may have
+      // navigated elsewhere while deletion was pending.
+      if (activeRef.current === id) navigate(deleted?.parentId ?? null, true);
+      // Rows absent from /api/pages cannot be pruned by the tree refresh.
+      setOpenTabs((prev) => prev.filter((tab) => tab !== id));
+      setExtraPages((prev) => {
+        if (!prev.has(id)) return prev;
+        const next = new Map(prev);
+        next.delete(id);
+        return next;
+      });
       await loadPages();
     },
-    [loadPages, currentId, navigate],
+    [loadPages, navigate],
   );
 
   const duplicatePage = useCallback(
@@ -1029,10 +1294,13 @@ export default function App() {
     [loadPages, closeTab],
   );
 
-  const pagesById = useMemo(
-    () => new Map((pages ?? []).map((p) => [p.id, p])),
-    [pages],
-  );
+  const pagesById = useMemo(() => {
+    const m = new Map((pages ?? []).map((p) => [p.id, p]));
+    // Row metas first fetched for a tab (see extraPages). Only a fallback: the
+    // tree's own copy wins if the id is there too.
+    for (const [id, p] of extraPages) if (!m.has(id)) m.set(id, p);
+    return m;
+  }, [pages, extraPages]);
 
   // A viewer (read-only workspace role) may not edit; the doc editor renders
   // read-only so a viewer isn't teased with an editable-looking page whose
@@ -1045,6 +1313,26 @@ export default function App() {
     return role !== 'viewer';
   }, [currentId, pagesById, workspaces]);
   const reviewProposalId = reviewProposalIdFromLocation();
+
+  // Switching workspaces must not leave the editor (and the URL) pointing at a
+  // document that belonged to the workspace you just left — the picker used
+  // to be wired straight to setCurrentWs, so `currentId` never changed and
+  // the previous workspace's content (and its /p/<id> URL) just sat there.
+  // Land on the new workspace's first page instead, the same "pick a page"
+  // fallback already used when the active page is trashed — or the empty
+  // state if the workspace has none yet. If the page you're already on
+  // happens to live in the target workspace, leave it alone.
+  const switchWorkspace = useCallback(
+    (id: string) => {
+      setCurrentWs(id);
+      const cur = currentId ? pagesById.get(currentId) : undefined;
+      if (cur && cur.workspaceId === id) return;
+      const inWs = (p: PageMeta) => !p.trashed && p.workspaceId === id;
+      const first = pages?.find((p) => inWs(p) && !p.parentId) ?? pages?.find(inWs);
+      navigate(first ? first.id : null);
+    },
+    [currentId, pages, pagesById, navigate],
+  );
 
   const onAuthed = useCallback(
     (user: User) => {
@@ -1140,27 +1428,14 @@ export default function App() {
         workspaces={workspaces}
         currentWs={currentWs}
         tagColors={tagColors}
-        onSwitchWorkspace={setCurrentWs}
+        onSwitchWorkspace={switchWorkspace}
         onWorkspacesChanged={loadWorkspaces}
         user={me.user}
         currentId={currentId}
         open={sidebarOpen}
-        onCollapse={() => {
-          // One button for both worlds: on mobile the sidebar is a drawer, and
-          // "collapse" there simply means closed. On the desktop it becomes a
-          // hover overlay — the collapsed state applies only there, or it would
-          // linger after a phone tap as an invisible side effect.
-          setSidebarOpen(false);
-          if (window.matchMedia('(min-width: 769px)').matches) {
-            setSidebarCollapsed(true);
-            setHoverLock(true);
-          }
-        }}
+        onCollapse={collapseSidebar}
         collapsed={sidebarCollapsed}
-        onExpand={() => {
-          setSidebarCollapsed(false);
-          setHoverLock(false);
-        }}
+        onExpand={expandSidebar}
         onNavigate={navigate}
         onOpenInNewTab={openInNewTab}
         onCreate={createPage}
@@ -1187,11 +1462,28 @@ export default function App() {
           if (__DWORKSPACE_DEMO__) window.location.reload();
           else window.location.href = '/';
         }}
-        notesMode={notesActive}
+        notesMode={notesMode}
+        notesList={
+          notesMode && !isDesktop ? (
+            <NotesList
+              inline
+              pages={pagesById}
+              currentWs={currentWs}
+              activeId={currentId}
+              tagColors={tagColors}
+              tagFilter={notesTag}
+              onClearTag={() => setNotesTag(null)}
+              onNavigate={navigate}
+              onOpenInNewTab={openInNewTab}
+              onCreate={() => void createPage(null)}
+            />
+          ) : undefined
+        }
         activeTag={notesTag}
         onSelectTag={setNotesTag}
         notesModeSetting={notesMode}
         onToggleNotesMode={toggleNotesMode}
+        onOpenShortcuts={() => setHelpOpen(true)}
         fontPref={fontPref}
         onSetFont={setFontPref}
       />
@@ -1204,6 +1496,7 @@ export default function App() {
           tagFilter={notesTag}
           onClearTag={() => setNotesTag(null)}
           onNavigate={navigate}
+          onOpenInNewTab={openInNewTab}
           onCreate={() => void createPage(null)}
         />
       )}
@@ -1237,6 +1530,7 @@ export default function App() {
               setGraphFocus(null);
               navigate(id);
             }}
+            onOpenInNewTab={openInNewTab}
             onClose={() => {
               setIndexOpen(false);
               setGraphFocus(null);
@@ -1295,7 +1589,7 @@ export default function App() {
             <h2>{t('No workspace')}</h2>
             <p>
               {t(
-                'Your account currently belongs to no workspace. Ask an admin for access — or create one of your own, if this instance allows it.',
+                'Your account currently belongs to no workspace. Ask an admin for access, or create one of your own, if this instance allows it.',
               )}
             </p>
             {me?.allowUserWorkspaces && (
@@ -1330,7 +1624,7 @@ export default function App() {
             </button>
             <div className="empty-emoji"><Logo size={52} /></div>
             <h2>{t('No pages yet')}</h2>
-            <p>{t('Create your first page — or import from Notion (.zip) / Markdown (.md).')}</p>
+            <p>{t('Create your first page, or import from Notion (.zip) / Markdown (.md).')}</p>
             <div className="empty-actions">
               <button className="btn primary" onClick={() => void createPage(null)}>
                 {t('New page')}
@@ -1349,6 +1643,7 @@ export default function App() {
           </div>
         )}
       </main>
+      {helpOpen && <ShortcutSheet onClose={() => setHelpOpen(false)} />}
       {searchOpen && (
         <SearchModal
           recent={(() => {
@@ -1384,13 +1679,14 @@ export default function App() {
           }}
         >
           <WifiOff size={13} />
-          {t('Not receiving live updates — reconnect')}
+          {t('Not receiving live updates: reconnect')}
         </button>
       )}
       {toaster}
       <DialogHost />
       <UploadBar />
       <ImageLightbox />
+      <PullToRefresh />
     </div>
   );
 }

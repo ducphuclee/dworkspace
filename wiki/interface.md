@@ -3,8 +3,8 @@
 This page describes the frame around your content: the sidebar, the document
 tabs, the topbar above a page, the account menu, the theme, every keyboard
 shortcut, and what changes when the window gets narrow. It does not describe
-writing in a page — that is [Pages](pages.md) and
-[Editor blocks](editor-blocks.md) — or working inside a collection, which is
+writing in a page (that is [Pages](pages.md) and
+[Editor blocks](editor-blocks.md)) or working inside a collection, which is
 [Views](views.md).
 
 ## The layout
@@ -21,12 +21,12 @@ Left to right, dworkspace is up to four columns:
 None of the columns can be dragged wider. The sidebar can be collapsed, the
 notes list is a setting, the right-hand panel is a toggle in the topbar.
 
-Most of the time two of the four are on screen — the sidebar and the page:
+Most of the time two of the four are on screen, the sidebar and the page:
 
 ![The whole application: workspace switcher and tree on the left, the document and its actions on the right.](img/workspace-overview.png)
 
 Inside the page column: a tab strip (only from two open tabs), then the topbar,
-then the page itself. Everything below the topbar scrolls as one — the cover
+then the page itself. Everything below the topbar scrolls as one: the cover
 image, the icon, the title, the tags and the content leave the screen together.
 Only the topbar stays.
 
@@ -43,10 +43,10 @@ Two labels can appear beside a name: **own space** for a personal workspace, and
 **open to all** for one that every new account joins automatically. Below the
 separator:
 
-- **Workspace settings** — only for an admin of that workspace
-- **New workspace** — opens the blueprint shelf, if the instance lets you create
+- **Workspace settings**: only for an admin of that workspace
+- **New workspace**: opens the blueprint shelf, if the instance lets you create
   one
-- **With nobody in charge…** — only for the instance owner; lists workspaces
+- **With nobody in charge…**: only for the instance owner; lists workspaces
   nobody can look after any more
 
 The sidebar shows the pages of the **selected workspace only**, and the choice is
@@ -63,10 +63,10 @@ dialog of their own.
 
 | Group | What is in it |
 | --- | --- |
-| General | **Name** (opens a rename prompt), **Picture** — an emoji from the picker or an uploaded logo; setting one clears the other |
+| General | **Name** (opens a rename prompt), **Picture** (an emoji from the picker or an uploaded logo; setting one clears the other) |
 | Access | **Members** (who is in, and in which role), **What agents may do here**, **Open to every new user**, and for the instance owner **Emergency access log** |
-| Layout | **How the sidebar is arranged** — see the two shapes below |
-| Conventions | **Workspace rules** — the row says so when a proposal is waiting for review |
+| Layout | **How the sidebar is arranged** (see the two shapes below) |
+| Conventions | **Workspace rules** (the row says so when a proposal is waiting for review) |
 | Data | **Files**, **Export workspace**, **Export as Markdown**, **Import workspace…**, **Delete workspace** |
 
 **What agents may do here** has three settings: *Anything they were granted*,
@@ -81,9 +81,9 @@ workspace name rather than clicking Yes. See [Workspaces](workspaces.md) and
 
 Two round buttons top right:
 
-- **Library — every page** opens the full-screen library over the page. It has
-  its own tab strip — **Recently used**, **Favorites**, **Shared**, **Private**,
-  **All pages**, **Graph** and **Tree · agent view** — with a workspace picker, a
+- **Library (every page)** opens the full-screen library over the page. It has
+  its own tab strip (**Recently used**, **Favorites**, **Workspace**, **Private**,
+  **All pages**, **Graph** and **Tree · agent view**), with a workspace picker, a
   filter box and a sort menu. See [Library](library.md).
 - **Collapse the sidebar** slides it away. On a desktop it does not disappear:
   move the pointer to the left edge of the window and it slides back in as an
@@ -91,7 +91,7 @@ Two round buttons top right:
   good. Right after you click collapse the reveal is locked until the pointer has
   actually moved away, so the click does not look as if it did nothing.
 
-The collapse button is not shown on a narrow screen — there the sidebar is a
+The collapse button is not shown on a narrow screen; there the sidebar is a
 drawer instead.
 
 ### Search
@@ -103,20 +103,20 @@ pages under **Recently opened** until you type. See [Search](search.md).
 ### Sections
 
 Everything below is a collapsible section: an icon, a label, a count, a chevron,
-and often a **+**. **Trash is built differently** — icon, label and count, no
-chevron — and it scrolls inside its own 180 px.
+and often a **+**. **Trash is built differently** (icon, label and count, no
+chevron), and it scrolls inside its own 180 px.
 
 Whether a section is open is remembered per section, in this browser. Trash is
 the exception again: it starts closed every time.
 
 | Section | Shown when | The + does |
 | --- | --- | --- |
-| **Favourites** | you have starred at least one page | — |
-| **Tags** | the workspace has at least one tag | — |
+| **Favourites** | you have starred at least one page | no + |
+| **Tags** | the workspace has at least one tag | no + |
 | **Documents** (or **Pages**) | unless Notes mode is on or a tag filter is active | **New page** |
 | **Collections** | the workspace uses two sections, and no tag filter is active | **New collection** |
-| **Templates** | the workspace has at least one | **New page from a template** — opens the gallery |
-| **Trash** | something is in it | — |
+| **Templates** | the workspace has at least one | **New page from a template** (opens the gallery) |
+| **Trash** | something is in it | no + |
 
 **Favourites** is a flat list; the ★ on a row removes it again.
 
@@ -138,7 +138,7 @@ under *Workspace settings → Layout → How the sidebar is arranged*:
 
 **The two shapes do not report the same number.** Collections counts every
 collection in the workspace, wherever it is filed. Documents counts pages whose
-ancestry never passes through a collection — and in one-tree mode the same count
+ancestry never passes through a collection, and in one-tree mode the same count
 is called Pages and includes collections, so it is the larger number. Templates
 are left out of that count in both shapes, although a template page is still
 drawn in the tree, so a workspace with three templates shows a count three lower
@@ -158,7 +158,7 @@ Documents, **No collection yet** under Collections.
 
 ### Filtering by tag
 
-Clicking a tag chip does not narrow the tree — it **replaces** it. Documents and
+Clicking a tag chip does not narrow the tree; it **replaces** it. Documents and
 Collections both disappear and a flat list of every page in the workspace
 carrying that tag takes their place, collections included, no matter how deep
 they are filed. A banner above it shows the tag and a **Clear filter ×** button.
@@ -196,7 +196,7 @@ The **⋯** menu, in order:
 | **New collection inside** | |
 | **Move to top level** | only when the page has a parent |
 | **Move to workspace** → one entry per other workspace | only with more than one workspace; takes the whole subtree along and files it at the top level there |
-| **Files in this subtree** | every upload on this page and everything under it — see [Files](files.md) |
+| **Files in this subtree** | every upload on this page and everything under it (see [Files](files.md)) |
 | **Save as template** | takes a *copy* as the template; this page stays a normal page |
 | **Export Markdown** | |
 | **Move to trash** | |
@@ -211,9 +211,9 @@ is reachable from the sidebar four levels down. Rows carry the same **+** and
 
 **Rows cannot be dragged, and nothing can be dropped on them.** Only tree items
 carry the drag handlers, so the gesture below does not exist inside an unfolded
-collection — use *Move to workspace* or the row's own page to move it.
+collection; use *Move to workspace* or the row's own page to move it.
 
-A collection nested inside another collection is not one of its rows — it is
+A collection nested inside another collection is not one of its rows; it is
 drawn as a full tree item, with the whole menu, so it can be moved back out.
 
 While the rows load the list says **Loading…**; an empty collection says
@@ -242,7 +242,7 @@ and opening any of its dialogs closes whatever else was open.
 
 | Entry | What it opens |
 | --- | --- |
-| **Agents & MCP** | connecting an agent — see [Agents](agents.md) |
+| **Agents & MCP** | connecting an agent (see [Agents](agents.md)) |
 | **Profile** | see below |
 | **API tokens** | see [Agent access](agent-access.md) |
 | **Activity log** | see [History and audit](history-and-audit.md) |
@@ -251,7 +251,7 @@ and opening any of its dialogs closes whatever else was open.
 | **Language and time** | see [Language and time](language-and-time.md) |
 | **Notes mode** | toggle, with a dot showing its state |
 | **Dworkspace fonts** | toggle, with a dot showing its state |
-| **Manage users** | instance admins only — see [Administration](administration.md) |
+| **Manage users** | instance admins only (see [Administration](administration.md)) |
 | **Instance settings** | instance admins only |
 | **Sign out** | |
 
@@ -262,14 +262,14 @@ Your picture, name, email, colour and password in one dialog.
 - **Upload picture** takes any image; once there is one, **Remove picture**
   appears beside it. Without a picture the circle shows your initial on your
   colour.
-- **Colour** is a fixed palette of ten swatches — the same ten the server hands
+- **Colour** is a fixed palette of ten swatches, the same ten the server hands
   out when an account is created. It is the colour you appear in beside a
   comment and in the presence dots.
 - **New password (blank = unchanged)**, at least 8 characters, with a
   confirmation field that only appears once you start typing one.
 - **Changing the email or the password asks for your current password.** The
   field appears as soon as either changes and Save stays disabled until it is
-  filled in — a session left open must not be enough to take over the account.
+  filled in: a session left open must not be enough to take over the account.
 - **Two-factor authentication** is a row with a **Manage** button that opens the
   2FA dialog in place of this one.
 
@@ -278,11 +278,13 @@ Changing your password signs your other sessions out and says so.
 ## The tabs
 
 Open pages are chips across the top of the page column. The strip appears from
-the second tab — one document needs no tab bar.
+the second tab: one document needs no tab bar.
 
 - **Clicking a page anywhere does not add a tab.** It navigates the tab you are
   in, the way a browser tab does. Use ⌘-click, middle-click or *Open in new tab*
-  to add one.
+  to add one. The gestures work on a sidebar row, a board card, a row in any
+  collection view, a note in the notes column and an entry of the sub-pages
+  block, and a board card's ⋯ menu carries the entry too.
 - A new tab opens directly after the active one and is focused.
 - **✕** closes a tab, and so does a **middle-click** on it.
 - Closing the active tab activates the neighbour that slides into its place.
@@ -311,10 +313,10 @@ The icons, left to right:
 | --- | --- | --- |
 | an agent's mark | its name, the account it signed in through, its note, how long it has been here, and either **active just now** or when it was last heard from | which agent says it is working on this page. The note stands beside the name only while one agent is here; with two it is in the tooltip alone |
 | coloured dots | **Also here: …** | up to three people editing right now, then **+n** |
-| speech bubble | **Show comments** / **Hide comments** | opens the comment panel; carries the number of open comments. Not shown on a collection — its *rows* carry comments, not the collection itself |
-| panel | **Show structure** / **Hide structure** | the structure panel — see below |
+| speech bubble | **Show comments** / **Hide comments** | opens the comment panel; carries the number of open comments. Not shown on a collection: its *rows* carry comments, not the collection itself |
+| panel | **Show structure** / **Hide structure** | the structure panel (see below) |
 | star | **Add to favorites** / **Remove from favorites** | |
-| padlock | **Private (only you) — click to share with the workspace** / **Visible to the workspace — click to make it private** | see [Permissions](permissions.md) |
+| padlock | **Private (only you): click to share with the workspace** / **Visible to the workspace: click to make it private** | see [Permissions](permissions.md) |
 | globe | **Share to web (read-only link)** | see below |
 | **⋯** | **More** | everything below |
 
@@ -325,16 +327,16 @@ for about …**. See [Agents](agents.md).
 
 Four things, top to bottom:
 
-1. **Where this page sits** — the chain of parents from the top of the tree
+1. **Where this page sits**: the chain of parents from the top of the tree
    down, each one clickable, closed by a row reading **This page**. It is left
    out on a top-level page, where it would say nothing.
-2. ***Sub-pages*** — the whole subtree, not just its first level, indented.
+2. ***Sub-pages***: the whole subtree, not just its first level, indented.
    Empty: **No sub-pages**. A collection has no such section at all: its rows
    are its sub-pages and they live in the table.
-3. ***Files*** — every upload on this page and the pages under it, with its
+3. ***Files***: every upload on this page and the pages under it, with its
    size, and the page it hangs off whenever that is not the one you are on.
    Empty: **No files**. See [Files](files.md).
-4. ***Linked from*** — the pages that link here. Empty: **Nothing links here**.
+4. ***Linked from***: the pages that link here. Empty: **Nothing links here**.
 
 Clicking a **PDF** opens it full-screen in a preview with **Download** and
 **Close**; Escape closes it too. Every other kind of file opens in a new tab.
@@ -345,17 +347,18 @@ browser, across pages.
 
 ### Sharing to the web
 
-The globe opens a small menu: the read-only link in a field that selects itself
-when you click it, **Expires:** with **Never**, **In 1 day**, **In 7 days** or
-**In 30 days**, an optional **Password (optional)** field, and two buttons —
-**Copy** and **Stop sharing**. See [Sharing](sharing.md).
+The globe opens a small menu and publishes nothing by itself: **Expires:** with
+**Never**, **In 1 day**, **In 7 days** or **In 30 days**, an optional
+**Password (optional)** field, and **Create link**. Once the link exists the
+menu shows it in a field that selects itself when you click it, with **Copy**
+and **Stop sharing**. See [Sharing](sharing.md).
 
 ### The ⋯ menu
 
 It holds: *Add a description* (or *Remove description*), *To the comments*,
 *Version history*, *Import (.md / .zip)*, an **Export** group with
 *Markdown (.md)*, *Web page (.html)* and *Print / as PDF*, and *Move to trash*.
-On a narrow screen it also holds the three icons that stepped aside — comments,
+On a narrow screen it also holds the three icons that stepped aside: comments,
 *Make it private* / *Make it visible to the workspace*, and share to web.
 
 **With the viewer role in a workspace the menu is shorter.** Everything that
@@ -370,12 +373,12 @@ The theme switch has three states, not two:
 | Option | Behaviour |
 | --- | --- |
 | **Light** | always light |
-| **Automatic — follows the system** | follows your operating system, and changes the moment it does |
+| **Automatic (follows the system)** | follows your operating system, and changes the moment it does |
 | **Dark** | always dark |
 
 Automatic is the default for a new browser. A choice you made before this
 existed is kept. The setting lives in the browser, not in your account, so each
-device can differ — and it is also offered on the sign-in screen, in the top
+device can differ. And it is also offered on the sign-in screen, in the top
 right corner, so arriving at a login page at night does not mean a screen of
 white.
 
@@ -384,7 +387,7 @@ for text, JetBrains Mono for code and labels) and your system font. Bundled is
 the default; the font files are only fetched once they are used.
 
 Printing the browser window ignores the theme: it is always a light, chrome-free
-document — no sidebar, no topbar, no tabs, no panels. **The *Print / as PDF*
+document (no sidebar, no topbar, no tabs, no panels). **The *Print / as PDF*
 entry only takes that route for a collection.** On a document it opens a
 standalone print view in a new tab instead, which is what makes the entry work
 on a phone, where a browser's own print command does nothing. See
@@ -394,42 +397,47 @@ on a phone, where a browser's own print command does nothing. See
 
 A third column between the sidebar and the page: documents in the workspace as
 cards with a snippet, a thumbnail, when the page changed and its first two tags,
-**most recently changed first**. It is not quite every document — templates are left out, and so
+**most recently changed first**. It is not quite every document: templates are left out, and so
 are pages filed directly under a collection. Collections and their rows are not
 in it either.
 
 The head carries the word **Notes**, a count and a pen button (**New note
 (⌥N)**). Below it, **All** and **Untagged**; pick a tag chip in the sidebar and
 those two are replaced by the tag itself with an × to clear it. An empty list
-says **No notes yet — write the first one.**, **Everything is tagged. 🎉** or
+says **No notes yet. Write the first one.**, **Everything is tagged. 🎉** or
 **No notes tagged #…** depending on why it is empty.
 
 Turn it on in the account menu. It is off by default. Two things change while it
 is on: the sidebar drops its document tree (the middle column is the document
 list now), and the tag chips filter that list instead of the tree.
 
-The column is there when the window is wider than 900 px. At 900 px and below it
-is gone and the sidebar takes its tree back — except at exactly 900 px, where
-both switches fire at once and neither list is shown; one pixel either way
-brings navigation back.
+The column is there when the window is wider than 900 px. At 900 px and below,
+on a phone for instance, the list moves into the sidebar's drawer and stands
+where the document tree would be: the same cards, the same **All** and
+**Untagged**, and picking a note opens it and closes the drawer.
 
 ## Keyboard and pointer
 
 | Keys | Does |
 | --- | --- |
-| `⌘K` / `Ctrl+K` | opens the search dialog — pressing it again closes it |
+| `⌘K` / `Ctrl+K` | opens the search dialog; pressing it again closes it |
 | `⌥N` / `Alt+N` | a new page at the top level of the current workspace |
 | `Ctrl+Alt+←` / `Ctrl+Alt+→` | previous / next tab, wrapping around. Ignored while you are typing, and needs at least two tabs. `⌘` is deliberately not part of it: that combination belongs to the browser |
 | `↑` `↓` `Enter` | in the search dialog, once you have typed: move through the results, open the selected one. The recently-opened list is click-only |
 | `Escape` | closes the search dialog, any open menu, an image opened full-screen, a file preview, the icon picker, and a confirmation |
 | `Enter` | confirms a dialog that asks for a single line of text |
-| `Enter` in the tag field of a page | commits the tag — and so do `,` and `Tab`. `↑` `↓` move through the suggestions, `Escape` closes them, and `Backspace` in an empty field removes the last tag |
+| `Enter` in the tag field of a page | commits the tag, and so do `,` and `Tab`. `↑` `↓` move through the suggestions, `Escape` closes them, and `Backspace` in an empty field removes the last tag |
 | `⌘Enter` / `Ctrl+Enter` | posts a comment |
 | `Enter` in a page's raw trail | posts the note; `Shift+Enter` makes a new line. See [Comments and notes](comments-and-notes.md) |
 | `Enter` in a page title | jumps into the body instead of breaking the title over two lines |
+| `?` | the list of every shortcut that works on the screen you are on. It is also in the account menu, as **Keyboard shortcuts**; `Escape` closes it |
+| `[` | collapses the sidebar, or brings it back |
+| `←` / `→`, with nothing focused | into the sidebar / into the page. In the sidebar `↑` `↓` (or `K` `J`) move through the rows, `→` opens a row's children and `←` closes them, `Home` / `End` jump to the first / last row, and `Enter` opens the page. `←` at the very start of a page title goes back to the sidebar |
+| `L` · `M` · `T` · `F` · `C` · `Shift+N` | the library · notes mode on or off · a new page from a template · the open page into or out of the favourites · its comment panel · a new collection. Single letters act only while nothing is being typed: in a text they are simply letters |
+| `⌘Backspace` / `Ctrl+Backspace` | with a row focused in the sidebar: moves that page to the trash |
 | ⌘-click, Ctrl-click or middle-click | opens a page in a new tab |
 | middle-click on a tab | closes it |
-| right-click | opens the ⋯ menu of a sidebar row, a collection row in the sidebar, or a board card |
+| right-click | opens the ⋯ menu of a sidebar row, a collection row in the sidebar, a template, or a board card. On a view's tab it offers renaming, moving and removing that view |
 
 The shortcut badge beside **Search** reads `⌘K` on every platform; `Ctrl+K`
 works just as well.
@@ -438,41 +446,77 @@ works just as well.
 
 | Width | What changes |
 | --- | --- |
-| 1200 px and below | an agent's note beside its name is dropped — it is in the tooltip |
-| 900 px and below | the notes list is gone; whichever right-hand panel is open floats over the text instead of pushing it aside. The structure panel narrows to 280 px, the comment panel takes the full width |
+| 1200 px and below | an agent's note beside its name is dropped; it is in the tooltip |
+| 900 px and below | the notes list moves into the sidebar's drawer; whichever right-hand panel is open floats over the text instead of pushing it aside. The structure panel narrows to 280 px, the comment panel takes the full width |
 | 768 px and below | the sidebar becomes a drawer over the page with a dark backdrop; the hamburger in the topbar opens it, the backdrop closes it, and picking a page closes it. Every input grows to 16 px so tapping a field does not zoom the page on iOS |
 | 640 px and below | the topbar keeps the structure toggle, the star and **⋯**; comments, private/visible and share to web move into that menu |
+
+A right-hand panel also floats over the text at wider sizes, whenever pushing
+the text aside would leave it narrower than a readable column: a sidebar, the
+notes column and a panel side by side on a laptop screen.
 
 The drawer has no close button of its own. Below 768 px the collapse button in
 the sidebar header is hidden, so the backdrop and picking a page are the two
 ways out.
 
 On a device without a mouse, everything that is normally revealed on hover is
-permanently visible — the row buttons, the tab's ✕, the section **+**, the cover
-buttons — and the hit areas grow: a tree row is at least 44 px tall, a tag chip
+permanently visible (the row buttons, the tab's ✕, the section **+**, the cover
+buttons), and the hit areas grow: a tree row is at least 44 px tall, a tag chip
 32 px. Decorative hover effects are switched off, because with no pointer to
 leave the element they stay stuck after a tap and look like a fault.
 
 If you have asked your system to reduce motion, every transition and animation
 is effectively switched off.
 
+## Installed as an app
+
+Add salt.md to a home screen or install it from the browser's address bar and it
+opens in its own window: no address bar, no tabs, its own icon in the dock or on
+the home screen. Everything works exactly as it does in a tab, with one thing
+to know about, and two things added for it.
+
+**Nothing is stored on the device except the app itself.** The pages, the
+databases and the files are fetched from your instance every time, the same as in
+a browser. Offline you get the shell of the app and nothing to put in it.
+
+**The thing to know about is refreshing.** An installed window has no reload
+button, and while the app is open it does not need one: it holds a live
+connection and changes made by other people (or by an agent) appear on their
+own. What breaks that is a phone going to sleep. The connection dies with it, and
+a dead connection does not announce itself: the app looks current and has quietly
+stopped listening. So:
+
+| Where | How to refresh |
+| --- | --- |
+| Phone or tablet | pull down from the top of the page |
+| Desktop | the ↻ button next to the theme switch, bottom of the sidebar |
+
+Both do the same two things: fetch what is on screen again, and throw the live
+connection away and open a new one. Neither reloads the window, so your open
+tabs, your place on the page and anything half-typed survive.
+
+The pull gesture only listens when the page is already scrolled to the top, and
+only for a clearly downward pull: a sideways swipe across a wide table is a
+sideways swipe. In an ordinary browser tab neither appears: the browser's own
+gesture and its own reload button are already there.
+
 ## Messages and overlays
 
 **Toasts** appear centred at the bottom of the window and disappear after four
 seconds. They are announced to screen readers. They carry both failures and
-confirmations — "Workspace renamed" arrives the same way a failed save does, and
+confirmations: "Workspace renamed" arrives the same way a failed save does, and
 every one of them is drawn in the warning colour with a ⚠ in front of it.
 
 Toasts are not the only way the app reports a problem. Dialogs and the sign-in
 screen show their errors inline, in the dialog itself. A page that will not load
-replaces the document with its own screen — "This page could not be loaded."
+replaces the document with its own screen: "This page could not be loaded."
 and a **Back to workspace** button.
 
 **The upload bar** is a three-pixel line across the top of the window while a
 file is uploading.
 
 **Images** in a page open full-screen on a click. Click the dark area around the
-picture, or press Escape, to close it — clicking the picture itself does
+picture, or press Escape, to close it; clicking the picture itself does
 nothing, so a mis-aimed click does not shut the view. Images narrower than 80 px
 never open at all, and neither do avatars, cover images, bookmark previews,
 pictures inside a button, and anything inside the editor or inside a link.
@@ -487,14 +531,14 @@ dropped file and lose what you had open. See [Files](files.md).
 
 Two full-screen messages you may meet:
 
-- **Cannot reach the server** — "dworkspace could not load your workspace", with a
+- **Cannot reach the server**: "dworkspace could not load your workspace", with a
   **Retry** button. See [Troubleshooting](troubleshooting.md).
-- **No pages yet** — the first-run state, with **New page** and
+- **No pages yet**: the first-run state, with **New page** and
   **Import (.md / .zip)**. If your account is in no workspace at all it says
   **No workspace** instead, and offers to create one if the instance allows it.
 
 After the server is updated under you, a message says **A new version is
-available — reload the page**. It comes both from the first request after load
+available: reload the page**. It comes both from the first request after load
 and from the live change feed, so an open tab learns about a deploy without
 being touched.
 
@@ -508,7 +552,7 @@ the defaults.
 | the selected workspace | |
 | the open tabs, and the last eight pages you opened | |
 | whether the sidebar is collapsed | |
-| which sidebar sections are open — Favourites, Tags, Documents, Collections and Templates. **Trash is not**: it starts closed every time | |
+| which sidebar sections are open: Favourites, Tags, Documents, Collections and Templates. **Trash is not**: it starts closed every time | |
 | whether the structure or comment panel is open | |
 | theme, typeface, notes mode | |
 

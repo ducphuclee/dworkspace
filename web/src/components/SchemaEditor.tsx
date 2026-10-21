@@ -1,11 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type CSSProperties } from 'react';
 import { api } from '../api';
 import type { CollectionConfig, PropDef, PropType, ViewDef } from '../types';
 import Portal from './Portal';
 import { useExclusiveModal } from '../modal';
 import { OPTION_HEXES, optionPalette } from '../selectOptions';
-import { Check } from 'lucide-react';
+import { renameSelectOption, moveSelectOption, reorderSelectOption } from '../renameSelectOption';
+import { confirm } from '../dialog';
+import { GripVertical, Check, Trash2 } from 'lucide-react';
 import { t } from '../i18n';
+import { loadMembers, type Member } from './PropertyValue';
 
 const TYPES: { value: PropType; label: string }[] = [
   { value: 'text', label: 'Text' },
@@ -71,11 +74,17 @@ export default function SchemaEditor({
   onClose: () => void;
 }) {
   const [schema, setSchema] = useState<PropDef[]>(config.schema);
+  const [dragProperty, setDragProperty] = useState<string | null>(null);
+  const [dropProperty, setDropProperty] = useState<{ id: string; after: boolean } | null>(null);
   const [views, setViews] = useState<ViewDef[]>(config.views);
   useExclusiveModal(onClose);
   const [newName, setNewName] = useState('');
   const [newType, setNewType] = useState<PropType>('select');
-  // Welcher Options-Chip gerade seinen Farbwaehler offen hat ("propId:optId").
+  // The option currently being edited ("propId:optId").
+  const [dragOption, setDragOption] = useState<{ prop: string; id: string } | null>(null);
+  const [dropOption, setDropOption] = useState<{ key: string; after: boolean } | null>(null);
+  const [optionName, setOptionName] = useState('');
+  const [optionAnchor, setOptionAnchor] = useState<HTMLElement | null>(null);
   const [colorPick, setColorPick] = useState<string | null>(null);
 
   const setOptionColor = (propId: string, optId: string, hex: string) =>
@@ -164,6 +173,23 @@ export default function SchemaEditor({
     );
   };
 
+  const moveProperty = (id: string, targetId: string, after: boolean) => {
+    setSchema((previous) => {
+      const source = previous.findIndex((property) => property.id === id);
+      const target = previous.findIndex((property) => property.id === targetId);
+      if (source < 0 || target < 0 || source === target) return previous;
+      const next = [...previous];
+      const [property] = next.splice(source, 1);
+      next.splice(target - (source < target ? 1 : 0) + Number(after), 0, property);
+      return next;
+    });
+  };
+
+  const endPropertyDrag = () => {
+    setDragProperty(null);
+    setDropProperty(null);
+  };
+
   const removeProp = (id: string) => setSchema((prev) => prev.filter((p) => p.id !== id));
 
   const save = async () => {
@@ -235,6 +261,9 @@ export default function SchemaEditor({
   );
 
   const renderConfig = (p: PropDef) => {
+    if (p.type === 'person') {
+      return <PersonConfig p={p} onChange={(patch) => updateProp(p.id, patch)} />;
+    }
     if (p.type === 'number') {
       return <div className="schema-config">{numberDisplayFields(p)}</div>;
     }
@@ -447,8 +476,47 @@ export default function SchemaEditor({
         <h2>{t('Collection properties')}</h2>
         <div className="schema-list">
           {schema.map((p) => (
-            <div key={p.id} className="schema-item">
+            <div
+              key={p.id}
+              className={'schema-item' +
+                (dragProperty === p.id ? ' schema-dragging' : '') +
+                (dropProperty?.id === p.id ? (dropProperty.after ? ' schema-drop-after' : ' schema-drop-before') : '')}
+              onDragOver={(e) => {
+                if (!dragProperty) return;
+                e.preventDefault();
+                e.stopPropagation();
+                e.dataTransfer.dropEffect = 'move';
+                const bounds = e.currentTarget.getBoundingClientRect();
+                setDropProperty(dragProperty === p.id ? null : {
+                  id: p.id, after: e.clientY > bounds.top + bounds.height / 2,
+                });
+              }}
+              onDragLeave={(e) => {
+                if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDropProperty(null);
+              }}
+              onDrop={(e) => {
+                if (!dragProperty) return;
+                e.preventDefault();
+                e.stopPropagation();
+                const bounds = e.currentTarget.getBoundingClientRect();
+                moveProperty(dragProperty, p.id, e.clientY > bounds.top + bounds.height / 2);
+                endPropertyDrag();
+              }}
+            >
               <div className="schema-row">
+                <span
+                  className="schema-drag-handle"
+                  draggable
+                  title={t('Drag to reorder property')}
+                  onDragStart={(e) => {
+                    e.stopPropagation();
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/plain', p.id);
+                    setColorPick(null);
+                    setDragProperty(p.id);
+                  }}
+                  onDragEnd={endPropertyDrag}
+                ><GripVertical size={16} aria-hidden="true" /></span>
                 <input
                   className="prop-input"
                   value={p.name}
@@ -476,22 +544,69 @@ export default function SchemaEditor({
                       const key = `${p.id}:${o.id}`;
                       return (
                         <span key={o.id} className="opt-chip-wrap">
-                          {/* The chip is a button now: a click opens the
-                              Farbauswahl — so bestimmt man die Spaltenfarben des
-                              Boards direkt hier. */}
+                          {/* Option edits remain drafts until the Properties dialog is saved. */}
                           <button
                             type="button"
-                            className="prop-chip opt-chip"
+                            className={'prop-chip opt-chip draggable-option' +
+                              (dragOption?.prop === p.id && dragOption.id === o.id ? ' option-dragging' : '') +
+                              (dropOption?.key === key ? (dropOption.after ? ' option-drop-after' : ' option-drop-before') : '')}
+                            draggable
+                            onDragStart={(e) => {
+                              e.stopPropagation();
+                              e.dataTransfer.effectAllowed = 'move';
+                              e.dataTransfer.setData('text/plain', o.id);
+                              setColorPick(null);
+                              setDragOption({ prop: p.id, id: o.id });
+                            }}
+                            onDragOver={(e) => {
+                              if (dragOption?.prop !== p.id || dragOption.id === o.id) return;
+                              e.preventDefault();
+                              e.stopPropagation();
+                              e.dataTransfer.dropEffect = 'move';
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              setDropOption({ key, after: e.clientX > rect.left + rect.width / 2 });
+                            }}
+                            onDragLeave={() => setDropOption((target) => target?.key === key ? null : target)}
+                            onDrop={(e) => {
+                              if (dragOption?.prop !== p.id) return;
+                              e.preventDefault();
+                              e.stopPropagation();
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              updateProp(p.id, { options: reorderSelectOption(p.options ?? [], dragOption.id, o.id,
+                                e.clientX > rect.left + rect.width / 2) });
+                              setDragOption(null);
+                              setDropOption(null);
+                            }}
+                            onDragEnd={() => { setDragOption(null); setDropOption(null); }}
+                            onKeyDown={(e) => {
+                              if (!e.altKey || (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight')) return;
+                              e.preventDefault();
+                              updateProp(p.id, { options: moveSelectOption(p.options ?? [], o.id, e.key === 'ArrowLeft' ? -1 : 1) });
+                            }}
                             style={{ background: hex + '2e', color: hex }}
-                            title={t('Change colour')}
-                            onClick={() => setColorPick(colorPick === key ? null : key)}
+                            title={t('Click to edit; drag to reorder. Keyboard: Alt + Left/Right.')}
+                            onClick={(e) => { setOptionAnchor(e.currentTarget); setOptionName(o.name); setColorPick(colorPick === key ? null : key); }}
                           >
                             {o.name}
                           </button>
                           {colorPick === key && (
-                            <>
-                              <div className="opt-color-backdrop" onClick={() => setColorPick(null)} />
-                              <div className="opt-color-pop">
+                            <OptionPopover name={optionName} anchor={optionAnchor} onClose={() => setColorPick(null)}>
+                                <div className="select-rename">
+                                  <input autoFocus className="prop-input" aria-label={t('Option name')}
+                                    value={optionName} onChange={(e) => {
+                                      const draft = e.target.value;
+                                      setOptionName(draft);
+                                      const options = renameSelectOption(p.options ?? [], o.id, draft);
+                                      if (options) updateProp(p.id, { options });
+                                    }} />
+                                  <button type="button" className="danger" aria-label={t('Delete option')} title={t('Delete option')} onClick={async () => {
+                                    setColorPick(null);
+                                    const ok = await confirm(t('Delete option “{name}”?', { name: o.name }) + '\n' + t('Existing selections are not cleared.'), { confirmText: t('Delete option'), danger: true });
+                                    if (!ok) return;
+                                    updateProp(p.id, { options: (p.options ?? []).filter((item) => item.id !== o.id) });
+                                  }}><Trash2 size={16} /></button>
+                                </div>
+                                {!renameSelectOption(p.options ?? [], o.id, optionName) && <span className="form-hint" role="alert">{t('Enter a unique, non-empty name.')}</span>}
                                 {optionPalette().map((c) => (
                                   <button
                                     key={c.hex}
@@ -507,8 +622,7 @@ export default function SchemaEditor({
                                     {hex === c.hex && <Check size={14} />}
                                   </button>
                                 ))}
-                              </div>
-                            </>
+                            </OptionPopover>
                           )}
                         </span>
                       );
@@ -640,5 +754,101 @@ function WhereValue({
       placeholder={t('Value')}
       onChange={(e) => onChange(e.target.value)}
     />
+  );
+}
+
+// Escape the scrolling Properties dialog without changing its layout.
+function OptionPopover({ anchor, name, onClose, children }: {
+  name: string;
+  anchor: HTMLElement | null;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [position, setPosition] = useState<CSSProperties>({ visibility: 'hidden' });
+  useLayoutEffect(() => {
+    if (!anchor || !ref.current) return;
+    const place = () => {
+      const panel = ref.current;
+      if (!panel) return;
+      const rect = anchor.getBoundingClientRect();
+      const margin = 8;
+      const input = panel.querySelector('input');
+      const context = document.createElement('canvas').getContext('2d');
+      if (context && input) context.font = getComputedStyle(input).font;
+      const textWidth = context?.measureText(name).width ?? name.length * 8;
+      const width = Math.min(Math.max(150, Math.ceil(textWidth) + 58), window.innerWidth - margin * 2);
+      const height = panel.scrollHeight + 2;
+      const below = Math.max(0, window.innerHeight - rect.bottom - margin - 5);
+      const above = Math.max(0, rect.top - margin - 5);
+      const openBelow = below >= height || below >= above;
+      const maxHeight = Math.max(0, Math.min(window.innerHeight - margin * 2, openBelow ? below : above));
+      const top = openBelow ? rect.bottom + 5 : rect.top - 5 - Math.min(height, maxHeight);
+      setPosition({
+        width, maxHeight,
+        left: Math.max(margin, Math.min(rect.left, window.innerWidth - width - margin)),
+        top: Math.max(margin, Math.min(top, window.innerHeight - maxHeight - margin)),
+      });
+    };
+    place();
+    window.addEventListener('resize', place);
+    window.addEventListener('scroll', place, true);
+    return () => {
+      window.removeEventListener('resize', place);
+      window.removeEventListener('scroll', place, true);
+    };
+  }, [anchor, name]);
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => ref.current?.querySelector('input')?.focus({ preventScroll: true }));
+    return () => cancelAnimationFrame(frame);
+  }, [anchor]);
+  return <Portal>
+    <div className="schema-option-backdrop" onClick={onClose} />
+    <div ref={ref} className="opt-color-pop schema-option-editor" style={position} onKeyDown={(e) => {
+      if (e.key === 'Escape') { e.stopPropagation(); onClose(); }
+    }}>{children}</div>
+  </Portal>;
+}
+
+/** A person property's two settings (#11): one person or several, and who can
+ *  be picked. Nobody ticked means everybody, which is how the property has
+ *  always behaved; the list is the members of every workspace this browser can
+ *  see, the same one the cell offers. */
+function PersonConfig({ p, onChange }: { p: PropDef; onChange: (patch: Partial<PropDef>) => void }) {
+  const [members, setMembers] = useState<Member[]>([]);
+  useEffect(() => {
+    let alive = true;
+    void loadMembers().then((m) => alive && setMembers(m));
+    return () => {
+      alive = false;
+    };
+  }, []);
+  const pool = new Set(p.personPool ?? []);
+  const toggle = (id: string) => {
+    const next = pool.has(id) ? [...pool].filter((x) => x !== id) : [...pool, id];
+    onChange({ personPool: next.length ? next : undefined });
+  };
+  return (
+    <div className="schema-config schema-person">
+      <label className="schema-person-check">
+        <input
+          type="checkbox"
+          checked={!!p.personMultiple}
+          onChange={(e) => onChange({ personMultiple: e.target.checked || undefined })}
+        />
+        {t('Several people')}
+      </label>
+      <div className="schema-person-pool">
+        <span className="schema-person-hint">
+          {pool.size ? t('Only these can be picked:') : t('Everybody can be picked. Tick people to narrow it down:')}
+        </span>
+        {members.map((m) => (
+          <label key={m.userId} className="schema-person-check">
+            <input type="checkbox" checked={pool.has(m.userId)} onChange={() => toggle(m.userId)} />
+            {m.name}
+          </label>
+        ))}
+      </div>
+    </div>
   );
 }

@@ -82,6 +82,33 @@ func TestCreateViewCarriesItsConfiguration(t *testing.T) {
 	}
 }
 
+// Filter groups are refused on a view, not stored. The interface reads flat
+// filters only, so an agent could otherwise save "open OR mine" while the
+// people looking at the same view saw only "open".
+func TestViewsRefuseFilterGroups(t *testing.T) {
+	s := testServer(t)
+	uid, _ := signedIn(t, s, "viewgroups@example.test")
+	ws := s.firstWorkspaceOf(t, uid)
+	tasks := tasksCollection(t, s, ws, uid)
+	groups := &[][]map[string]any{
+		{{"property": "status", "op": "is", "value": "open"}},
+		{{"property": "system", "op": "is_not_empty"}},
+	}
+
+	if _, err := s.mcpCreateView(tasks, viewSpec{Name: "Open", Type: "table", FilterGroups: groups}); err == nil {
+		t.Error("creating a view with filter_groups should be refused")
+	}
+	if _, err := s.mcpCreateView(tasks, viewSpec{Name: "Plain", Type: "table"}); err != nil {
+		t.Fatalf("create Plain: %v", err)
+	}
+	if _, err := s.mcpUpdateView(tasks, "plain", viewSpec{FilterGroups: groups}); err == nil {
+		t.Error("updating a view with filter_groups should be refused")
+	}
+	if _, kept := viewByID(t, s, tasks, "plain")["filterGroups"]; kept {
+		t.Error("the refused groups were stored anyway")
+	}
+}
+
 // MERGE, like update_schema: what is not mentioned survives. Getting this wrong
 // would silently wipe a filter every time somebody renamed a view.
 func TestUpdateViewMergesAndCanClear(t *testing.T) {

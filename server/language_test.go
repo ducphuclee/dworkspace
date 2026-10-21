@@ -158,7 +158,7 @@ func TestNoStalePendingTranslation(t *testing.T) {
 // is enough. The list deliberately holds no English homographs — no "die",
 // "war", "hat", "mit", "den", "in", "aus" — because a check that cries wolf is
 // a check somebody switches off.
-var germanInString = regexp.MustCompile(`(?i)\b(nicht|nichts|wird|werden|wurde|wurden|sind|eine|einen|einem|einer|kein|keine|muss|müssen|kann|darf|soll|sollen|bitte|danke|gefunden|verbunden|getrennt|gespeichert|gelöscht|geändert|angelegt|ungültig|fehlgeschlagen|erfolgreich|fehler|hinweis|achtung|passwort|benutzer|einstellungen|seiten|dateien|anmelden|abmelden|drucken|erforderlich|verfügbar|vorhanden|zugriff|berechtigung|speichern|abbrechen|weiter|zurück)\b`) // i18n-ok: this list IS the detector
+var germanInString = regexp.MustCompile(`(?i)\b(nicht|nichts|wird|werden|wurde|wurden|sind|eine|einen|einem|einer|kein|keine|muss|müssen|kann|darf|soll|sollen|bitte|danke|gefunden|verbunden|getrennt|gespeichert|gelöscht|geändert|angelegt|ungültig|fehlgeschlagen|erfolgreich|fehler|hinweis|achtung|passwort|benutzer|einstellungen|seiten|dateien|anmelden|abmelden|drucken|erforderlich|verfügbar|vorhanden|zugriff|berechtigung|speichern|abbrechen|weiter|zurück|beendet|eingeladen|angemeldet|abgelaufen)\b`) // i18n-ok: this list IS the detector
 
 // goString finds a Go string literal — interpreted or raw. Written in two
 // pieces because the pattern itself contains a backtick.

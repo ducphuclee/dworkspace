@@ -249,7 +249,11 @@ func (s *Server) handleICSFeed(w http.ResponseWriter, r *http.Request) {
 				if len(dateProps) == 0 {
 					continue
 				}
-				rrows, err := s.db.Query(`SELECT id, title, props FROM pages WHERE parent_id = ? AND trashed_at IS NULL`, c.id)
+				// The collection may be readable while single rows in it are
+				// somebody else's private ones; those stay out of the feed too.
+				rule, ruleArgs := s.privateRowRule(userID, c.id)
+				rrows, err := s.db.Query(`SELECT id, title, props FROM pages WHERE parent_id = ? AND trashed_at IS NULL AND `+rule,
+					append([]any{c.id}, ruleArgs...)...)
 				if err != nil {
 					continue
 				}

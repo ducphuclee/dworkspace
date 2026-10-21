@@ -1,0 +1,1037 @@
+/* =============================================================================
+   salt.md — the app in the website's language
+
+   Loaded AFTER styles.css and only re-states things: tokens first, then the few
+   components whose look is not already carried by a token. Nothing here adds a
+   feature, so removing the import in main.tsx gives the old look back exactly.
+
+   Why a separate file rather than edits in styles.css: five of the six open
+   pull requests touch styles.css. Changing its values in place would hand every
+   contributor a conflict for a change that is purely visual. Here, a merged PR
+   lands underneath and simply inherits the new look.
+
+   Where the values come from — the website (salt.md, src/styles):
+   - dark is the site itself: near-black ground with a trace of blue, surfaces
+     lifted by white washes rather than by greys, hairlines instead of borders;
+   - light is the site's own light vocabulary (/alt/): warm paper and stone,
+     ink rather than black;
+   - ONE accent, the site's text-safe pink, and the rainbow only as a
+     signature — the site's own demos of the product are neutral screens with a
+     tint, not pink everywhere, and that is what an app you work in all day
+     needs too.
+   ========================================================================== */
+
+/* --- light: paper, stone and ink ----------------------------------------- */
+
+:root {
+  /* The document. A trace warmer than white — the site's paper — but kept
+     light, because this is the surface people read on for hours. */
+  --bg: #fbfaf7;
+  --fg: #1c1a15;
+  /* Solid, never alpha: an emoji is drawn in the text colour's alpha, so a
+     translucent --muted made every emoji in a muted place see-through (the
+     sidebar's page icons, a page icon over its cover). This is the colour the
+     alpha version showed on paper. */
+  --muted: #7e7d78;
+  /* The sidebar is the site's paper; the document sits a step lighter on it. */
+  --sidebar-bg: #f2f1ea;
+  --hover: rgba(28, 26, 21, 0.045);
+  --active: rgba(28, 26, 21, 0.075);
+  /* Hairlines, not borders: alpha over whatever is underneath, so one value
+     reads right on the paper, the sidebar and a card alike. */
+  --border: rgba(28, 26, 21, 0.11);
+  --border-strong: rgba(28, 26, 21, 0.2);
+  /* The site's light accent (/alt/ --accent-ink). Deep enough to carry text
+     and a 1.5px checkmark on paper. */
+  --accent: #b3123f;
+  --accent-rgb: 179, 18, 63;
+  --accent-soft: rgba(179, 18, 63, 0.085);
+  --danger: #c2410c;
+  --card: #ffffff;
+  /* Nearly opaque on purpose: at 82 % a menu opened over a code block or a
+     picture showed a grey smudge of it through the blur, and at 94 % still a
+     faint band. The blur stays for the edge; the panel itself reads solid. */
+  --glass: rgba(255, 255, 255, 0.97);
+  --shadow:
+    0 0 0 1px rgba(28, 26, 21, 0.07),
+    0 1px 2px rgba(28, 26, 21, 0.04),
+    0 22px 48px -24px rgba(28, 26, 21, 0.32);
+  --grad-accent: linear-gradient(120deg, #c2185b, #b3123f);
+
+  /* The rainbow — exactly the site's six stops, which are in turn the app's
+     own glow palette (--glow-*). There is no second colour system. */
+  --rainbow: linear-gradient(90deg, #ff2d60 0%, #ff8a2d 25%, #ffd12d 45%,
+    #22c55e 62%, #3b82f6 80%, #9333ea 100%);
+  --rainbow-v: linear-gradient(180deg, #ff2d60 0%, #ff8a2d 25%, #ffd12d 45%,
+    #22c55e 62%, #3b82f6 80%, #9333ea 100%);
+  --rainbow-up: linear-gradient(0deg, #ff2d60 0%, #ff8a2d 25%, #ffd12d 45%,
+    #22c55e 62%, #3b82f6 80%, #9333ea 100%);
+
+  --radius-sm: 7px;
+  --radius: 10px;
+  --radius-lg: 14px;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --pill-dark: #1c1a15;
+  --pill-dark-hover: #2a2721;
+}
+
+/* --- dark: the website itself -------------------------------------------- */
+
+[data-theme='dark'] {
+  /* The document is lifted one step off the ground, the way a card on the
+     site is; the sidebar is the ground. */
+  --bg: #0b0b0e;
+  /* Solid for the same reason as in light: the emoji follows the alpha. */
+  --fg: #d9d9db;
+  --muted: #808083;
+  --sidebar-bg: #07070a;
+  --hover: rgba(255, 255, 255, 0.045);
+  --active: rgba(255, 255, 255, 0.075);
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.15);
+  /* Text-safe pink: #ff2d60 itself is 5.4:1 here, this lifted one clears AA
+     with room — the site uses exactly this for every coloured label. */
+  --accent: #ff5c80;
+  --accent-rgb: 255, 92, 128;
+  --accent-soft: rgba(255, 92, 128, 0.13);
+  --danger: #ff7a59;
+  --card: #111116;
+  --glass: rgba(19, 19, 24, 0.95);
+  --shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.07),
+    0 24px 56px -28px rgba(0, 0, 0, 0.9);
+  --grad-accent: linear-gradient(120deg, #ff5c80, #ff2d60);
+
+  --pill-dark: #f5f5f7;
+  --pill-dark-hover: #ffffff;
+}
+
+/* --- base ---------------------------------------------------------------- */
+
+::selection {
+  background: rgba(var(--accent-rgb), 0.22);
+}
+
+[data-theme='dark'] ::selection {
+  background: rgba(255, 45, 96, 0.35);
+  color: #fff;
+}
+
+/* Native controls — checkboxes, radios, progress, sliders — in the accent.
+   Left alone they are the browser's own blue, the one colour on the page that
+   belongs to nobody. */
+:root {
+  accent-color: var(--accent);
+}
+
+/* The page title is the heading of somebody's document, so it stays in the
+   text face — a long German title in mono runs off the line. What it takes
+   from the site is the setting: tight, heavy, set close. */
+.page-title {
+  font-weight: 650;
+  letter-spacing: -0.028em;
+}
+
+/* --- sidebar --------------------------------------------------------------- */
+
+.sidebar {
+  border-right: 1px solid var(--border);
+}
+
+.sidebar-search {
+  background: var(--hover);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: none;
+}
+
+.sidebar-search:hover {
+  border-color: var(--border-strong);
+  box-shadow: none;
+}
+
+/* The page you are on: how it is lifted and marked is Layer 4's business. */
+.tree-item.active .tree-title {
+  color: var(--fg);
+}
+
+/* --- topbar: a hairline under it, the beam faint on top of that ------------ */
+
+.topbar {
+  border-bottom: 1px solid var(--border);
+}
+
+/* --- buttons ---------------------------------------------------------------- */
+
+/* The primary action is INK, as on the site ("Install now"): a filled pill in
+   the text colour. Colour would make every dialog shout; ink is the loudest
+   thing on a page that is otherwise ink on paper anyway. */
+.btn.primary,
+.btn-sm.primary {
+  background: var(--pill-dark);
+  border: 1px solid transparent;
+  color: var(--bg);
+  box-shadow: none;
+}
+
+.btn.primary:hover,
+.btn-sm.primary:hover {
+  background: var(--pill-dark-hover);
+  box-shadow:
+    0 8px 22px -10px rgba(255, 45, 96, 0.45),
+    0 8px 22px -12px rgba(59, 130, 246, 0.4);
+}
+
+[data-theme='dark'] .btn.primary,
+[data-theme='dark'] .btn-sm.primary {
+  background: var(--pill-dark);
+  border-color: transparent;
+  color: #07070a;
+}
+
+[data-theme='dark'] .btn.primary:hover,
+[data-theme='dark'] .btn-sm.primary:hover {
+  background: var(--pill-dark-hover);
+}
+
+/* Secondary: the site's glass button — no fill, a hairline, ink text. */
+.btn,
+.btn-sm {
+  border-color: var(--border);
+}
+
+.btn:not(.primary):not(.danger),
+.btn-sm:not(.primary):not(.active) {
+  background: transparent;
+}
+
+.btn:not(.primary):hover,
+.btn-sm:not(.primary):not(.active):hover {
+  background: var(--hover);
+  border-color: var(--border-strong);
+}
+
+/* "On" state (an active filter): a wash of the accent, the label in it. */
+.btn-sm.active {
+  background: var(--accent-soft);
+  border-color: rgba(var(--accent-rgb), 0.35);
+  color: var(--accent);
+}
+
+/* --- view tabs: neutral, the type colour stays on the icon only ----------- */
+
+.view-tab.active {
+  background: var(--active);
+  border-color: var(--border-strong);
+  box-shadow: none;
+}
+
+/* --- floating surfaces: menus, popovers, dialogs --------------------------- */
+
+/* The site's nav bar: translucent over what is behind, a hairline drawn as an
+   inset shadow so it sits exactly on the edge. Only where something floats —
+   the document itself is never glass. */
+.menu,
+.fs-popover,
+.view-tab-menu,
+.view-add-menu,
+.relation-menu {
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+  backdrop-filter: blur(18px) saturate(150%);
+  border: none;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+}
+
+.dialog,
+.confirm-dialog {
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+}
+
+[data-theme='dark'] .dialog,
+[data-theme='dark'] .confirm-dialog {
+  background: var(--card);
+  border: none;
+}
+
+/* --- inputs ------------------------------------------------------------------ */
+
+.prop-input,
+.prop-select {
+  border-radius: var(--radius-sm);
+}
+
+.fs-filter {
+  border-color: var(--border);
+  border-radius: var(--radius);
+  background: var(--hover);
+}
+
+/* --- tables ------------------------------------------------------------------- */
+
+/* Hairlines between cells, the header in the site's label style. */
+.db-table th,
+.db-table td {
+  border-color: var(--border);
+}
+
+.db-table th {
+  background: transparent;
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+[data-font='brand'] .db-table th {
+  font-family: 'JetBrains Mono Variable', ui-monospace, 'SF Mono', Menlo, monospace;
+}
+
+/* Tables INSIDE a document. BlockNote draws them with a fixed `#ddd`, which
+   was a bright grid on a dark page before this file existed and is only more
+   visible on the darker ground now. Same selector, so it simply wins. */
+.bn-editor [data-content-type='table'] th,
+.bn-editor [data-content-type='table'] td {
+  border-color: var(--border-strong);
+}
+
+/* --- board cards --------------------------------------------------------------- */
+
+.board-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: none;
+}
+
+.board-card:hover {
+  border-color: var(--border-strong);
+}
+
+[data-theme='dark'] .board-card {
+  background: rgba(255, 255, 255, 0.025);
+}
+
+/* --- reduced motion -------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .btn.primary:hover,
+  .btn-sm.primary:hover {
+    box-shadow: none;
+  }
+}
+
+/* =============================================================================
+   Layer 2 — the site's SHAPE, not only its colours
+
+   The first pass changed tokens and read, rightly, as "a bit of colour". What
+   makes the site recognisable is form: tiles floating on a dark ground with a
+   dot grid, headlines in mono, labels in spaced mono capitals, a rainbow beam
+   on a hairline. That is what this layer carries over.
+   ========================================================================== */
+
+:root {
+  /* The ground everything sits on. The site's stone (#dcdbd3) was tried first
+     and read as a muddy grey-beige behind a column of text — this is the same
+     warmth, lifted almost to the paper, so the sheet still stands off it. */
+  --ground: #f0efea;
+  --dot: rgba(28, 26, 21, 0.11);
+  --sheet-line: rgba(28, 26, 21, 0.1);
+  --sheet-drop: 0 1px 2px rgba(28, 26, 21, 0.05), 0 26px 60px -38px rgba(28, 26, 21, 0.45);
+  --mono: 'JetBrains Mono Variable', ui-monospace, 'SF Mono', SFMono-Regular, Menlo,
+    Consolas, monospace;
+}
+
+[data-theme='dark'] {
+  --ground: #07070a;
+  /* A little stronger than on the site's hero: here the grid only shows in the
+     empty part of the sidebar, faded at both ends, and at the hero's value it
+     was all but gone. */
+  --dot: rgba(255, 255, 255, 0.085);
+  --sheet-line: rgba(255, 255, 255, 0.08);
+  --sheet-drop: 0 34px 80px -44px rgba(0, 0, 0, 0.95);
+}
+
+/* --- the ground and the sheet (desktop only) --------------------------------
+   On a phone the sidebar is a drawer and every pixel of width is the
+   document's; floating a card there would only waste the margin. */
+@media (min-width: 901px) {
+  .app {
+    background-color: var(--ground);
+    background-image: radial-gradient(var(--dot) 1px, transparent 1.25px);
+    background-size: 22px 22px;
+  }
+
+  /* The sidebar is a clean surface: text and icons standing directly on a dot
+     grid looked stuck on top of it. The grid stays, it is part of the site,
+     but only where nothing stands on it. A fixed fade from the middle down was
+     the first try, and a tree longer than half the sidebar still ran its last
+     rows across the dots. */
+  .sidebar {
+    border-right: none;
+    background: var(--ground);
+  }
+
+  /* So the grid is drawn by the free space itself: the tree fills the
+     sidebar's height, and whatever its rows leave over below the last one is
+     where the dots appear, fading in under it and out above the footer. A tree
+     long enough to scroll leaves nothing over, and then there are no dots at
+     all, which is the point. The mask sits on an empty box, so it can trap no
+     menu. */
+  .tree {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .tree::after {
+    content: '';
+    flex: 1 0 0;
+    min-height: 0;
+    background: radial-gradient(var(--dot) 1px, transparent 1.25px) 0 0 / 22px 22px;
+    -webkit-mask-image: linear-gradient(to bottom, transparent, #000 64px, #000 calc(100% - 32px), transparent);
+    mask-image: linear-gradient(to bottom, transparent, #000 64px, #000 calc(100% - 32px), transparent);
+    pointer-events: none;
+  }
+
+  /* The work area is a tile on the ground, as on the site. `clip` rather than
+     `hidden`: it rounds the corners without turning the sheet into a scroll
+     container, which would steal the scrolling that .page-body owns. */
+  .main {
+    position: relative;
+    margin: 8px 8px 8px 0;
+    border-radius: 16px;
+    background: var(--bg);
+    overflow: clip;
+    box-shadow: var(--sheet-drop);
+  }
+
+  /* The hairline is drawn OVER the children, or the tab bar and the page
+     would paint across it at the edges. */
+  .main::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    box-shadow: inset 0 0 0 1px var(--sheet-line);
+    pointer-events: none;
+    /* Above everything that sticks inside the sheet: the collection toolbar
+       (5), the cover (6) and its icon row (7) used to paint over the edge, so
+       on a collection the sheet lost its left and right border exactly where
+       the toolbar sat. Menus open above it (50). */
+    z-index: 12;
+  }
+
+  /* The beam: the site's rainbow on a hairline, along the top edge, fading out
+     at both ends. */
+  .main::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 12%;
+    right: 12%;
+    height: 1px;
+    background: var(--rainbow);
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 25%, #000 75%, transparent);
+    mask-image: linear-gradient(90deg, transparent, #000 25%, #000 75%, transparent);
+    opacity: 0.7;
+    pointer-events: none;
+    z-index: 13;
+  }
+
+  .tab-bar {
+    background: transparent;
+  }
+}
+
+/* --- headlines in mono, as on the site --------------------------------------
+   Only with the brand typeface, which is the default. Somebody who switched to
+   the system font asked for exactly that, headings included. */
+[data-font='brand'] .page-title {
+  font-family: var(--mono);
+  font-weight: 620;
+  letter-spacing: -0.045em;
+}
+
+[data-font='brand'] .bn-editor [data-content-type='heading'] .bn-inline-content {
+  font-family: var(--mono);
+  font-weight: 600;
+  letter-spacing: -0.035em;
+}
+
+/* --- section labels: spaced mono capitals ("RELEASES", "CONTRIBUTORS") ----- */
+[data-font='brand'] .sb-section-toggle {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted);
+  min-height: 32px;
+}
+
+[data-font='brand'] .sb-section-toggle .sb-section-icon {
+  opacity: 0.7;
+}
+
+[data-font='brand'] .sb-section-toggle:hover {
+  color: var(--fg);
+}
+
+/* The breadcrumb over the page reads as a path, so it gets the path's face. */
+[data-font='brand'] .breadcrumbs {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0;
+}
+
+/* --- labels: deep colour, not a wash ------------------------------------------
+   Every option chip carries its colour inline as `color`, with an 18 % tint of
+   the same hex as its background. That faint tint over a muted palette is what
+   read as "wischi waschi". The stored colour stays exactly what it is — this
+   only changes how it is DRAWN: a deep fill, a clear text tone and a hairline,
+   all derived from the option's own hue with the relative colour syntax.
+
+   -webkit-text-fill-color rather than `color`, on purpose: inside the `color`
+   property, currentColor means the PARENT's colour; in every other property it
+   is the element's own, which is the option's. A browser too old for the syntax
+   drops these declarations and keeps the inline tint, which is the old look. */
+
+.prop-chip,
+.board-chip {
+  font-weight: 560;
+}
+
+:root .prop-chip,
+:root .board-chip {
+  background: oklch(from currentColor 0.92 calc(c * 0.8) h) !important;
+  -webkit-text-fill-color: oklch(from currentColor 0.4 calc(c * 1.35) h);
+  box-shadow: inset 0 0 0 1px oklch(from currentColor 0.8 calc(c * 0.95) h);
+}
+
+[data-theme='dark'] .prop-chip,
+[data-theme='dark'] .board-chip {
+  background: oklch(from currentColor 0.34 calc(c * 1.2) h / 0.9) !important;
+  -webkit-text-fill-color: oklch(from currentColor 0.9 calc(c * 0.8) h);
+  box-shadow: inset 0 0 0 1px oklch(from currentColor 0.52 calc(c * 1.15) h / 0.55);
+}
+
+/* A board column takes its option's colour a little more firmly too — enough
+   that a glance says which column is which, not so much that the cards on it
+   have to compete. It now sits on the sheet, so it mixes with the sheet. */
+:root .board-col {
+  background: color-mix(in oklch, var(--col-c, transparent) 8%, var(--bg));
+  border-color: color-mix(in oklch, var(--col-c, transparent) 28%, transparent);
+}
+
+[data-theme='dark'] .board-col {
+  background: color-mix(in oklch, var(--col-c, transparent) 13%, var(--bg));
+  border-color: color-mix(in oklch, var(--col-c, transparent) 32%, transparent);
+}
+
+/* =============================================================================
+   Layer 3 — one language for everything that OPENS and everything CHOSEN
+
+   Opened side by side, the states spoke three dialects: the menus this file
+   had already reached were glass; the app's older pickers (a cell's options,
+   icons, covers, tags) were solid cards; and the editor's own menus — the slash
+   menu, the formatting bar — came from BlockNote in its own grey theme with
+   smaller corners. "Expand" had two arrows: icons on the sections, text
+   glyphs (▸ ▾) on the tree. That is the "does not quite fit together".
+   ========================================================================== */
+
+/* --- one panel: everything that opens is the same glass -------------------- */
+.select-menu,
+.icon-picker,
+.cover-menu,
+.tag-suggest {
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+  backdrop-filter: blur(18px) saturate(150%);
+  border: none;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+}
+
+/* The editor's menus take their colours from BlockNote's own variables. Set
+   here, they follow the app's tokens instead of BlockNote's theme, so the slash
+   menu, the formatting bar and their dropdowns are the same panel as every
+   other menu — and stay in step if the tokens change. */
+[data-theme] .bn-container,
+[data-theme] .bn-root {
+  --bn-colors-menu-background: var(--glass);
+  --bn-colors-menu-text: var(--fg);
+  /* BlockNote uses its "tooltip" pair for three things at once: the icon box
+     beside each slash-menu entry, the shortcut badge and the real tooltip.
+     Ink here turned the slash menu into a column of black squares, so the
+     pair stays quiet and the tooltip is given its ink below on its own. */
+  --bn-colors-tooltip-background: var(--card);
+  --bn-colors-tooltip-text: var(--fg);
+  --bn-colors-hovered-background: var(--active);
+  --bn-colors-hovered-text: var(--fg);
+  --bn-colors-selected-background: var(--active);
+  --bn-colors-selected-text: var(--fg);
+  --bn-colors-disabled-text: var(--muted);
+  --bn-colors-border: var(--border);
+  --bn-border-radius: var(--radius);
+}
+
+.bn-root .bn-suggestion-menu,
+.bn-root .bn-toolbar,
+.bn-root .mantine-Menu-dropdown,
+.bn-root .mantine-Popover-dropdown {
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+  backdrop-filter: blur(18px) saturate(150%);
+  border: none;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+}
+
+/* The slash menu's group headings ("Basic blocks", "Media") are labels, so
+   they get the label style the sidebar sections have. */
+[data-font='brand'] .bn-root .bn-suggestion-menu-label {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* The icon beside a slash-menu entry: a key cap, the shape the search field's
+   ⌘K already has — card, hairline, ink. */
+.bn-root .bn-mt-suggestion-menu-item-section[data-position='left'] {
+  background: var(--card);
+  box-shadow: inset 0 0 0 1px var(--border);
+  color: var(--fg);
+}
+
+/* The shortcut beside it is a hint, not a button: outlined, muted, mono. */
+.bn-root .bn-suggestion-menu .mantine-Badge-root {
+  background: transparent;
+  color: var(--muted);
+  box-shadow: inset 0 0 0 1px var(--border);
+  font-family: var(--mono);
+  font-weight: 500;
+}
+
+/* A real tooltip is ink, like the primary button. */
+[data-theme] .bn-mantine .bn-tooltip {
+  background: var(--pill-dark);
+  color: var(--bg);
+  border: none;
+  box-shadow: var(--shadow);
+}
+
+/* --- one highlight: the row under the pointer or the keyboard --------------- */
+.menu button,
+.select-option,
+.relation-option,
+.bn-root .bn-suggestion-menu-item {
+  border-radius: 8px;
+}
+
+.menu button:hover,
+.select-option:hover,
+.relation-option:hover,
+.bn-root .bn-suggestion-menu-item[aria-selected='true'] {
+  background: var(--active);
+}
+
+/* --- chosen in a list: the tick carries the accent, nothing else does ------- */
+.select-option-check,
+.relation-option.on .relation-check {
+  color: var(--accent);
+}
+
+/* --- one focus for a text field: its own edge turns accent -------------------
+   The ring two pixels outside is for buttons. On a field it drew a second frame
+   around the first, and since a browser counts every text field as keyboard-
+   focused however it was reached, it did so on each click. The pickers' search
+   boxes had a way each: no sign at all, the edge, or both frames at once. */
+.prop-input:focus-visible,
+.profile-input:focus-visible,
+.share-input:focus-visible,
+.form-input:focus-visible {
+  outline: none;
+}
+
+.prop-input:focus,
+.relation-menu .prop-input:focus,
+.select-search:focus,
+.icon-search:focus,
+.profile-input:not(.is-invalid):focus,
+.share-input:focus,
+.form-input:focus {
+  border-color: var(--accent);
+}
+
+/* --- "you are here" is one look: a quiet wash, no frame ------------------------ */
+.view-tab.active {
+  border-color: transparent;
+}
+
+/* --- one arrow: the chevron the sections use, turned when open ------------------ */
+.chevron svg {
+  transition: transform 0.16s var(--ease-out);
+}
+
+.chevron[aria-expanded='true'] svg {
+  transform: rotate(90deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chevron svg {
+    transition: none;
+  }
+}
+
+/* =============================================================================
+   Layer 4 — the sidebar as one tree
+
+   Looked at closely, the sidebar said things twice or not at all: pointing at a
+   row and being on a page were the same grey, so two rows looked chosen at
+   once; the topics had their arrow on the right and an icon on the left, the
+   pages theirs on the left; and a group of sub-pages sat a mere 14 pixels in,
+   with nothing that said where it ended.
+   ========================================================================== */
+
+/* --- the page you are on is lifted, like the chosen segment of the theme
+   switch below it: a card with a hairline. Pointing stays a faint wash. ------ */
+:root {
+  --row-on: var(--card);
+  --row-on-line: rgba(28, 26, 21, 0.1);
+}
+
+/* On the dark ground the lift has to be a clear step brighter than the
+   pointer's wash, or the two read alike again. */
+[data-theme='dark'] {
+  --row-on: rgba(255, 255, 255, 0.1);
+  --row-on-line: rgba(255, 255, 255, 0.11);
+}
+
+/* Inset shadows only: a row's fill stops 2px short of its edge (the borders
+   are kept free for the drag markers), and an inset ring sits exactly on the
+   fill where an outer one would float 2px off it. */
+.tree-item.active,
+.tree-db-row.active {
+  position: relative;
+  background-color: var(--row-on);
+  box-shadow: inset 0 0 0 1px var(--row-on-line), inset 0 -1px 0 var(--row-on-line);
+  color: var(--fg);
+  font-weight: 600;
+}
+
+/* The marker is the row's own arrow, drawn in the rainbow: the one place the
+   signature appears all day long. A tick of its own beside the arrow said the
+   same thing twice. A row without children has an empty slot where the arrow
+   would be, and the tick stands in that slot instead, so the marker is always
+   in the arrow's column. */
+.tree-item.active::before,
+.tree-db-row.active::before {
+  display: none;
+}
+
+.tree-item.active > .chevron.spacer::before,
+.tree-db-row.active > .chevron.spacer::before {
+  content: '';
+  width: 2px;
+  height: 12px;
+  border-radius: 1px;
+  background: var(--rainbow-v);
+}
+
+/* An SVG stroke cannot take a gradient from CSS, so the stroke is made
+   invisible and the rainbow is painted behind it, cut to the arrow's shape by
+   a mask of the same path. Sized to the arrow's own height (60 % of its box),
+   so the whole rainbow lands on the stroke and not on the empty corners. */
+:root {
+  --chevron-shape: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 18 6-6-6-6'/%3E%3C/svg%3E");
+}
+
+.tree-item.active > .chevron:not(.spacer) svg,
+.tree-db-row.active > .chevron:not(.spacer) svg {
+  color: transparent;
+  background: var(--rainbow-v) center / 100% 60% no-repeat;
+  -webkit-mask: var(--chevron-shape) center / contain no-repeat;
+  mask: var(--chevron-shape) center / contain no-repeat;
+}
+
+/* Open, the arrow is turned a quarter and its colours with it. Running the
+   other way before the turn, they come out left to right on screen, the
+   direction of the beam on the sheet. */
+.tree-item.active > .chevron[aria-expanded='true'] svg,
+.tree-db-row.active > .chevron[aria-expanded='true'] svg {
+  background-image: var(--rainbow-up);
+}
+
+/* --- a group hangs on a hairline from its parent's arrow --------------------
+   The position comes from the row's depth (--guide, set in Sidebar.tsx). The
+   rows paint over it, so a lifted card interrupts it rather than being
+   crossed by it. */
+.tree-children {
+  position: relative;
+}
+
+.tree-children::before {
+  content: '';
+  position: absolute;
+  left: calc(var(--guide) - 0.5px);
+  top: 0;
+  bottom: 4px;
+  width: 1px;
+  background: var(--border);
+  pointer-events: none;
+}
+
+/* --- topics: a label with the pages' arrow, not a row with its own ----------
+   Spaced mono capitals already made the topics read as labels, so they shed
+   what made them look like rows: the icon goes, and the arrow moves to the
+   left, one step out from the pages' arrows and turned the same way. */
+.sb-section-caret svg {
+  transition: transform 0.16s var(--ease-out);
+}
+
+.sb-section-toggle[aria-expanded='true'] .sb-section-caret svg {
+  transform: rotate(90deg);
+}
+
+[data-font='brand'] .sb-section-toggle {
+  padding-left: 0;
+  gap: 6px;
+}
+
+[data-font='brand'] .sb-section-icon {
+  display: none;
+}
+
+[data-font='brand'] .sb-section-caret {
+  order: -1;
+  width: 22px;
+  justify-content: center;
+  opacity: 0.85;
+}
+
+[data-font='brand'] .sb-section-caret svg {
+  width: 14px;
+  height: 14px;
+}
+
+[data-font='brand'] .sb-section-count {
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sb-section-caret svg {
+    transition: none;
+  }
+}
+
+/* --- an icon without a cover keeps its distance from the top bar -------------
+   With a cover the icon overlaps the banner's lower edge, and that is where its
+   spacing comes from. Without one nothing gave it any: measured, the icon
+   started 0px under the top bar, where a title without an icon starts 36px
+   down (the empty icon row's 28 plus the head's 8). The 28 go back above the
+   icon, so whichever comes first on the page starts at the same height. */
+.page-body:not(.has-cover) .page-icon-row:has(.page-icon) {
+  padding-top: 28px;
+}
+
+/* =============================================================================
+   Layer 5 — notes mode, and the panels on the right
+
+   The rule the rest of this file arrived at, said once: everything you find
+   your way with lies on the ground, and the document is the sheet on top of
+   it. The notes column was the exception, a strip of paper glued to the side
+   of the sheet, with the old accent bar for "chosen".
+   ========================================================================== */
+
+/* --- the notes column: navigation, so it lies on the ground --------------- */
+@media (min-width: 901px) {
+  .notes-list {
+    background: var(--ground);
+    border-right: none;
+    border-left: 1px solid var(--border);
+  }
+
+  /* The dots fill what the list leaves free, exactly as in the sidebar. */
+  .notes-scroll {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .notes-scroll::after {
+    content: '';
+    flex: 1 0 0;
+    min-height: 0;
+    background: radial-gradient(var(--dot) 1px, transparent 1.25px) 0 0 / 22px 22px;
+    -webkit-mask-image: linear-gradient(to bottom, transparent, #000 64px, #000 calc(100% - 32px), transparent);
+    mask-image: linear-gradient(to bottom, transparent, #000 64px, #000 calc(100% - 32px), transparent);
+    pointer-events: none;
+  }
+}
+
+/* Its heading is a label like the sidebar's topics. */
+[data-font='brand'] .notes-title {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+[data-font='brand'] .notes-count {
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+/* "All / Untagged" is a choice of one, so it gets the theme switch's shape: a
+   track, and the chosen segment lifted out of it. */
+.notes-filters {
+  align-self: flex-start;
+  gap: 2px;
+  margin: 0 12px 10px;
+  padding: 2px;
+  border-radius: 999px;
+  background: var(--hover);
+}
+
+.notes-filters button {
+  padding: 3px 11px;
+}
+
+.notes-filters button.on {
+  background: var(--row-on);
+  box-shadow: inset 0 0 0 1px var(--row-on-line);
+  font-weight: 560;
+}
+
+/* The note you are on is lifted like the page you are on, and marked by the
+   same rainbow tick, at the height of its title. */
+.note-card.active {
+  background: var(--row-on);
+  box-shadow: inset 0 0 0 1px var(--row-on-line), inset 0 -1px 0 var(--row-on-line);
+}
+
+.note-card.active::before {
+  left: 4px;
+  top: 11px;
+  bottom: auto;
+  width: 2px;
+  height: 14px;
+  border-radius: 1px;
+  background: var(--rainbow-v);
+}
+
+/* --- notes in the phone's drawer ------------------------------------------
+   No column, no scroller of its own: the list is simply the drawer's first
+   section, headed like the topics below it. */
+/* display restates what styles.css takes away below 901px, where the list
+   used to have nowhere to go. */
+.notes-list--inline {
+  display: flex;
+  width: auto;
+  background: transparent;
+  border: none;
+}
+
+.notes-list--inline .notes-head {
+  padding: 6px 4px 6px 10px;
+}
+
+.notes-list--inline .notes-filters {
+  margin: 0 0 8px 6px;
+}
+
+.notes-list--inline .notes-scroll {
+  flex: none;
+  overflow: visible;
+  padding: 0 0 10px;
+}
+
+/* --- the panels on the right: they arrive, and never squeeze the text ------- */
+
+/* A panel the reader just opened slides in, and the document gives up its
+   room at the same pace instead of jumping to its new width while the panel is
+   still on its way. Only on opening (.panel-arriving, set for a moment by
+   Editor.tsx); a panel still open when the next page loads stays put. */
+@keyframes panel-in {
+  from {
+    transform: translateX(var(--panel-from, 24px));
+    opacity: 0;
+  }
+}
+
+.editor-page.panel-arriving .structure-panel,
+.editor-page.panel-arriving .comments-panel {
+  animation: panel-in 0.26s var(--ease-out);
+}
+
+.editor-page .page-body {
+  transition: padding-right 0.26s var(--ease-out);
+}
+
+/* Floating over the text, a panel comes in from the edge itself. */
+@media (max-width: 900px) {
+  .structure-panel,
+  .comments-panel {
+    --panel-from: 100%;
+  }
+}
+
+/* Where the window leaves the document less than a readable column beside a
+   panel (.is-narrow, measured by Editor.tsx), the panel floats over it, the
+   way it does on a phone. */
+@media (min-width: 901px) {
+  .editor-page.is-narrow.with-structure .page-body {
+    padding-right: 0;
+  }
+
+  .editor-page.is-narrow .structure-panel,
+  .editor-page.is-narrow .comments-panel {
+    width: min(var(--panel-w), 92%);
+    box-shadow: var(--shadow);
+    --panel-from: 100%;
+  }
+}
+
+/* The buttons that open them say "open" the way a pressed toolbar button
+   does. They used to borrow the favourite star's gold. */
+.icon-btn.is-on {
+  background: var(--active);
+  color: var(--fg);
+}
+
+/* The top bar's icons each lit up in a colour of their own on hover, chosen
+   by POSITION: the panel button was green only because it happened to be
+   second, and turned another colour when a neighbour was hidden. They answer
+   in ink now, like every other button; the rainbow stays the signature. */
+.topbar-right > :nth-child(n):hover svg {
+  color: var(--fg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .editor-page.panel-arriving .structure-panel,
+  .editor-page.panel-arriving .comments-panel {
+    animation: none;
+  }
+
+  .editor-page .page-body {
+    transition: none;
+  }
+}
+
+/* --- diagrams: the stored picture stays light, the dark screen turns it over --
+   A diagram is kept as a picture for the print view, and a printed page is
+   white, so the picture is drawn light whatever the editor looks like. On a
+   dark screen that was a bright card in the middle of the night. Turning it
+   over here changes only what the screen shows — the PDF reads the stored
+   picture, which this never touches. The palette has no hue of its own, so
+   what comes out is ink-on-graphite, not a negative. */
+[data-theme='dark'] .bn-mermaid-view img {
+  filter: invert(0.9) hue-rotate(180deg);
+}

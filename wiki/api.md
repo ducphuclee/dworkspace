@@ -2,14 +2,14 @@
 
 Everything the dworkspace interface does, it does over an HTTP API that you can
 call yourself: create pages, read and write database rows, search, upload files,
-export Markdown, watch changes live. This page is for people writing scripts —
+export Markdown, watch changes live. This page is for people writing scripts:
 a backup job, a nightly import, a small internal tool. It covers how to
 authenticate, what an answer and an error look like, the limits you will hit,
 and a grouped list of the endpoints worth calling.
 
 **If you are connecting an AI agent, use the MCP endpoint instead.** It speaks
 the same data through 33 purpose-built tools, with descriptions the agent reads
-before it acts, and it needs no glue code at all — see
+before it acts, and it needs no glue code at all. See
 [Agents](agents.md) and the [tool reference](mcp-tools.md). The REST API is for
 code you write; MCP is for models. Both accept the same credentials.
 
@@ -25,7 +25,7 @@ Three credentials work:
 
 The last two are both bearer headers, and a bearer is tried as an OAuth access
 token first, then looked up in the token table. They carry the same two
-narrowings — read/write, and a list of workspaces — so every endpoint below
+narrowings (read/write, and a list of workspaces), so every endpoint below
 behaves the same whichever one you send.
 
 **A script should use an API token.** It is one string you can put in an
@@ -35,7 +35,7 @@ down.
 
 ### Creating a token
 
-1. Open the menu at the bottom of the sidebar — your avatar and name.
+1. Open the menu at the bottom of the sidebar (your avatar and name).
 2. Choose **API tokens**.
 3. Give it a name, for example `backup-script`. The field's placeholder is
    "Token name (e.g. claude-code)".
@@ -45,9 +45,9 @@ down.
    refuses to send it: "Pick at least one workspace (or “All workspaces”)."
 6. Press **Create token**.
 
-The token appears once, under the line "Copy this token now — it will not be
-shown again:". It looks like `dworkspace_` followed by 48 hexadecimal characters. Only
-its hash is stored, so a lost token cannot be recovered — create a new one and
+The token appears once, under the line "Copy this token now. It will not be
+shown again:". It looks like `salt_` followed by 48 hexadecimal characters. Only
+its hash is stored, so a lost token cannot be recovered; create a new one and
 press **Revoke** on the old.
 
 The same dialog lists every token you own with its scope, its workspaces, when
@@ -62,7 +62,7 @@ browser sign-in. A key that can mint keys is not a limit.
 **Over the API, the workspace list works the other way round from the dialog.**
 An empty or absent `workspaces` array means ALL of them, now and in the future.
 A list that names only workspaces you are not a member of is refused with `400`
-rather than quietly widened to everything — that is the one case the server
+rather than quietly widened to everything; that is the one case the server
 turns down.
 
 ### Using it
@@ -93,7 +93,7 @@ credential was accepted:
 ```
 
 `prefs` is where the account's language, regional format, timezone, clock and
-first weekday live — an empty string in any of them means automatic, which is
+first weekday live; an empty string in any of them means automatic, which is
 the normal state ([Language and time](language-and-time.md)). They sit beside
 the user object rather than inside it because that object also goes out in
 member lists, and somebody else's timezone is nobody's business.
@@ -103,7 +103,7 @@ member lists, and somebody else's timezone is nobody's business.
 | Call | What it does |
 | --- | --- |
 | `GET /api/signup-policy` | whether self-registration is open, and the instance name |
-| `POST /api/setup` | create the first account — refused with `403` once one exists |
+| `POST /api/setup` | create the first account; refused with `403` once one exists |
 | `POST /api/signup` | register yourself, when the policy allows it |
 | `POST /api/login` | `{"email":…,"password":…}`, plus `"code"` when two-factor is on |
 | `POST /api/logout` | delete this session and clear the cookie |
@@ -121,7 +121,7 @@ PKCE, and a client that already speaks it needs no special handling:
 
 | Endpoint | What it is |
 | --- | --- |
-| `/.well-known/oauth-protected-resource` | the signpost — where the doors are |
+| `/.well-known/oauth-protected-resource` | the signpost: where the doors are |
 | `/.well-known/oauth-authorization-server` | endpoints, scopes and methods |
 | `POST /oauth/register` | a client introduces itself and gets a `client_id` |
 | `GET /oauth/authorize` | sends the human to the consent screen in their browser |
@@ -129,18 +129,18 @@ PKCE, and a client that already speaks it needs no special handling:
 | `POST /oauth/revoke` | disconnect |
 
 Four things about it are not negotiable and will fail your client if you skip
-them. `code_challenge` with `code_challenge_method=S256` is required — absent or
+them. `code_challenge` with `code_challenge_method=S256` is required; absent or
 `plain` is refused. `redirect_uri` is compared exactly, at registration and
 again at every step; `http` is allowed only for loopback addresses, and a
 fragment is rejected outright. An authorization code is single-use and lives 60
 seconds, and redeeming one twice does not hand out a second token, it destroys
-the grant. And authorizing needs a **browser session** — an API token presented
+the grant. And authorizing needs a **browser session**: an API token presented
 at `/oauth/authorize` is bounced to the sign-in screen, because a key approving
 a better key is not a boundary.
 
 The two scopes are read and write, the same pair a token has. Scope is a
 space-separated list, unknown entries are ignored rather than refused, and
-asking for nothing recognisable lands on read — the weaker of the two, never on
+asking for nothing recognisable lands on read, the weaker of the two, never on
 the stronger. The consent screen is where the
 human picks the workspaces; "all workspaces" is stored as an empty list, so a
 workspace created next month is covered too.
@@ -154,7 +154,7 @@ replaces the grant, so the previous refresh token stops working.
 | Method and path | What it does |
 | --- | --- |
 | `GET /api/oauth/grants` | what is connected to your account: client name, scope, workspaces, when and from where it was last used |
-| `DELETE /api/oauth/grants/{id}` | disconnect — the grant and every access token minted from it go at once |
+| `DELETE /api/oauth/grants/{id}` | disconnect: the grant and every access token minted from it go at once |
 
 Both need a browser sign-in. This is the counterpart to the token list, and it
 is the only way to cut off an agent that signed in: revoking a token does
@@ -169,7 +169,7 @@ list of workspaces. It is not an administrator's pass.
 - A **read-only** token gets `403` with the message "token is read-only" on any
   POST, PUT, PATCH or DELETE. Reads are unaffected.
 - A **workspace-scoped** token cannot touch a page outside its list even if you
-  name that page's id directly, and it cannot create a workspace at all — the
+  name that page's id directly, and it cannot create a workspace at all: the
   new one would not be on its list. That refusal carries the code
   `workspace_scoped`.
 - **Administration needs a browser.** Account management, *changing* instance
@@ -179,9 +179,9 @@ list of workspaces. It is not an administrator's pass.
   rule a token handed to an agent could issue itself a wider one.
 - **Reading the admin views is the exception.** `GET /api/settings` and
   `GET /api/admin/info` check the admin flag and nothing else, so an admin's
-  token — read-only included — gets the settings object and the instance figures.
+  token, read-only included, gets the settings object and the instance figures.
   If that matters to you, do not give an admin account's token away.
-- A workspace can additionally **refuse agents** — see
+- A workspace can additionally **refuse agents**. See
   [agent access](agent-access.md). Where it is set to strict, a permanent API
   token is turned away even when it names that workspace; only an OAuth grant
   somebody signed in for gets through. Where it is closed, neither does.
@@ -209,24 +209,24 @@ are the calls that hand you a document:
 Failures carry an English sentence and, usually, a machine-readable code:
 
 ```json
-{ "error": "This action requires signing in through a browser — an API token is not enough.",
+{ "error": "This action requires signing in through a browser. An API token is not enough.",
   "code": "session_required" }
 ```
 
 Read the `code`, never the sentence. The English exists so that curl and scripts
 get something readable; the browser ignores it and renders the reader's own
 language from the code. The sentence can be reworded at any time. Some failures
-carry extra fields beside the two — a `detail` written by an outside provider, or
+carry extra fields beside the two: a `detail` written by an outside provider, or
 a count the message needs.
 
 Not every error has a code yet. Where there is none, only `error` is present.
 
 | Status | What it means |
 | --- | --- |
-| `200` | done — the body is the result |
+| `200` | done: the body is the result |
 | `400` | the request was wrong: bad JSON, a value out of range, an impossible move |
 | `401` | no credential, or one that was not accepted |
-| `403` | recognised, but not allowed — read-only token, session required, not an admin |
+| `403` | recognised, but not allowed: read-only token, session required, not an admin |
 | `404` | not there, **or** not yours to see |
 | `409` | a conflict: writing to a trashed page, or an email already in use |
 | `413` | the upload is over the instance's file limit |
@@ -252,14 +252,14 @@ Codes you are likely to meet: `bad_credentials`, `2fa_required`, `2fa_invalid`,
 | Page title | 2000 characters |
 | Comment | 10 000 characters |
 | A note in the raw trail | 2000 characters, truncated rather than refused |
-| Rows per request | 100 by default, 500 maximum — **a larger `limit` is ignored**, so asking for 1000 gives you 100, not 500 |
-| Audit entries per request | 50 by default, 200 maximum — same rule: over 200 falls back to 50 |
+| Rows per request | 100 by default, 500 maximum; **a larger `limit` is ignored**, so asking for 1000 gives you 100, not 500 |
+| Audit entries per request | 50 by default, 200 maximum; same rule: over 200 falls back to 50 |
 | Sign-in attempts | 30 per minute per address, burst of 10 |
 | Public form submissions | 20 per minute per address, burst of 8 |
 
 There is no general rate limit on authenticated REST calls. There is one on
 **rejected** tokens: 60 a minute per address, burst 20, fed by failures alone.
-A working script never touches it — but while an address is guessing, a correct
+A working script never touches it. But while an address is guessing, a correct
 token from that same address is also answered `401` until the budget refills a
 second later.
 
@@ -275,17 +275,18 @@ second later.
 | `POST /api/pages/{id}/restore` | bring it back out of the trash |
 | `POST /api/pages/{id}/duplicate` | deep-copy the page and everything under it |
 | `GET /api/pages/{id}/backlinks` | the pages that mention this one |
+| `GET /api/pages/{id}/preview` | the page as a plain, script-free HTML document (what the trash's preview shows) |
 | `GET /api/graph` | every link between pages you can read, as source/target pairs |
 | `GET /api/favorites` · `POST`/`DELETE /api/favorites/{id}` | your own favourites |
 | `GET /api/tags` · `GET`/`PUT /api/tag-colors` | tags in use, and their colours |
 
-`GET /api/pages` carries no blocks — but it is not content-free: every row
+`GET /api/pages` carries no blocks, but it is not content-free: every row
 includes `snippet`, the first 240 characters of the page's text with whitespace
 collapsed, and `thumb`, the url of the first image in the body. That is what
 draws preview cards, and it means the list is not a safe thing to hand to
 somebody who may not read the pages.
 
-It deliberately **leaves out database rows** — there can be tens of thousands of
+It deliberately **leaves out database rows**: there can be tens of thousands of
 them, and they belong in the row endpoint below. Rows that carry sub-pages of
 their own are the exception and do appear, because otherwise their children
 would have no parent in the list. Trashed pages are included, marked
@@ -301,28 +302,34 @@ worth knowing before you write a script:
   a key set to `null` is removed. Two scripts editing different properties of
   the same row then do not overwrite each other.
 - **What you read back is not all stored.** Rollups, formulas and backrelations
-  are computed when a row is read — by `GET /api/pages/{id}` just as much as by
+  are computed when a row is read, by `GET /api/pages/{id}` just as much as by
   the rows endpoint. Do not write the whole props object back.
 - **`content` is block JSON, not Markdown.** If you want to write prose, use
   `POST /api/import` (below) or the `write_content` tool over MCP, both of which
   take Markdown.
 - **Writing `content` resets the live editing session**, so anybody with the
-  page open loses unsaved edits. `PATCH /api/pages/{id}?materialize=1` suppresses
-  that reset — it is what the editor itself uses when it saves its own document,
-  and it is the wrong flag for a script writing from outside.
+  page open is moved onto the new text, and what they had not saved yet goes
+  into the [version history](history-and-audit.md) rather than the page.
+  `PATCH /api/pages/{id}?materialize=1` suppresses that reset. It is the editor
+  saving its copy of the live document, and the server holds it to that: the
+  page's `docGen` (in `GET /api/pages/{id}`) numbers the body, every write from
+  outside moves it, and a copy of a document that has been replaced since, or a
+  write with no live document behind it at all (a page nobody has opened yet),
+  is refused with `409` and the code `doc_replaced`. It is the wrong flag for a
+  script writing from outside.
 - **`parentId` moves within one workspace only.** Moving between workspaces is
   the separate `workspaceId` field, which takes the whole subtree along and
   answers `{"ok":true,"moved":n,"workspaceId":"…"}`.
 
 `POST /api/pages/{id}/duplicate` takes two query flags: `?fromTemplate=1` makes
 an ordinary page out of a template, and `?asTemplate=1` marks the copy as a
-template. Both are what the ⋯ menu does, and both are reachable over REST — see
+template. Both are what the ⋯ menu does, and both are reachable over REST. See
 [Templates](templates.md).
 
 Trashing takes the whole subtree with it, and restoring brings back exactly the
 pages that were trashed in the same act. **Waiting also loses a page**: trashed
 pages are purged automatically after the instance's trash setting, 30 days by
-default, and an admin can set anything from 0 (never purge) to 3650 days — see
+default, and an admin can set anything from 0 (never purge) to 3650 days. See
 [Trash and recovery](trash-and-recovery.md).
 
 ## Databases
@@ -334,11 +341,12 @@ thing under two names.
 | Method and path | What it does |
 | --- | --- |
 | `GET /api/collections/{id}` | the schema (its properties) and its saved views |
-| `PUT /api/collections/{id}` | replace both |
+| `PUT /api/collections/{id}` | replace `schema`, `views` or both; a half left out stays as stored |
 | `GET /api/collections/{id}/rows` | rows, filtered, sorted and paginated |
 
-`PUT` needs **both** `schema` and `views` in the body; sending one alone is a
-`400`. Read first, change what you need, send the pair back.
+`PUT` takes `schema`, `views` or both. The half you leave out stays as it is
+stored, so changing a view never puts back an older copy of the schema, and the
+other way round. An empty body is a `400`. The answer is the stored pair.
 
 Rows are filtered in the database rather than in your script, so a table with
 50 000 rows costs one page of results:
@@ -354,7 +362,7 @@ matches a plain value **or** one element of a multi-value property. A condition
 whose value is missing is ignored rather than matching nothing.
 
 A set of values and a range do not fit in a colon-separated string, so one
-`filter` may also be a JSON object — anything starting with `{`. Both spellings
+`filter` may also be a JSON object: anything starting with `{`. Both spellings
 work, and the short one is not going anywhere:
 
 ```
@@ -364,7 +372,20 @@ GET /api/collections/{id}/rows?filter={"property":"due","op":"between","value":"
 
 `values` replaces `value` for `is` / `is_not` and means *any of* / *none of*.
 `value2` is the upper bound of `between`, inclusive; without it the condition
-does nothing. `sort` is
+does nothing.
+
+Conditions can also be combined with OR. `filter_group` is repeatable too, and
+each one is a JSON array of conditions in the object spelling: the conditions
+inside one group must all hold, and a row needs to pass only one group. Every
+`filter` holds on top of that, so the two together read "this AND (that OR
+those)". A group without one complete condition is ignored:
+
+```
+GET /api/collections/{id}/rows?filter=status:is_not:done&filter_group=[{"property":"owner","op":"is","value":"ada"}]&filter_group=[{"property":"due","op":"lt","value":"2026-04-01"}]
+```
+
+A saved view keeps flat filters only, because that is all the interface shows.
+`sort` is
 `prop:asc` or `prop:desc`. The answer is
 `{"rows": […], "total": n, "offset": …, "limit": …}`, where `total` counts the
 whole filtered set, not the page. Rollups, formulas and backrelations are filled
@@ -392,7 +413,7 @@ values may contain.
 
 Search returns at most 20 hits as `{id, title, icon, snippet, heading}`. The
 `snippet` wraps each match in the control characters U+0001 and U+0002 so a
-client can highlight safely without the page's own text injecting markup —
+client can highlight safely without the page's own text injecting markup;
 replace them with whatever your output needs. `heading` is the heading path of
 the matching passage, for example "Contract › Termination". What is indexed, and
 why searching in German finds inflected words, is [Search](search.md).
@@ -421,13 +442,13 @@ directory listing is refused, so the random names cannot be enumerated.
 optional `parentId` form field beside it. It answers
 `{"created": n, "skipped": n}`. Folders become parent pages, `.md` files become
 pages, and a Notion database CSV becomes a real collection with its rows filled
-in — [Import and export](import-export.md) covers the shapes it recognises.
+in. [Import and export](import-export.md) covers the shapes it recognises.
 
 `GET /api/export/{id}` returns Markdown by default. For a document page,
 `?format=html` returns a standalone HTML file, and `?format=html&print=1`
 returns it inline for printing instead of as a download. A database always
 exports as a Markdown table of its rows. `GET /api/export` without a workspace
-covers everything you can read — pass `?workspace={id}` to keep it to one. The
+covers everything you can read; pass `?workspace={id}` to keep it to one. The
 difference between the Markdown zip and the workspace archive is that the
 archive is lossless and can be imported back.
 
@@ -440,13 +461,13 @@ archive is lossless and can be imported back.
 | `DELETE /api/comments/{id}` | the author or a workspace admin |
 | `GET /api/comment-counts?workspaceId={id}` | open comments per page, in one call |
 | `GET`/`POST /api/pages/{id}/notes` | the raw, append-only trail |
-| `DELETE /api/pages/{id}/notes` | discard the whole trail — browser sign-in only |
+| `DELETE /api/pages/{id}/notes` | discard the whole trail (browser sign-in only) |
 | `GET /api/pages/{id}/revisions` | the version list |
 | `GET /api/pages/{id}/revisions/{revId}` | one older state, in full |
 | `POST /api/pages/{id}/revisions/{revId}/restore` | put the page back to it |
 | `GET /api/audit` | the activity log; `?limit=` and `?before=` page through it |
 
-A note can never be edited or removed on its own — correct a wrong one by adding
+A note can never be edited or removed on its own; correct a wrong one by adding
 another. A version snapshot is taken at most once every two minutes per page and
 the newest 50 are kept, so a script writing content in a loop will not fill the
 history. Restoring snapshots the current state first, which makes the restore
@@ -463,7 +484,7 @@ itself reversible. [Comments and notes](comments-and-notes.md) and
 | `DELETE /api/workspaces/{id}` | delete it |
 | `GET`/`POST /api/workspaces/{id}/members` | who is in it; add somebody by email |
 | `PATCH`/`DELETE /api/workspaces/{id}/members/{userId}` | change or remove a role |
-| `PUT /api/workspaces/{id}/rules` | the workspace's written rules — browser only |
+| `PUT /api/workspaces/{id}/rules` | the workspace's written rules (browser only) |
 | `POST`/`DELETE /api/pages/{id}/share` | mint or revoke a public link |
 | `GET`/`POST`/`DELETE /api/collections/{id}/form-share` | whether a public form exists, and minting or revoking it |
 | `GET /api/library` · `POST /api/library/{id}` | the blueprint shelf, and using one |
@@ -471,20 +492,20 @@ itself reversible. [Comments and notes](comments-and-notes.md) and
 `PATCH /api/workspaces/{id}` accepts `name`, `icon`, `image` (an uploaded
 `/files/…` path, never an external url), `autoJoin`, `agentAccess`
 (`open`, `strict` or `closed`) and `treeMode` (`split` or `mixed`). Two of them
-answer `403` even to a workspace admin: `autoJoin` — every new account becomes a
-member — is an instance-wide decision and belongs to the owner, and a personal
+answer `403` even to a workspace admin: `autoJoin` (every new account becomes a
+member) is an instance-wide decision and belongs to the owner, and a personal
 space can never be opened to everyone at all.
 
 **`POST /api/workspaces` has two refusals worth expecting.** A workspace-scoped
 credential gets `403` with `workspace_scoped`. And when an admin has switched
 user-created workspaces off, everybody who is not an admin gets `403` with
-"creating workspaces is disabled on this instance — ask an admin".
+"creating workspaces is disabled on this instance. Ask an admin".
 
 `POST /api/pages/{id}/share` takes an optional `expiresInDays` and `password`
 and answers `{"token":"…","url":"…"}`. There is one read link per page: sharing
 again replaces the old token, which is how you rotate a link somebody forwarded.
 Form shares are independent of it. `GET /api/collections/{id}/form-share`
-answers `{"shared": true|false}` and nothing more — the token itself is stored
+answers `{"shared": true|false}` and nothing more: the token itself is stored
 only as a hash, so re-sharing always mints a new one.
 [Sharing](sharing.md) covers what an anonymous visitor actually sees, and
 [Forms](forms.md) what a public form does with a submission.
@@ -494,7 +515,7 @@ only as a hash, so re-sharing always mints a new one.
 | Method and path | What it does |
 | --- | --- |
 | `POST /api/workspaces/{id}/break-glass` | the instance owner takes time-limited read access to a workspace they are not in |
-| `GET /api/workspaces/{id}/break-glass` | that workspace's grants — for its admins and for the owner |
+| `GET /api/workspaces/{id}/break-glass` | that workspace's grants, for its admins and for the owner |
 | `DELETE /api/workspaces/{id}/break-glass/{grantId}` | end one early |
 
 The `POST` needs a `reason` of at least 10 characters, and refuses without one:
@@ -510,7 +531,7 @@ space is refused outright with `personal_no_break_glass`.
 `GET /api/events` is a Server-Sent Events stream. It opens with
 `{"type":"hello","version":"…"}`, sends a comment line every 25 seconds to keep
 the connection alive, and then one small message per change. The messages carry
-no content — only what changed, so that a browser can ask for it through a route
+no content, only what changed, so that a browser can ask for it through a route
 that checks permissions:
 
 | Message | Meaning |
@@ -528,7 +549,7 @@ the same page are talking over `GET /collab/{id}`, a WebSocket carrying Yjs
 update messages, and the server relays those bytes without interpreting them.
 There is no HTTP call that inserts a character into an open editor. A script
 writes with `PATCH /api/pages/{id}` and accepts that it interrupts whoever has
-the page open — see [Collaboration](collaboration.md).
+the page open. See [Collaboration](collaboration.md).
 
 ## Calendars and the agent skill
 
@@ -540,7 +561,7 @@ property. Each comes as an `https:` and a `webcal:` url pointing at
 **That token is a credential in a path.** It is the one url in the product that
 carries its own key, because a calendar app has nowhere to put a header.
 `GET /api/ics?rotate=1` throws the old token away and mints a new one, which
-breaks every subscription already set up — that is what you want when a link
+breaks every subscription already set up; that is what you want when a link
 has gone somewhere it should not have.
 
 `GET /api/skill` downloads the agent skill this instance generates for itself,
@@ -554,21 +575,21 @@ them:
 
 | Method and path | What it does |
 | --- | --- |
-| `GET /api/public/{token}` | a shared page: title, icon, cover, content and type — that page alone, never its children |
+| `GET /api/public/{token}` | a shared page: title, icon, cover, content and type; that page alone, never its children |
 | `GET /api/public/form/{token}` | a public form's fillable fields, and nothing else about the database |
 | `POST /api/public/form/{token}/submit` | create a row from an anonymous submission |
 
 A share protected by a password wants it in the `X-Share-Password` header and
 answers `403` without it. An expired link is deleted the moment it is asked for
 and answers `404` from then on. A submission needs a `title` and accepts only
-`props` that exist in the schema and are fillable — anything else is dropped
+`props` that exist in the schema and are fillable; anything else is dropped
 rather than refused, and the whole endpoint is capped at 20 submissions a minute
 per address.
 
 `GET /api/public-base` needs a credential and is worth one call at startup: it
 answers `{"base":"…"}` with the instance's configured public address. Build
 share urls and connection strings from that, not from the host you happened to
-reach — a link built from an internal address is useless to anybody outside.
+reach: a link built from an internal address is useless to anybody outside.
 
 ## Instance administration
 
@@ -580,7 +601,7 @@ admin or owner role.
 
 **The read-only admin views are the exception**: `GET /api/settings` and
 `GET /api/admin/info` check the admin flag alone and answer an admin's API
-token. The first returns the whole settings object — instance name, signup mode,
+token. The first returns the whole settings object: instance name, signup mode,
 SMTP host, user and from-address, limits, OAuth client ids; passwords and
 secrets travel only as "is one set". The second returns version, uptime, counts,
 on-disk sizes and the address the server thinks you are calling from.
@@ -600,5 +621,5 @@ never build one, never parse one. Get it from a list, a search result or the
 response to the call that created the page.
 
 If a call is refused and you cannot see why, [Troubleshooting](troubleshooting.md)
-lists the usual causes — most of them turn out to be the workspace scope on the
+lists the usual causes; most of them turn out to be the workspace scope on the
 credential or a password that was changed.

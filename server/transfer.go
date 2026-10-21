@@ -91,6 +91,12 @@ func (s *Server) handleExportWorkspace(w http.ResponseWriter, r *http.Request) {
 		httpError(w, 404, "workspace not found")
 		return
 	}
+	// A whole workspace, files included: the credential has to be allowed there
+	// like for any page in it. A read token for one workspace exported others.
+	if !s.credentialMayEnter(u, wsID) {
+		httpError(w, 404, "workspace not found")
+		return
+	}
 	var wsName, wsIcon, wsImage, wsRules string
 	if err := s.db.QueryRow(`SELECT name, icon, image, COALESCE(rules, '') FROM workspaces WHERE id = ?`, wsID).
 		Scan(&wsName, &wsIcon, &wsImage, &wsRules); err != nil {
@@ -288,7 +294,7 @@ func (s *Server) importWorkspaceArchive(u *user, data []byte, opt importOptions)
 func (s *Server) importWorkspaceFS(u *user, fsys fs.FS, opt importOptions) (*importResult, error) {
 	// The same rule as when creating a workspace.
 	if !u.IsAdmin && !s.loadSettings().AllowUserWorkspaces {
-		return nil, coded("workspaces_disabled", "creating workspaces is disabled on this instance — ask an admin")
+		return nil, coded("workspaces_disabled", "creating workspaces is disabled on this instance. Ask an admin")
 	}
 	readEntry := func(name string) []byte {
 		b, err := fs.ReadFile(fsys, name)

@@ -6,6 +6,7 @@ import {
   databaseSpec,
   calloutSpec,
   tocSpec,
+  subpagesSpec,
   columnsSpec,
   mermaidSpec,
   embedSpec,
@@ -74,7 +75,7 @@ export const mentionSpec = createReactInlineContentSpec(
 );
 
 // Schema = the default blocks plus our own (callout, table of contents,
-// bookmark/embed, embedded database, columns) and the pageLink inline content.
+// sub-pages, bookmark/embed, embedded database, columns) and the pageLink inline content.
 // createReactBlockSpec returns a factory in 0.51 — call it.
 //
 // Columns used to come from @blocknote/xl-multi-column, which is BlockNote's
@@ -87,6 +88,7 @@ export const dworkspaceSchema =
       ...defaultBlockSpecs,
       callout: calloutSpec(),
       toc: tocSpec(),
+      subpages: subpagesSpec(),
       bookmark: bookmarkSpec(),
       database: databaseSpec(),
       columns: columnsSpec(),

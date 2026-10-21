@@ -11,11 +11,12 @@ export interface BlockCtx {
   pagesById: Map<string, PageMeta>;
   tagColors: Record<string, string>;
   onNavigate: (id: string | null) => void;
+  /** The second tab a ⌘/Ctrl-click asks for (see pageOpen). An embedded page
+   *  opens here too, rather than replacing what you are reading. Optional: a
+   *  bare context used in isolation falls back to plain navigation. */
+  onOpenInNewTab?: (id: string) => void;
   onPagesChanged: () => void;
-  // An embedded page opens in a tab rather than replacing what you are reading:
-  // the whole point of embedding it was to have both at once, and navigating
-  // away from the page that embeds it would undo that with one click.
-  onOpenInNewTab: (id: string) => void;
+  pageId?: string;
 }
 
 const empty: BlockCtx = {

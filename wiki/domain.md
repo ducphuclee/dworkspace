@@ -7,7 +7,7 @@ that a colleague can open, a calendar subscription, sign-in through Google or
 Microsoft, or an agent connecting from somewhere else, you need two things: a
 name the outside world can resolve, and dworkspace knowing what that name is.
 
-This page covers both. It is written for whoever administers the instance —
+This page covers both. It is written for whoever administers the instance:
 everything here lives in **Instance settings**, which only instance admins see
 (the account menu at the bottom of the sidebar → **Instance settings**).
 
@@ -34,7 +34,7 @@ Everything in this list is built from it:
 
 ### What happens when you leave it empty
 
-dworkspace does not simply fall over — it guesses, in this order, and the guess is
+dworkspace does not simply fall over; it guesses, in this order, and the guess is
 good enough often enough that the field gets forgotten:
 
 1. the public base URL, if set;
@@ -43,7 +43,7 @@ good enough often enough that the field gets forgotten:
 4. the address the current request arrived on.
 
 Step 4 is the one that bites. A link generated while you are browsing at
-`http://192.0.2.10:8420` carries that address, and it is correct — for anybody
+`http://192.0.2.10:8420` carries that address, and it is correct, for anybody
 standing on that network, at that moment. Emailed to someone outside, or written
 into a repository for an agent, it is a dead end that looks like a working link.
 
@@ -52,8 +52,8 @@ so links minted while one was running stop working when it is restarted.
 
 A **named** Cloudflare tunnel never appears in that list at all. dworkspace hands
 the traffic to Cloudflare and never learns the hostname you chose in the
-dashboard — the status line says exactly that:
-`Tunnel connected — reachable under the hostname set in the Cloudflare dashboard.`
+dashboard; the status line says exactly that:
+`Tunnel connected, reachable under the hostname set in the Cloudflare dashboard.`
 With a named tunnel, filling in the field is not optional.
 
 ### Sign-in resolves it slightly differently
@@ -61,7 +61,7 @@ With a named tunnel, filling in the field is not optional.
 Three things do not use the list above: the redirect URIs for Google and
 Microsoft sign-in, the discovery documents an MCP client fetches before signing
 in, and the redirect used when an admin connects a Google or Microsoft mailbox
-for outgoing mail. They know exactly two sources — the configured base URL, and
+for outgoing mail. They know exactly two sources: the configured base URL, and
 the host the request came in on.
 
 **Neither a running tunnel nor the built-in HTTPS domain counts there.** With
@@ -69,7 +69,7 @@ built-in HTTPS that rarely shows, because you are browsing that domain anyway
 and the request carries it. Behind a tunnel, or when you reach the instance by
 IP address, it is the difference between a redirect URI that matches what you
 registered with the provider and one that does not. So if you sign in with
-Google — see [Signing in with Microsoft or Google](sso.md) — or send mail
+Google (see [Signing in with Microsoft or Google](sso.md)) or send mail
 through a connected mailbox ([Email](mail.md)), set the field.
 
 With the field set, dworkspace also redirects the start of an OAuth sign-in to that
@@ -94,21 +94,21 @@ appear here either.
 
 Two warnings show up under those fields when they apply:
 
-- `⚠ Google and Microsoft accept HTTPS redirect URIs only (localhost aside). Start a tunnel (the “Domain & proxy” tab) or enter a public HTTPS base URL under “General” — it then appears here on its own.`
-- `⚠ This is the URL of the running quick tunnel — it changes on every start. For OAuth that lasts, use a named tunnel or your own domain and enter it as the base URL.`
+- `⚠ Google and Microsoft accept HTTPS redirect URIs only (localhost aside). Start a tunnel (the “Domain & proxy” tab) or enter a public HTTPS base URL under “General”. It then appears here on its own.`
+- `⚠ This is the URL of the running quick tunnel. It changes on every start. For OAuth that lasts, use a named tunnel or your own domain and enter it as the base URL.`
 
-Connecting a mailbox uses a **different** redirect URI on the same base —
-`/api/admin/mail-oauth/google/callback`, and the same with `microsoft` — and
+Connecting a mailbox uses a **different** redirect URI on the same base
+(`/api/admin/mail-oauth/google/callback`, and the same with `microsoft`), and
 that one is not printed anywhere in the dialog. Register it in the provider
 console alongside the sign-in one, or the mail connection fails at the last step
 ([Email](mail.md)).
 
-## Route 1 — the built-in Cloudflare tunnel
+## Route 1: the built-in Cloudflare tunnel
 
 **Instance settings → `Domain & proxy`.** The tab has two halves, and their
-headings are what to scan for: `Public access — built in, no proxy of your own`
+headings are what to scan for: `Public access (built in, no proxy of your own)`
 holds the three numbered cards (this route and the next), and
-`Manual — your own reverse proxy` everything below them (Route 3).
+`Manual (your own reverse proxy)` everything below them (Route 3).
 
 ![The public address: what share links and agents are told to use.](img/admin-domain.png)
 
@@ -119,16 +119,38 @@ not administer, and on a home line with no fixed address. No port forwarding.
 dworkspace runs `cloudflared` itself. It looks for the program on the system's
 `PATH` first, then at `bin/cloudflared` inside the data directory
 (`bin/cloudflared.exe` on Windows), and only if neither has it does it download
-the official release over HTTPS. What triggers that download is a tunnel
-**start** — normally an admin pressing a button, but also the automatic restart
-of a stored tunnel after a reboot, which happens with nobody watching.
+the official release over HTTPS, checked against the SHA256 GitHub records for
+the file; a download that does not match is not installed. What triggers that
+download is a tunnel **start**: normally an admin pressing a button, but also
+the automatic restart of a stored tunnel after a reboot, which happens with
+nobody watching.
+
+### Keeping cloudflared current
+
+The copy salt.md downloaded is kept up to date. A few minutes after the server
+starts, and then once a day, salt.md asks for the newest cloudflared release;
+when it is newer than the one in `bin/`, the new file is downloaded, checked the
+same way, and put in place, and a running permanent tunnel is restarted on it,
+which takes it offline for a few seconds. A quick tunnel keeps running on the old
+file until it is started again, because a restart would change its address.
+Every update leaves a line in the log:
+`tunnel: cloudflared 2026.7.2 replaced by 2026.10.1 (checksum verified)`.
+
+Once cloudflared exists, the **Domain & proxy** tab shows a **cloudflared** card
+with the version in use, whether a newer one is out, **Keep it up to date
+automatically (checked daily, checksum verified)** (on by default) and
+**Check now**, which checks and updates at once. An instance that never started
+a tunnel never asks anybody anything.
+
+A cloudflared found on `PATH` is the system's: salt.md shows its version and
+that a newer one exists, and leaves updating it to whatever installed it.
 
 Builds exist for Linux (x86-64, arm64, 386, arm), macOS (x86-64, arm64) and
-Windows (x86-64). Anything else answers `install cloudflared manually` — put the
+Windows (x86-64). Anything else answers `install cloudflared manually`. Put the
 binary on `PATH` or at `bin/cloudflared` in the data directory, the two places
 above, and the tunnel starts.
 
-### Trying it — the quick tunnel
+### Trying it: the quick tunnel
 
 Card **`1 · Try it right away (quick tunnel)`** → **`Start quick tunnel`**.
 
@@ -137,26 +159,26 @@ a `trycloudflare.com` address and a **`Copy`** button. No Cloudflare account is
 involved. The address is thrown away and regenerated on the next start, so this
 is for showing somebody something, not for running on.
 
-**`Stop`** ends it — and so does anything else that ends the process, because a
+**`Stop`** ends it, and so does anything else that ends the process, because a
 quick tunnel is not supervised (see below).
 
 The status line refreshes itself every two and a half seconds, but only while the
 `Domain & proxy` or `Access` tab is open. A status that looks stuck is worth
 re-opening the tab for, rather than reloading the page.
 
-### Keeping it — a named tunnel
+### Keeping it: a named tunnel
 
 Card **`2 · Permanently, with your own domain (Cloudflare Tunnel)`**.
 
 What dworkspace needs from you is one value: the tunnel **token**, a long string
 starting `eyJhIjoi…`. Everything else happens on Cloudflare's side, and their
 documentation is the authority on those screens because they change. The dialog
-names the path it expects — *Zero Trust → Networks → Tunnels → Create tunnel* —
+names the path it expects (*Zero Trust → Networks → Tunnels → Create tunnel*),
 and what you have to set up there is:
 
 - a Cloudflare account with your domain in it (the free tier is enough);
 - a tunnel, which yields the token;
-- a **public hostname** on that tunnel — `notes.example.com` — pointing at this
+- a **public hostname** on that tunnel (`notes.example.com`) pointing at this
   machine's own address. That is `http://localhost:8420` with the default listen
   address. The dialog's example says `http://localhost:80`, which is the port
   the systemd unit in the repository uses; match it to your own `DWORKSPACE_ADDR`.
@@ -167,7 +189,7 @@ Then, in dworkspace:
    stored, the placeholder reads `•••••• (token stored)` and you never have to
    paste it again.
 2. Press **`Connect`**.
-3. Wait for `Tunnel connected — reachable under the hostname set in the
+3. Wait for `Tunnel connected, reachable under the hostname set in the
    Cloudflare dashboard.`
 4. Go to **General** and set the public base URL to `https://notes.example.com`.
 
@@ -190,7 +212,7 @@ token therefore begins with **`Stop`**.
   next start, on its own. dworkspace waits (up to 30 seconds) for its own port to
   answer before dialling out, so the domain does not serve errors during the gap.
 - **A named tunnel restarts itself.** If cloudflared exits, dworkspace waits five
-  seconds and starts it again — unless you pressed **`Stop`**, which is the one
+  seconds and starts it again, unless you pressed **`Stop`**, which is the one
   thing that turns the feature off. **A quick tunnel is not supervised**: when
   its process ends, the status goes to error and nothing brings it back.
 - **It leaves cleanly.** On shutdown dworkspace tells Cloudflare the connection is
@@ -202,21 +224,21 @@ token therefore begins with **`Stop`**.
   automatically, and the sign-in rate limit, the limiter that throttles guessed
   API tokens and the log line written for every rejected credential start seeing
   real visitor addresses instead of Cloudflare's. Stopping the tunnel does
-  **not** switch it back off — if the instance goes back to being reached
+  **not** switch it back off; if the instance goes back to being reached
   directly, untick it by hand.
 
 Starting and stopping a tunnel requires a browser session. An API token is
-refused with *This action requires signing in through a browser — an API token is
+refused with *This action requires signing in through a browser. An API token is
 not enough*, the same rule that guards the rest of instance administration
 ([Administration](administration.md)).
 
 **A tunnel is reachability, not a lock.** Whoever finds the address still meets
 the sign-in screen, and that is the thing protecting the content. Whatever you
 put in front of the tunnel sits in front of `/mcp` as well, and an agent has no
-way to work through a sign-in page it did not expect — so an access layer at the
+way to work through a sign-in page it did not expect, so an access layer at the
 edge has to let `/mcp` through. See [Agent access](agent-access.md).
 
-## Route 2 — built-in HTTPS, no proxy at all
+## Route 2: built-in HTTPS, no proxy at all
 
 Card **`3 · Straight to HTTPS (no Cloudflare, e.g. a VPS)`**, on the same tab.
 
@@ -243,7 +265,7 @@ systemd unit in the repository grants exactly that
 
 The two ways that fails look nothing alike. If `:443` cannot be bound, the
 process stops and prints why. If only `:80` fails, the process **keeps running**
-and logs one line, `http-01 listener: …` — after which everything looks normal
+and logs one line, `http-01 listener: …`, after which everything looks normal
 while the certificate is never issued, because the challenge has nowhere to land.
 An instance answering on `:443` with every browser complaining about the
 certificate is that line, in the log, from startup.
@@ -253,7 +275,7 @@ alone. Set it without `DWORKSPACE_TLS_KEY` and you get the worst of both: the
 automatic path switches off, the incomplete pair is not used either, and the
 server serves plain HTTP on `DWORKSPACE_ADDR` without saying so.
 
-## Route 3 — your own reverse proxy
+## Route 3: your own reverse proxy
 
 nginx, Caddy, Traefik, HAProxy, a cloudflared you manage yourself. dworkspace asks
 for nothing unusual, but four things have to be right.
@@ -263,7 +285,7 @@ for nothing unusual, but four things have to be right.
    (`X-Forwarded-Ssl: on` is accepted too.)
 2. **Let WebSockets through.** Live editing runs over one (`/collab/{id}`). A
    proxy that quietly drops the upgrade leaves an editor where nobody else's
-   cursor ever appears and changes arrive only on reload — see
+   cursor ever appears and changes arrive only on reload. See
    [Working together](collaboration.md).
 3. **Do not buffer `/api/events`.** It is a stream that stays open. dworkspace sends
    `X-Accel-Buffering: no`, which nginx honours; other proxies need telling.
@@ -274,7 +296,7 @@ for nothing unusual, but four things have to be right.
 Then tick **`Run behind a reverse proxy (trust X-Forwarded-For)`** on the
 `Domain & proxy` tab **and press `Save`**. The tunnel buttons on that tab act the
 moment you press them; this checkbox does not. It is part of the dialog and
-reaches the server only when the dialog is saved — tick it, close the dialog, and
+reaches the server only when the dialog is saved: tick it, close the dialog, and
 nothing has changed.
 
 Without it, dworkspace ignores forwarded-IP headers and every visitor looks like the
@@ -286,15 +308,21 @@ proxy**: those headers are written by whoever is calling, so trusting them
 without a proxy in front lets an attacker invent a new IP for every password
 guess.
 
-`X-Forwarded-For` is read first, `X-Real-Ip` when that one is absent — so a proxy
-that sets only the latter works too. Nothing else is consulted. The hint under
+Of `X-Forwarded-For` only the **last** address counts: the one your proxy added.
+Everything before it was written by the caller, and a proxy that appends (the
+built-in tunnel does, and so does nginx's usual `$proxy_add_x_forwarded_for`)
+passes it on as it came. `X-Real-Ip` is read when `X-Forwarded-For` is absent,
+so a proxy that sets only the latter works too. Nothing else is consulted. With
+two proxies in a row, have the inner one resolve the visitor first (in nginx,
+the real IP module, told which addresses belong to the outer proxy), or every
+visitor arrives as the outer proxy. The hint under
 the checkbox also mentions the audit log; that is the one place an address never
 goes. The activity log records who did what, never from where.
 
 **Bind the instance to loopback while you are at it.** With a proxy in front,
 nothing needs to reach the port from outside: `DWORKSPACE_ADDR=127.0.0.1:8420` makes
 the instance answer on the machine itself only, and both a proxy and the built-in
-tunnel reach it there. (With built-in HTTPS switched on this has no effect —
+tunnel reach it there. (With built-in HTTPS switched on this has no effect:
 that route takes `:443` regardless.)
 
 ### The generated configuration
@@ -308,12 +336,12 @@ Below it, three ready-made snippets, each with a **`Copy`** button:
 
 | Block | What it contains |
 | --- | --- |
-| `Caddy (automatic HTTPS)` | a three-line site block — Caddy handles certificates and WebSockets by itself |
+| `Caddy (automatic HTTPS)` | a three-line site block; Caddy handles certificates and WebSockets by itself |
 | `Cloudflare Tunnel (no open port needed)` | the commands to create a tunnel by hand plus a `config.yml` |
 | `nginx` | a `server` block with the forwarded headers, the WebSocket upgrade, `proxy_read_timeout 3600s` and `client_max_body_size` filled in from your upload limit |
 
-The domain in all three comes from the public base URL, so set that first —
-otherwise the examples read `dworkspace.example.com` and you will paste a placeholder
+The domain in all three comes from the public base URL, so set that first;
+otherwise the examples read `salt.example.com` and you will paste a placeholder
 into a real config file.
 
 One line under the blocks is easy to scroll past and answers a real question:
@@ -329,7 +357,7 @@ If that shows the proxy's address rather than yours, the header is not arriving.
 
 **And one way to switch it off by accident.** Connecting a tunnel turns proxy
 trust on at the server. A settings dialog that was already open when that
-happened still shows the value it loaded — unticked — and pressing **`Save`**
+happened still shows the value it loaded (unticked), and pressing **`Save`**
 writes that stale value back. If the address in Maintenance stops looking right
 after a round of settings changes, re-open the dialog and tick the box again.
 
@@ -341,8 +369,8 @@ Two environment variables, both required:
 DWORKSPACE_TLS_CERT=/path/fullchain.pem DWORKSPACE_TLS_KEY=/path/key.pem dworkspace
 ```
 
-Only one set and the server quietly serves plain HTTP — and, as above,
-`DWORKSPACE_TLS_CERT` on its own also disables the built-in HTTPS route. The rest of
+Only one set and the server quietly serves plain HTTP. And, as above,
+`SALT_TLS_CERT` on its own also disables the built-in HTTPS route. The rest of
 the environment is in [Self-hosting](self-hosting.md).
 
 ## Where a fresh installation listens
@@ -353,14 +381,14 @@ dworkspace
 ```
 
 The installer detects the platform (Linux and macOS, x86-64 and arm64), downloads
-the matching prebuilt binary and puts it in `/usr/local/bin` — or `$HOME/.local/bin`
+the matching prebuilt binary and puts it in `/usr/local/bin`, or `$HOME/.local/bin`
 when that is not writable and there is no `sudo`. `BIN_DIR=/path` overrides it,
 `DWORKSPACE_VERSION=v1.0.0` pins a version. It then tells you to open
 `http://localhost:8420`.
 
 It installs a program; it does not open a port, register a service or configure a
 domain. The default listen address `:8420` binds every interface, so the instance
-is already reachable from the rest of your network — one of the three routes above
+is already reachable from the rest of your network; one of the three routes above
 is what makes it reachable beyond that.
 
 The repository also carries a systemd unit and a script to install it, which runs
@@ -375,13 +403,13 @@ curl https://notes.example.com/api/health
 ```
 
 `/api/health` needs no sign-in and pings the database, so it distinguishes a
-healthy instance from one that is answering but broken — it returns `503` and
+healthy instance from one that is answering but broken; it returns `503` and
 `{"status":"unavailable"}` in that case. It is the right target for a monitor.
 The `version` is whatever build is running. The full surface is in
 [The HTTP API](api.md).
 
 To see what address the instance believes it has, ask it from a signed-in
-session: `/api/public-base` returns the resolved value — the same one the
+session: `/api/public-base` returns the resolved value, the same one the
 **Connect an agent** dialog shows and the same one written into the downloadable
 [skill](skill.md). Unlike `/api/health` it sits behind the sign-in, so send a
 session cookie or an API token; without one it answers `401`.
@@ -389,7 +417,7 @@ session cookie or an API token; without one it answers `401`.
 ## The three mistakes that cost an afternoon
 
 **The base URL is empty and everything looks fine.** It does, from your desk.
-Test a share link from a phone on mobile data before believing it —
+Test a share link from a phone on mobile data before believing it:
 [Sharing](sharing.md) and [Forms](forms.md) both hand out addresses built this
 way.
 
@@ -398,7 +426,7 @@ the host that set it, so nothing arrives back and the error says little. Set the
 base URL and use that address; the redirect described above then keeps the flow
 on one origin by itself.
 
-**The base URL has a typo.** Nothing validates it — it is stored as typed. A
+**The base URL has a typo.** Nothing validates it; it is stored as typed. A
 wrong host there does more than produce bad links: OAuth sign-in redirects the
 browser to it before the flow starts. If sign-in suddenly lands nowhere after a
 settings change, that field is the first place to look, and

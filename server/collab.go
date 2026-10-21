@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 
@@ -39,8 +40,9 @@ import (
 //	1 = awareness update (relayed, never persisted)
 //	2 = client snapshot: [2][8-byte BE seq][full-state update]
 //
-// Text frames (server→client) are JSON: {"isNew":bool}, {"synced":true},
-// {"snapshotRequest":seq}.
+// Text frames (server→client) are JSON: {"isNew":bool,"gen":n}, {"synced":true},
+// {"snapshotRequest":seq}. gen is the document generation (docgen.go); a
+// client connecting with ?gen= of a replaced document is closed with 4001.
 const (
 	frameUpdate    = 0
 	frameAwareness = 1
@@ -454,9 +456,18 @@ func (s *Server) handleCollab(w http.ResponseWriter, r *http.Request) {
 	// above realistic doc sizes while still bounding a malicious client.
 	ws.SetReadLimit(wsReadLimit)
 	ctx := r.Context()
-	conn := &collabConn{ws: ws, out: make(chan outMsg, outBuffer), done: make(chan struct{}), aware: map[uint64]uint64{}, userID: requestUser(r).ID}
+	// The replay below queues every stored update at once, and a queue that
+	// fills up closes the socket as a slow consumer. Sized to the outBuffer
+	// alone, a page with more updates than that could not be opened in any
+	// editor at all: anybody with write access could get it there with a few
+	// hundred one-character updates and by ignoring the snapshot request,
+	// and the honest editor that would have compacted it never got in.
+	var stored int
+	s.db.QueryRow(`SELECT COUNT(*) FROM yjs_updates WHERE page_id = ?`, pageID).Scan(&stored)
+	conn := &collabConn{ws: ws, out: make(chan outMsg, outBuffer+stored), done: make(chan struct{}), aware: map[uint64]uint64{}, userID: requestUser(r).ID}
 	go conn.writeLoop(ctx)
 	go conn.pingLoop(ctx)
+	go s.recheckCollabAccess(ctx, r, conn, pageID)
 
 	room := s.collab.join(pageID, conn)
 
@@ -464,6 +475,20 @@ func (s *Server) handleCollab(w http.ResponseWriter, r *http.Request) {
 	// concurrent update is missed (it is either in this read or delivered live
 	// after we release the lock) and none is delivered before the replay.
 	room.mu.Lock()
+	// An editor names the generation its local doc descends from (docgen.go):
+	// the body it loaded the page with, or the document it synced before its
+	// socket dropped. If that document has been replaced since, letting it in
+	// would push its old state into the live doc (its socket was down for the
+	// 4001), or seed the live doc from the old body (the rewrite landed between
+	// loading the page and joining). Under room.mu, so a reset cannot slip
+	// between this check and the membership that would make it reach us.
+	gen := s.docGen(pageID)
+	if want := r.URL.Query().Get("gen"); want != "" && want != strconv.FormatInt(gen, 10) {
+		room.mu.Unlock()
+		s.collab.leave(conn, room)
+		conn.shutdown(closeReset, "document reset")
+		return
+	}
 	var snapshot []byte
 	var stateSeq int64
 	haveState := s.db.QueryRow(`SELECT snapshot, seq FROM yjs_state WHERE page_id = ?`, pageID).Scan(&snapshot, &stateSeq) == nil
@@ -509,7 +534,7 @@ func (s *Server) handleCollab(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	hello, _ := json.Marshal(map[string]bool{"isNew": isNew})
+	hello, _ := json.Marshal(map[string]any{"isNew": isNew, "gen": gen})
 	conn.enqueue(outMsg{websocket.MessageText, hello})
 	if snapshot != nil {
 		conn.enqueue(outMsg{websocket.MessageBinary, append([]byte{frameUpdate}, snapshot...)})
@@ -662,4 +687,32 @@ func (s *Server) applySnapshot(room *collabRoom, conn *collabConn, data []byte) 
 	room.pendingBytes = remainingBytes
 	room.compacting = false
 	room.compactConn = nil
+}
+
+// collabRecheck is how often an open editor's right to the page is asked
+// again. A variable so a test does not have to wait for it.
+var collabRecheck = 15 * time.Second
+
+// recheckCollabAccess ends an editor connection once its reader may no longer
+// read the page. Writes were checked on every frame, but what arrives was not:
+// a page made private, a member removed from the workspace, a session that
+// ended or a key revoked, and the open tab went on receiving every edit live.
+// The credential is read again from the request, so a revoked one counts too.
+func (s *Server) recheckCollabAccess(ctx context.Context, r *http.Request, conn *collabConn, pageID string) {
+	t := time.NewTicker(collabRecheck)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-conn.done:
+			return
+		case <-t.C:
+		}
+		u := s.currentUser(r)
+		if u == nil || u.Disabled || !s.canRead(u.ID, pageID) || !s.credentialMayEnter(u, s.pageWorkspace(pageID)) {
+			conn.shutdown(websocket.StatusPolicyViolation, "access ended")
+			return
+		}
+	}
 }

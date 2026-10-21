@@ -55,7 +55,12 @@ func filterFixture(t *testing.T) (*Server, string) {
 
 func count(t *testing.T, s *Server, col string, f rowFilter) int {
 	t.Helper()
-	_, total, err := s.collectionRowsQuery(&user{ID: "u"}, col, []rowFilter{f}, "", 100, 0)
+	return countGroups(t, s, col, [][]rowFilter{{f}})
+}
+
+func countGroups(t *testing.T, s *Server, col string, groups [][]rowFilter) int {
+	t.Helper()
+	_, total, err := s.collectionRowsQuery(&user{ID: "u"}, col, nil, groups, "", 100, 0)
 	if err != nil {
 		t.Fatalf("query: %v", err)
 	}
@@ -112,5 +117,96 @@ func TestFilterBetweenIsInclusive(t *testing.T) {
 	}
 	if n := count(t, s, col, rowFilter{Prop: "datum", Op: "between", Value: "2026-06-01", Value2: "2026-07-01"}); n != 0 {
 		t.Errorf("an empty range returned %d, want 0", n)
+	}
+}
+
+// OR groups: AND inside, OR between. The fixture rows are
+// (a,01-10) (b,03-15) (c,05-20) (a,08-01).
+func TestFilterGroupsOrSemantics(t *testing.T) {
+	s, col := filterFixture(t)
+
+	// klasse a OR klasse b: three of the four rows.
+	if n := countGroups(t, s, col, [][]rowFilter{
+		{{Prop: "klasse", Op: "is", Value: "a"}},
+		{{Prop: "klasse", Op: "is", Value: "b"}},
+	}); n != 3 {
+		t.Errorf("a OR b returned %d, want 3", n)
+	}
+	// AND inside one group: klasse a AND datum after June — only 08-01.
+	if n := countGroups(t, s, col, [][]rowFilter{
+		{{Prop: "klasse", Op: "is", Value: "a"}, {Prop: "datum", Op: "gt", Value: "2026-06-01"}},
+	}); n != 1 {
+		t.Errorf("a AND after-June returned %d, want 1", n)
+	}
+	// One group behaves exactly like the flat list it replaces.
+	single := count(t, s, col, rowFilter{Prop: "klasse", Op: "is", Value: "a"})
+	grouped := countGroups(t, s, col, [][]rowFilter{{{Prop: "klasse", Op: "is", Value: "a"}}})
+	if single != grouped || single != 2 {
+		t.Errorf("flat: %d, same as one group: %d, want 2 for both", single, grouped)
+	}
+	// An empty group constrains nothing: it must not narrow the answer, or
+	// one unfinished group would blank the whole view.
+	if n := countGroups(t, s, col, [][]rowFilter{
+		{{Prop: "klasse", Op: "is", Value: "a"}},
+		{},
+	}); n != 2 {
+		t.Errorf("a completed group beside an empty one returned %d, want 2", n)
+	}
+}
+
+// A flat filter beside groups is a term of its own: "this AND (that OR
+// those)", the combination both the REST handler and query_rows build. It used
+// to be copied into every group, which let an unfinished group match whatever
+// the flat filter matched: [klasse a] OR [unfinished] answered 2 rows, and
+// adding "datum is set" answered 4.
+func TestFlatFilterIsATermOfItsOwn(t *testing.T) {
+	s, col := filterFixture(t)
+	query := func(flat []rowFilter, groups [][]rowFilter) int {
+		t.Helper()
+		_, total, err := s.collectionRowsQuery(&user{ID: "u"}, col, flat, groups, "", 100, 0)
+		if err != nil {
+			t.Fatalf("query: %v", err)
+		}
+		return total
+	}
+
+	flat := []rowFilter{{Prop: "klasse", Op: "is_not", Value: "c"}}
+	groups := [][]rowFilter{
+		{{Prop: "datum", Op: "lt", Value: "2026-04-01"}},
+		{{Prop: "datum", Op: "gt", Value: "2026-06-01"}},
+	}
+	// (a,01-10) and (b,03-15) pass the first group, (a,08-01) the second;
+	// (c,05-20) fails the flat condition either way.
+	if n := query(flat, groups); n != 3 {
+		t.Errorf("flat AND groups returned %d, want 3", n)
+	}
+	if n := query(flat, nil); n != 3 {
+		t.Errorf("flat alone returned %d, want 3", n)
+	}
+
+	unfinished := [][]rowFilter{{{Prop: "klasse", Op: "is", Value: "a"}}, {}}
+	if n := query([]rowFilter{{Prop: "datum", Op: "is_not_empty"}}, unfinished); n != 2 {
+		t.Errorf("a flat condition widened the answer to %d rows, want the 2 of klasse a", n)
+	}
+}
+
+// The wire shape: one filter_group param per group, each a JSON array.
+// Unparsable params and condition-less groups never reach the query.
+func TestParseFilterGroups(t *testing.T) {
+	groups := parseFilterGroups([]string{
+		`[{"property":"klasse","op":"is","value":"a"}]`,
+		`not json at all`,
+		`[]`,
+		`[{"op":"is","value":"a"}]`,
+		`[{"property":"datum","op":"between","value":"2026-01-01","value2":"2026-12-31"}]`,
+	})
+	if len(groups) != 2 {
+		t.Fatalf("parsed %d groups, want 2 — only the two armed ones survive", len(groups))
+	}
+	if groups[0][0].Prop != "klasse" || groups[0][0].Value != "a" {
+		t.Errorf("first group is %#v, want klasse is a", groups[0])
+	}
+	if groups[1][0].Op != "between" || groups[1][0].Value2 != "2026-12-31" {
+		t.Errorf("second group is %#v, want the datum range", groups[1])
 	}
 }

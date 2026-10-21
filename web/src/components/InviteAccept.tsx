@@ -98,16 +98,18 @@ export default function InviteAccept({
           <h1>{t('Join the workspace')}</h1>
           <p>
             {info?.workspace
-              ? `Du wurdest zum Workspace „${info.workspace}" eingeladen.`
-              : 'Du wurdest eingeladen.'}
+              ? t('You have been invited to the workspace “{workspace}”.', { workspace: info.workspace })
+              : t('You have been invited.')}
           </p>
           {mismatch ? (
             <>
               <p>
-                {t('This invitation is for')} <strong>{info?.email}</strong>, du bist aber als{' '}
-                <strong>{currentUser.email}</strong> angemeldet.
+                {t('This invitation is for')} <strong>{info?.email}</strong>.
               </p>
-              <a className="btn" href="/api/logout">Abmelden &amp; neu anmelden</a>
+              <p>
+                {t('Signed in as')} <strong>{currentUser.email}</strong>.
+              </p>
+              <a className="btn" href="/api/logout">{t('Sign out and sign in again')}</a>
             </>
           ) : (
             <>
@@ -135,8 +137,8 @@ export default function InviteAccept({
         <h1>{t('Join')}</h1>
         <p>
           {info?.workspace
-            ? `Du wurdest zum Workspace „${info.workspace}" eingeladen.`
-            : 'Du wurdest eingeladen.'}
+            ? t('You have been invited to the workspace “{workspace}”.', { workspace: info.workspace })
+            : t('You have been invited.')}
         </p>
         <input
           autoFocus

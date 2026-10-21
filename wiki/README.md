@@ -7,7 +7,7 @@ of uploads, on a machine you control.
 
 This wiki is written to be read two ways. A person reads the page they need and
 learns how that part of the product works. An agent connected over MCP reads the
-same page and gets exact names, exact limits and exact behaviour — no marketing,
+same page and gets exact names, exact limits and exact behaviour: no marketing,
 no "should", no invented options.
 
 **Everything here is derived from the code and checked against it.**
@@ -38,36 +38,36 @@ lying and `web/scripts/shoot-wiki.mjs` retakes them.
 
 ### Using it
 
-- [Getting started](getting-started.md) — install it, create the first account, write the first page
-- [Concepts](concepts.md) — the nouns this product is made of, and how they nest
-- [The interface](interface.md) — sidebar, tabs, topbar, menus, theme, every keyboard shortcut
-- [Pages](pages.md) — title, icon, cover, tags, sub-pages, the structure panel, the page menu
-- [Editor blocks](editor-blocks.md) — every block type, the slash menu, markdown shortcuts, dropping files in
-- [Comments and notes](comments-and-notes.md) — the comment panel, and the append-only trail beside it
-- [Search](search.md) — what is indexed, how German words find each other, why a PDF is findable
-- [Files](files.md) — uploads, the file index, previews, text extraction
-- [The library](library.md) — every page of a workspace, as shelves, as a tree, as a graph
-- [Trash and recovery](trash-and-recovery.md) — what trashing does, what comes back, what does not
+- [Getting started](getting-started.md): install it, create the first account, write the first page
+- [Concepts](concepts.md): the nouns this product is made of, and how they nest
+- [The interface](interface.md): sidebar, tabs, topbar, menus, theme, every keyboard shortcut
+- [Pages](pages.md): title, icon, cover, tags, sub-pages, the structure panel, the page menu
+- [Editor blocks](editor-blocks.md): every block type, the slash menu, markdown shortcuts, dropping files in
+- [Comments and notes](comments-and-notes.md): the comment panel, and the append-only trail beside it
+- [Search](search.md): what is indexed, how German words find each other, why a PDF is findable
+- [Files](files.md): uploads, the file index, previews, text extraction
+- [The library](library.md): every page of a workspace, as shelves, as a tree, as a graph
+- [Trash and recovery](trash-and-recovery.md): what trashing does, what comes back, what does not
 
 ### Databases
 
-- [Collections](collections.md) — a page whose children are its rows
-- [Properties](properties.md) — all 13 types, each with its own section
-- [Views](views.md) — `table`, `board`, `list`, `gallery`, `calendar`, `form`, `timeline`
-- [Relations and rollups](relations-and-rollups.md) — linking collections, and aggregating across the link
-- [Formulas](formulas.md) — a property that computes instead of storing
-- [Forms](forms.md) — collecting entries from people who have no account
-- [Templates and blueprints](templates.md) — starting from something instead of from nothing
+- [Collections](collections.md): a page whose children are its rows
+- [Properties](properties.md): all 13 types, each with its own section
+- [Views](views.md): `table`, `board`, `list`, `gallery`, `calendar`, `form`, `timeline`
+- [Relations and rollups](relations-and-rollups.md): linking collections, and aggregating across the link
+- [Formulas](formulas.md): a property that computes instead of storing
+- [Forms](forms.md): collecting entries from people who have no account
+- [Templates and blueprints](templates.md): starting from something instead of from nothing
 
 ### Working together
 
-- [Workspaces](workspaces.md) — the boundary around content: members, roles, rules, logo
-- [Permissions](permissions.md) — two sets of roles, page visibility, what a token may do
-- [Sharing](sharing.md) — publishing a page, with a password and an expiry
-- [Working at the same time](collaboration.md) — live editing, presence, what happens offline
-- [History and audit](history-and-audit.md) — four records, four questions
-- [Your account](account.md) — profile, password, two-factor, sessions, API tokens, leaving
-- [Language and time](language-and-time.md) — five settings, and why a date never shifts
+- [Workspaces](workspaces.md): the boundary around content (members, roles, rules, logo)
+- [Permissions](permissions.md): two sets of roles, page visibility, what a token may do
+- [Sharing](sharing.md): publishing a page, with a password and an expiry
+- [Working at the same time](collaboration.md): live editing, presence, what happens offline
+- [History and audit](history-and-audit.md): four records, four questions
+- [Your account](account.md): profile, password, two-factor, sessions, API tokens, leaving
+- [Language and time](language-and-time.md): five settings, and why a date never shifts
 
 ### Agents
 
@@ -86,13 +86,13 @@ lying and `web/scripts/shoot-wiki.mjs` retakes them.
 
 ### Running it
 
-- [Self-hosting](self-hosting.md) — install, environment, memory, updates, backup, restore
-- [Administration](administration.md) — instance settings, accounts, who may register
-- [Reaching your instance](domain.md) — the public address, the tunnel, your own proxy
-- [Single sign-on](sso.md) — Google and Microsoft, and the failure that wastes an afternoon
-- [Sending email](mail.md) — a connected mailbox, or plain SMTP
-- [The desktop app](desktop-app.md) — a window onto a server you name
-- [Troubleshooting](troubleshooting.md) — real failures and what actually fixes them
+- [Self-hosting](self-hosting.md): install, environment, memory, updates, backup, restore
+- [Administration](administration.md): instance settings, accounts, who may register
+- [Reaching your instance](domain.md): the public address, the tunnel, your own proxy
+- [Single sign-on](sso.md): Google and Microsoft, and the failure that wastes an afternoon
+- [Sending email](mail.md): a connected mailbox, or plain SMTP
+- [The desktop app](desktop-app.md): a window onto a server you name
+- [Troubleshooting](troubleshooting.md): real failures and what actually fixes them
 
 ## For agents reading this
 
@@ -105,8 +105,8 @@ Both are verified on every build, so you can act on them without checking first.
 
 Where the interface and the MCP surface use different words for one thing, the
 wiki says so at the point it matters. The most important case: what the
-interface calls a **collection** is what the tools call a **database** —
-`create_database`, `database_id`. Neither is a mistake, and neither is going to
+interface calls a **collection** is what the tools call a **database**
+(`create_database`, `database_id`). Neither is a mistake, and neither is going to
 be renamed into the other.
 
 ## Writing here
@@ -114,7 +114,7 @@ be renamed into the other.
 Two rules, both learned the hard way.
 
 **It is derived from the code, never from memory.** The mechanical half is in
-the build. The half no check can reach — whether a sentence is true — is why
+the build. The half no check can reach (whether a sentence is true) is why
 every page is written by reading the source it describes.
 
 **Every example is invented.** The first draft of this wiki named three real

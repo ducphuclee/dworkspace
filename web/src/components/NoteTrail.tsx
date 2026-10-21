@@ -185,7 +185,7 @@ export default function NoteTrail({ pageId, canWrite }: { pageId: string; canWri
 
           {expanded && notes.length > 0 && (
             <div className="trail-foot">
-              <span>{t('Notes cannot be edited or removed one by one — that is what makes them worth reading later.')}</span>
+              <span>{t('Notes cannot be edited or removed one by one. That is what makes them worth reading later.')}</span>
               {canWrite && (
                 <button className="trail-clear" onClick={() => void clear()}>
                   <Eraser size={13} /> {t('Discard the whole trail')}

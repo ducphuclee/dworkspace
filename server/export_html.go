@@ -1,8 +1,11 @@
 package server
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"html"
+	"net/http"
 	"net/url"
 	"regexp"
 	"strconv"
@@ -62,7 +65,10 @@ func inlineHTML(raw json.RawMessage) string {
 	for _, it := range items {
 		switch it.Type {
 		case "link":
-			b.WriteString(`<a href="` + html.EscapeString(it.Href) + `">` + inlineHTML(it.Content) + "</a>")
+			// Through safeURL like every other address on the page. A link typed
+			// as javascript:… went out as it was, and one click ran it with the
+			// session of whoever opened the print view or the shared page.
+			b.WriteString(`<a href="` + html.EscapeString(safeURL(it.Href)) + `">` + inlineHTML(it.Content) + "</a>")
 		case "pageLink":
 			label := strProp(it.Props, "label", "Untitled")
 			id := strProp(it.Props, "pageId", "")
@@ -193,7 +199,7 @@ func renderBlockHTML(b *strings.Builder, blk mdBlock) {
 		// Only the reference, as in the Markdown export — the rows live in the
 		// database page and a copy of them would go stale immediately.
 		if id := strProp(blk.Props, "collectionId", ""); id != "" {
-			b.WriteString(`<p><a href="/p/` + html.EscapeString(id) + `">▦ Datenbank</a></p>`)
+			b.WriteString(`<p><a href="/p/` + html.EscapeString(id) + `">▦ Collection</a></p>`)
 		}
 	case "embed":
 		// The reference, as in the Markdown export — the text lives in the
@@ -203,6 +209,8 @@ func renderBlockHTML(b *strings.Builder, blk mdBlock) {
 		}
 	case "toc":
 		// Generated client-side; skip in export.
+	case "subpages":
+		// Generated client-side from the page tree; skip in export.
 	// columnList is the OLD shape, from the paid package that used to provide
 	// columns: an outer block whose children are column blocks, each with its
 	// own children. Nothing writes it any more, and it stays because a page
@@ -253,7 +261,16 @@ func renderBlockHTML(b *strings.Builder, blk mdBlock) {
 			// stripped when it was drawn so that CSS could decide, which means
 			// something has to say what the size IS — and on paper "as wide as
 			// the page" turns a small flowchart into a full sheet.
-			b.WriteString(`<div class="diagram"` + diagramStyle(clean) + `>` + clean + `</div>`)
+			//
+			// And as a picture, never as markup. Written into the page, the
+			// stored SVG was part of the document, so any event handler the
+			// sanitizer's list did not know (onbegin on an animation got
+			// through) ran with the session of whoever opened the print view
+			// or the shared link. An <img> runs no script at all, which is
+			// also how the editor shows a diagram.
+			code, _ := blk.Props["code"].(string)
+			b.WriteString(`<div class="diagram"` + diagramStyle(clean) + `><img alt="` + html.EscapeString(strings.TrimSpace(code)) +
+				`" src="data:image/svg+xml;base64,` + base64.StdEncoding.EncodeToString([]byte(clean)) + `"></div>`)
 			return
 		}
 		if code, _ := blk.Props["code"].(string); strings.TrimSpace(code) != "" {
@@ -321,6 +338,9 @@ type printOptions struct {
 	Region   string
 	Language string
 	CommentL []commentJSON
+	// Nonce is the one script the document may run (see docCSP). Empty for a
+	// file that is downloaded: no header travels with it.
+	Nonce string
 }
 
 // printOptionsFor reads the instance's defaults. They are settings rather than
@@ -405,7 +425,7 @@ body:not(.opt-ws) .cover-ws{display:none}
 .cols[data-count="3"]{grid-template-columns:repeat(3,minmax(0,1fr))}
 .cols>div>*:first-child{margin-top:0}
 .diagram{margin:1em 0}
-.diagram svg{width:100%;height:auto;display:block}
+.diagram img{width:100%;height:auto;display:block}
 .doc-comments{margin-top:2.2em;border-top:1px solid #e3e2df;padding-top:1em}
 .doc-comments h2{font-size:1.2em;margin:0 0 .6em}
 .doc-comment{margin:0 0 .8em;font-size:.95em}
@@ -542,12 +562,18 @@ func (srv *Server) pageHTML(p *page, printMode bool, o printOptions) string {
 	// browser, in the reader's own regional format — the same rule the rest of
 	// the product follows. Formatting it here would have shipped one spelling to
 	// everybody, and it would have been ISO, which no reader writes by hand.
-	b.WriteString(`<script>` + paginateJS + "\n" +
+	nonce := ""
+	if o.Nonce != "" {
+		nonce = ` nonce="` + o.Nonce + `"`
+	}
+	b.WriteString(`<script` + nonce + `>` + paginateJS + "\n" +
 		`DWORKSPACE_TITLE=` + jsString(title) + `;` +
 		`DWORKSPACE_DAY=` + jsString(o.Date) + `;` +
 		`DWORKSPACE_REGION=` + jsString(o.Region) + `;` +
 		`DWORKSPACE_LANG=` + jsString(o.Language) + `;` +
-		`dworkspaceStart();</script>`)
+		`dworkspaceStart();` +
+		`document.querySelectorAll('[data-print]').forEach(function(b){b.addEventListener('click',function(){window.print()})});` +
+		`</script>`)
 	b.WriteString("</body></html>")
 	return b.String()
 }
@@ -594,7 +620,7 @@ func sidePanelHTML() string {
 		box("opt-comments", "Comments") +
 		box("opt-links", "Links as links") +
 		box("opt-landscape", "Landscape") +
-		`<button class="go" onclick="window.print()">Print / Save as PDF</button>` +
+		`<button class="go" data-print>Print / Save as PDF</button>` +
 		`<p class="note">What you see is what comes out. Nothing is sent anywhere.</p></aside>`
 }
 
@@ -956,4 +982,18 @@ func diagramStyle(svg string) string {
 		return ""
 	}
 	return ` style="width:min(100%, ` + m[1] + `px);aspect-ratio:` + m[1] + ` / ` + m[2] + `"`
+}
+
+// docCSP lets the print view and the shared page run their own script and
+// nothing else. The document is rendered from content anybody with write
+// access typed, and twice now a way through has turned up in that rendering: a
+// diagram's stored SVG with an event handler (1.1.1), and an inline link
+// written out as javascript:… (1.1.2). Each was fixed where it happened; this
+// makes the next one inert, whatever form it takes. Scripts need the nonce,
+// which inline handlers and javascript: addresses can never carry.
+func docCSP(w http.ResponseWriter, o *printOptions) {
+	b := make([]byte, 16)
+	rand.Read(b)
+	o.Nonce = base64.RawURLEncoding.EncodeToString(b)
+	w.Header().Set("Content-Security-Policy", "script-src 'nonce-"+o.Nonce+"'; object-src 'none'; base-uri 'none'")
 }

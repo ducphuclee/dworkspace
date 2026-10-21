@@ -217,8 +217,56 @@ func (s *Server) canWriteReq(r *http.Request, pageID string) bool {
 	if !s.canWrite(requestUser(r).ID, pageID) {
 		return false
 	}
-	u := requestUser(r)
-	return u.TokenWorkspaces == nil || u.tokenCanReach(s.pageWorkspace(pageID))
+	// The same gate as reading, the workspace's rule for agents included. With
+	// only the token's own list here, an agent got 404 reading a page in a
+	// workspace closed to agents and 200 changing it.
+	return s.credentialMayEnter(requestUser(r), s.pageWorkspace(pageID))
+}
+
+// mayCreateIn is the rule for new content at the top of a workspace: a member
+// who is not a viewer, through a credential that may enter it (its own list
+// and the workspace's rule for agents). Under a page the rule is canWriteReq on
+// that page. It is written once because each place that creates something had
+// written it differently, and several had left a part out.
+func (s *Server) mayCreateIn(u *user, wsID string) bool {
+	if u == nil || wsID == "" {
+		return false
+	}
+	if role := s.workspaceRole(u.ID, wsID); role == "" || role == "viewer" {
+		return false
+	}
+	return s.credentialMayEnter(u, wsID)
+}
+
+// createWorkspaceFor is where something new without a parent lands when the
+// caller names no workspace: the caller's default if they may create there,
+// else the first workspace they may. A viewer's default used to be taken as it
+// was, and the import landed in a workspace they may only read.
+func (s *Server) createWorkspaceFor(u *user) string {
+	if u == nil {
+		return ""
+	}
+	if ws := s.defaultWorkspaceFor(u); s.mayCreateIn(u, ws) {
+		return ws
+	}
+	rows, err := s.db.Query(`SELECT workspace_id FROM workspace_members WHERE user_id = ? ORDER BY workspace_id`, u.ID)
+	if err != nil {
+		return ""
+	}
+	var all []string
+	for rows.Next() {
+		var ws string
+		if rows.Scan(&ws) == nil {
+			all = append(all, ws)
+		}
+	}
+	rows.Close()
+	for _, ws := range all {
+		if s.mayCreateIn(u, ws) {
+			return ws
+		}
+	}
+	return ""
 }
 
 // ---- what a workspace itself allows (W-opt-in) ------------------------------
@@ -340,10 +388,12 @@ func scopeWorkspaces(u *user, ws []string) []string {
 // tokenReachesWorkspace enforces an API token's workspace scope on a
 // workspace-id-keyed REST endpoint: a workspace-scoped token must not act on
 // (or read) a workspace outside its allow-list even when the user is a member/
-// admin of it. Session auth and unrestricted tokens always pass.
+// admin of it, nor one whose rule keeps agents out. Session auth always passes.
 func (s *Server) tokenReachesWorkspace(r *http.Request, wsID string) bool {
-	u := requestUser(r)
-	return u.TokenWorkspaces == nil || u.tokenCanReach(wsID)
+	// The workspace's rule for agents belongs here as much as the token's own
+	// list: a dozen handlers ask this one question, and with the list alone a
+	// workspace closed to agents stayed open on every one of them.
+	return s.credentialMayEnter(requestUser(r), wsID)
 }
 
 // tokenCanReach reports whether a workspace-scoped token may touch a workspace.
@@ -714,7 +764,7 @@ func (s *Server) handleDeleteWorkspace(w http.ResponseWriter, r *http.Request) {
 	var mine int
 	s.db.QueryRow(`SELECT COUNT(*) FROM workspace_members WHERE user_id = ?`, uid).Scan(&mine)
 	if mine <= 1 {
-		httpError(w, 409, "this is your last workspace — create another one first")
+		httpError(w, 409, "this is your last workspace. Create another one first")
 		return
 	}
 
@@ -748,7 +798,7 @@ func (s *Server) handleCreateWorkspace(w http.ResponseWriter, r *http.Request) {
 	}
 	if narrowedToWorkspaces(requestUser(r)) {
 		httpErrorCode(w, http.StatusForbidden, "workspace_scoped",
-			"This connection is limited to particular workspaces, so it cannot create new ones — it would not be able to open them.")
+			"This connection is limited to particular workspaces, so it cannot create new ones. It would not be able to open them.")
 		return
 	}
 	if strings.TrimSpace(body.Name) == "" {
@@ -757,7 +807,7 @@ func (s *Server) handleCreateWorkspace(w http.ResponseWriter, r *http.Request) {
 	}
 	// W97: non-admins only when the instance permits it.
 	if !requestUser(r).IsAdmin && !s.loadSettings().AllowUserWorkspaces {
-		httpError(w, 403, "creating workspaces is disabled on this instance — ask an admin")
+		httpError(w, 403, "creating workspaces is disabled on this instance. Ask an admin")
 		return
 	}
 	if body.FromWorkspace != "" {
@@ -927,7 +977,7 @@ func (s *Server) handleUpdateMember(w http.ResponseWriter, r *http.Request) {
 	}
 	role := normalizeRole(body.Role)
 	if role != "admin" && target == s.personalOwner(wsID) {
-		httpErrorCode(w, 403, "personal_role_fixed", "That is this person's personal space — their role in it stays as it is.")
+		httpErrorCode(w, 403, "personal_role_fixed", "That is this person's personal space. Their role in it stays as it is.")
 		return
 	}
 	if role != "admin" && s.workspaceRole(target, wsID) == "admin" && s.otherActiveAdmins(wsID, target) == 0 {
@@ -967,14 +1017,14 @@ func (s *Server) handleRemoveMember(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if target == s.personalOwner(wsID) {
-		httpErrorCode(w, 403, "personal_no_remove", "That is this person's personal space — they cannot be removed from it.")
+		httpErrorCode(w, 403, "personal_no_remove", "That is this person's personal space. They cannot be removed from it.")
 		return
 	}
 	if s.workspaceRole(target, wsID) == "admin" && s.otherActiveAdmins(wsID, target) == 0 {
 		// The old message only said it was not possible — not what to do. Both
 		// are workable routes, and without saying so people go hunting for them.
 		if target == me {
-			httpErrorCode(w, 400, "last_admin", "You are the last admin of this workspace. Make somebody else an admin first — or delete the workspace if it should go.")
+			httpErrorCode(w, 400, "last_admin", "You are the last admin of this workspace. Make somebody else an admin first, or delete the workspace if it should go.")
 		} else {
 			httpErrorCode(w, 400, "last_admin_other", "That is the last admin of this workspace. Make somebody else an admin first.")
 		}
@@ -1081,7 +1131,14 @@ func (s *Server) resolveShare(token, password string) (pageID string, needPW, pw
 }
 
 func (s *Server) handlePublicPage(w http.ResponseWriter, r *http.Request) {
-	pageID, needPW, pwOK, found := s.resolveShare(r.PathValue("token"), r.Header.Get("X-Share-Password"))
+	// Same rule as the HTML view: a revoked link must not live on in a cache.
+	w.Header().Set("Cache-Control", "private, no-store")
+	password := r.Header.Get("X-Share-Password")
+	if password != "" && !s.sharePwRate.allow(sharePwKey(r.PathValue("token"), s.clientIP(r))) {
+		httpErrorCode(w, http.StatusTooManyRequests, "too_many_attempts", "Too many password attempts for this link. Wait a minute and try again.")
+		return
+	}
+	pageID, needPW, pwOK, found := s.resolveShare(r.PathValue("token"), password)
 	if !found {
 		httpError(w, 404, "not found")
 		return
@@ -1205,7 +1262,7 @@ func (s *Server) handleAdminMembership(w http.ResponseWriter, r *http.Request) {
 	//     else's workspace.
 	me := requestUser(r)
 	if body.UserID == me.ID {
-		httpErrorCode(w, 403, "no_self_grant", "You cannot grant yourself access here — use emergency access, which is logged.")
+		httpErrorCode(w, 403, "no_self_grant", "You cannot grant yourself access here. Use emergency access, which is logged.")
 		return
 	}
 	if !s.isOwner(me.ID) && !s.isWorkspaceAdmin(me.ID, body.WorkspaceID) {
@@ -1221,7 +1278,7 @@ func (s *Server) handleAdminMembership(w http.ResponseWriter, r *http.Request) {
 	var personalWS int
 	s.db.QueryRow(`SELECT is_personal FROM workspaces WHERE id = ?`, body.WorkspaceID).Scan(&personalWS)
 	if personalWS != 0 && !s.isWorkspaceAdmin(me.ID, body.WorkspaceID) {
-		httpErrorCode(w, 403, "personal_invite_owner_only", "A personal space is not handed out from outside — only its owner invites anyone there.")
+		httpErrorCode(w, 403, "personal_invite_owner_only", "A personal space is not handed out from outside. Only its owner invites anyone there.")
 		return
 	}
 	// Never remove or demote a workspace's last admin — the workspace would be

@@ -180,7 +180,7 @@ func (s *Server) handlePublicFormConfig(w http.ResponseWriter, r *http.Request) 
 // against the schema (unknown/computed props and bad values are dropped).
 func (s *Server) handlePublicFormSubmit(w http.ResponseWriter, r *http.Request) {
 	if !s.formRate.allow(s.clientIP(r)) {
-		httpError(w, 429, "too many submissions — please try again shortly")
+		httpError(w, 429, "too many submissions. Please try again shortly")
 		return
 	}
 	colID, ok := s.resolveFormShare(r.PathValue("token"))

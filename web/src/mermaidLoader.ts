@@ -39,14 +39,18 @@ export function loadMermaid(): Promise<void> {
           flowchart: { htmlLabels: false, padding: 12, nodeSpacing: 40, rankSpacing: 46 },
           htmlLabels: false,
           // dworkspace's own colours rather than mermaid's grey. A diagram in a
-          // document should look like it belongs to the document.
+          // document should look like it belongs to the document: a white card
+          // on the paper, a hairline round it and ink inside — the shapes
+          // everything else on the page is drawn with. No hue of its own, so
+          // the dark editor can turn it over (see theme.css) and still get a
+          // neutral drawing rather than a tinted one.
           themeVariables: {
-            primaryColor: '#eef4f0',
-            primaryBorderColor: '#8fb9a2',
-            primaryTextColor: '#1f1f1d',
-            lineColor: '#8a8a85',
-            secondaryColor: '#f5f5f4',
-            tertiaryColor: '#faf9f7',
+            primaryColor: '#ffffff',
+            primaryBorderColor: '#cdcbc4',
+            primaryTextColor: '#1c1a15',
+            lineColor: '#85837c',
+            secondaryColor: '#f2f1ea',
+            tertiaryColor: '#fbfaf7',
             fontSize: '15px',
           },
         });
@@ -67,7 +71,7 @@ export function loadMermaid(): Promise<void> {
 //
 // Same idea as ftsVersion and filesVersion on the server: a derived thing needs
 // a number that says which version derived it.
-export const MERMAID_REV = 3;
+export const MERMAID_REV = 4;
 
 export interface MermaidResult {
   svg: string;

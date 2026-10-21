@@ -12,7 +12,7 @@ import {
 import { filterSuggestionItems, insertOrUpdateBlockForSlashMenu } from '@blocknote/core';
 import { en as coreEn } from '@blocknote/core/locales';
 import { BlockNoteView } from '@blocknote/mantine';
-import { api } from '../api';
+import { api, ApiError, materializeQuery } from '../api';
 import { toast } from '../toast';
 import type { Backlink, CollectionConfig, Page, PageMeta, PropOption, Revision, User } from '../types';
 import { formatRelative } from '../format';
@@ -24,6 +24,8 @@ import IconPicker from './IconPicker';
 import { PageIcon } from '../pageIcon';
 import { BlockContext, EmbedDepthContext } from '../blockContext';
 import { revealBlock } from '../revealBlock';
+import { exitsDown, exitsStart, focusedKey, focusItem, focusKey, navItem, nothingBefore, useNavRegion } from '../nav';
+import { useShortcut } from '../keys';
 import CollectionView from './CollectionView';
 import { HistoryModal } from './PageHistory';
 import ProposalReviewModal, { PROPOSALS_CHANGED } from './ProposalReviewModal';
@@ -41,7 +43,7 @@ import { AgentPresence } from './AgentBadge';
 import { usePeers, setPeers, clearPeers } from '../presence';
 import { tagColorClass, TAG_PALETTE } from '../tags';
 import { collectTags, suggestTags } from '../tagSuggest';
-import { useMenuDismiss } from '../modal';
+import { modalOpen, useMenuDismiss } from '../modal';
 import { Menu, Star, Lock, LockOpen, Globe, MessageSquare, History, MoreHorizontal, Printer, FileCode, FileText, Upload, AlignLeft, Check, Image as ImageIcon , Smile, PanelRight, Link2, Trash2, FilePlus2, Columns2, Workflow, Rss, GitCompare, Clock3} from 'lucide-react';
 import { blockTypeFor, carriesExternalFiles } from '../dropFiles';
 
@@ -148,6 +150,7 @@ export default function Editor(props: EditorProps) {
     setStructureOpen(on);
     setStructurePanelOpen(on);
     if (on) {
+      arrive();
       setCommentsOpen(false);
       setCommentsPanelOpen(false);
     }
@@ -156,6 +159,7 @@ export default function Editor(props: EditorProps) {
     setCommentsOpen(on);
     setCommentsPanelOpen(on);
     if (on) {
+      arrive();
       setStructureOpen(false);
       setStructurePanelOpen(false);
     } else {
@@ -175,6 +179,49 @@ export default function Editor(props: EditorProps) {
     showComments(true);
     setOpenCommentTarget({ blockId, at: Date.now() });
   };
+
+  // Same rule as the other single letters (see App.tsx): only while nothing is
+  // being typed. A collection has no comment panel, so there it stays a letter.
+  useShortcut({
+    id: 'comments.toggle',
+    keys: ['c'],
+    when: () => !!page && page.type !== 'collection',
+    label: () => t('Comments'),
+    group: () => t('Page'),
+    run: () => {
+      if (modalOpen()) return false;
+      showComments(!commentsOpen);
+    },
+  });
+
+  // A panel the reader just opened slides in. One that is simply still open
+  // when the next page loads does not, or every click in the tree would set
+  // it moving again, so the flag lives here, above the page that remounts.
+  const [arriving, setArriving] = useState(false);
+  const arriveTimer = useRef(0);
+  const arrive = () => {
+    setArriving(true);
+    window.clearTimeout(arriveTimer.current);
+    arriveTimer.current = window.setTimeout(() => setArriving(false), 400);
+  };
+  useEffect(() => () => window.clearTimeout(arriveTimer.current), []);
+
+  // Where the window leaves the document too little room beside a panel (a
+  // sidebar, the notes column and a panel side by side), the panel floats over
+  // the text instead: squeezed, the title had come out one letter per line.
+  // 340 to 460 mirrors --panel-w in styles.css; 440 is the narrowest column
+  // that still reads as text.
+  const [pageEl, setPageEl] = useState<HTMLDivElement | null>(null);
+  const [narrow, setNarrow] = useState(false);
+  useEffect(() => {
+    if (!pageEl) return;
+    const ro = new ResizeObserver(([entry]) => {
+      const panel = Math.min(460, Math.max(340, window.innerWidth * 0.26));
+      setNarrow(entry.contentRect.width - panel < 440);
+    });
+    ro.observe(pageEl);
+    return () => ro.disconnect();
+  }, [pageEl]);
 
   useEffect(() => {
     let alive = true;
@@ -261,8 +308,12 @@ export default function Editor(props: EditorProps) {
   // title and content scroll away together (only the topbar stays fixed).
   return (
     <div
+      ref={setPageEl}
       className={
-        'editor-page' + (structureOpen || (commentsOpen && canComment) ? ' with-structure' : '')
+        'editor-page' +
+        (structureOpen || (commentsOpen && canComment) ? ' with-structure' : '') +
+        (narrow ? ' is-narrow' : '') +
+        (arriving ? ' panel-arriving' : '')
       }
     >
       <PageHeader
@@ -282,6 +333,7 @@ export default function Editor(props: EditorProps) {
             pages={props.pagesById}
             tagColors={props.tagColors}
             onNavigate={props.onNavigate}
+            onOpenInNewTab={props.onOpenInNewTab}
             onPagesChanged={props.onPagesChanged}
           />
         ) : (
@@ -509,7 +561,8 @@ function RowProperties({
     };
     setConfig(next);
     try {
-      await api.putCollection(parentId, next);
+      // The schema alone: this copy of the views is as old as the open page.
+      await api.putCollection(parentId, { schema: next.schema });
     } catch {
       toast(t('Options not saved'));
     }
@@ -657,8 +710,27 @@ function PageHeader({
   const [visibility, setVisibility] = useState(page.visibility);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
+  // The server's shared flag survives navigation; the local states do not, so
+  // they are reset here. shareOff masks a just-revoked link the list still
+  // reports until it reloads.
+  const [shareOff, setShareOff] = useState(false);
   const [shareExpiry, setShareExpiry] = useState(0); // days; 0 = never
   const [sharePassword, setSharePassword] = useState('');
+  // What the link on screen was made with. A changed expiry or password then
+  // offers a new link instead of quietly replacing the one just copied.
+  const [madeWith, setMadeWith] = useState<{ days: number; password: string } | null>(null);
+  const [shareBusy, setShareBusy] = useState(false);
+  useEffect(() => {
+    setShareUrl(null);
+    setShareOff(false);
+    setShareOpen(false);
+    setShareExpiry(0);
+    setSharePassword('');
+    setMadeWith(null);
+  }, [pageId]);
+  const isShared = shareUrl != null || (!!page.shared && !shareOff);
+  const shareSettingsChanged =
+    madeWith != null && (madeWith.days !== shareExpiry || madeWith.password !== sharePassword);
   const [overflowOpen, setOverflowOpen] = useState(false);
   // Dropdowns must close on an outside click / Escape, not just mouse-leave.
   const shareWrapRef = useRef<HTMLDivElement>(null);
@@ -717,6 +789,42 @@ function PageHeader({
   const pendingMeta = useRef<{ title?: string; icon?: string; cover?: string; tags?: string[]; description?: string }>({});
   const bodyRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLTextAreaElement>(null);
+
+  // The document as one region of two items, its title and its text — rendered
+  // by two sibling components that share no state, which is exactly why this
+  // belongs to nav.ts: it moves focus by document order and needs neither of
+  // them to know about the other.
+  //
+  // whileTyping, because both items ARE text surfaces and the arrows would
+  // otherwise never fire here. canLeave is what makes that survivable: the
+  // keystroke goes back to the browser unless the caret sits at the very edge
+  // it is trying to cross.
+  useNavRegion({
+    id: 'content',
+    ref: bodyRef,
+    scope: 'editor',
+    prev: 'sidebar.tree',
+    whileTyping: true,
+    canLeave: (el, dir) => {
+      if (el === titleRef.current) {
+        const ta = titleRef.current;
+        const s = { start: ta.selectionStart, end: ta.selectionEnd, length: ta.value.length };
+        if (dir === 'down') return exitsDown(s);
+        // ← at the start of the title is how you get back to the sidebar,
+        // without a mode or an Escape that would fight the editor's menus.
+        if (dir === 'left') return exitsStart(s);
+        return false;
+      }
+      if (el.dataset.navKey === 'body') {
+        const surface = el.querySelector('[contenteditable="true"]');
+        // Up and left leave by the same edge, the top of the text. Asking the
+        // selection rather than the block model keeps this true inside tables,
+        // columns and nested lists.
+        return !!surface && (dir === 'up' || dir === 'left') && nothingBefore(surface);
+      }
+      return false;
+    },
+  });
 
   // Grow the title to fit its text (any length wraps to as many lines as needed,
   // like Notion) — on every edit and whenever the page (and thus title) changes.
@@ -779,31 +887,58 @@ function PageHeader({
     api.updatePage(pageId, { visibility: next }).catch(() => toast(t('Visibility not saved')));
   };
 
-  const createShare = async (days: number, password: string) => {
+  // One request at a time: two in flight can answer out of order and leave the
+  // address of a link the second one already replaced in the field.
+  const createShare = async () => {
+    if (shareBusy) return;
+    setShareBusy(true);
     try {
-      const res = await api.sharePage(pageId, days, password);
+      const res = await api.sharePage(pageId, shareExpiry, sharePassword);
       // Absolute URL on the external domain when configured; else current origin.
       setShareUrl(res.url.startsWith('http') ? res.url : location.origin + res.url);
+      setMadeWith({ days: shareExpiry, password: sharePassword });
+      setShareOff(false);
+      onPagesChanged();
     } catch {
       toast(t('Sharing failed'));
+    } finally {
+      setShareBusy(false);
     }
   };
 
-  const openShare = async () => {
-    setShareOpen((o) => !o);
-    if (!shareUrl) await createShare(shareExpiry, sharePassword);
-  };
+  // The globe only opens the menu. It used to publish an unshared page on the
+  // spot, so looking at a page's sharing state shared it, and checking whether
+  // Stop sharing had worked published the page again under a fresh link (#68).
+  // A link exists only after Create link or New link. The expiry and the
+  // password apply to the next link and never re-mint one by themselves: that
+  // replaced the address somebody had just copied.
+  const openShare = () => setShareOpen((o) => !o);
 
-  const changeExpiry = async (days: number) => {
-    setShareExpiry(days);
-    // Re-mint the link with the new settings (the server replaces the old token).
-    await createShare(days, sharePassword);
+  // Over plain http there is no clipboard API at all; the field selects itself
+  // on focus for that case.
+  const copyShare = (url: string) => {
+    const clip = navigator.clipboard;
+    if (!clip) return;
+    clip.writeText(url).then(() => toast(t('Copied')), () => {});
   };
 
   const stopShare = async () => {
-    await api.unsharePage(pageId).catch(() => {});
-    setShareUrl(null);
-    setShareOpen(false);
+    if (shareBusy) return;
+    setShareBusy(true);
+    try {
+      await api.unsharePage(pageId);
+      setShareUrl(null);
+      setMadeWith(null);
+      setShareOff(true);
+      setShareOpen(false);
+      onPagesChanged();
+    } catch {
+      // A refused revoke used to look like a successful one: the menu closed and
+      // the marker went away while the link kept working.
+      toast(t('Could not stop sharing'));
+    } finally {
+      setShareBusy(false);
+    }
   };
 
   const saveMeta = (patch: { title?: string; icon?: string; cover?: string; tags?: string[]; description?: string }) => {
@@ -972,7 +1107,7 @@ function PageHeader({
               different and alarming thing to say about a page. */}
           {canComment && (
           <button
-            className={'icon-btn topbar-wide-only' + (commentsOpen ? ' active-star' : '')}
+            className={'icon-btn topbar-wide-only' + (commentsOpen ? ' is-on' : '')}
             title={commentsOpen ? t('Hide comments') : t('Show comments')}
             onClick={() => onToggleComments(!commentsOpen)}
           >
@@ -992,7 +1127,7 @@ function PageHeader({
           )}
           <NotificationBell onNavigate={onNavigate} />
           <button
-            className={'icon-btn' + (structureOpen ? ' active-star' : '')}
+            className={'icon-btn' + (structureOpen ? ' is-on' : '')}
             title={structureOpen ? t('Hide structure') : t('Show structure')}
             onClick={onToggleStructure}
           >
@@ -1007,51 +1142,89 @@ function PageHeader({
           </button>
           <button
             className={'icon-btn topbar-wide-only' + (visibility === 'private' ? ' active-star' : '')}
-            title={visibility === 'private' ? t('Private (only you) — click to share with the workspace') : t('Visible to the workspace — click to make it private')}
+            title={visibility === 'private' ? t('Private (only you): click to share with the workspace') : t('Visible to the workspace: click to make it private')}
             onClick={togglePrivate}
           >
             {visibility === 'private' ? <Lock size={17} /> : <LockOpen size={17} />}
           </button>
           <div className="share-wrap" ref={shareWrapRef}>
-            <button className="icon-btn topbar-wide-only" title={t('Share to web (read-only link)')} onClick={openShare}>
+            <button className={'icon-btn topbar-wide-only' + (isShared ? ' shared-active' : '')} title={isShared ? t('Shared') : t('Share to web (read-only link)')} onClick={openShare}>
               <Globe size={17} />
             </button>
             {shareOpen && (
               <div className="menu share-menu">
-                <div className="share-hint">Anyone with this link can view this page (read-only).</div>
-                <input className="share-input" readOnly value={shareUrl ?? 'Creating…'} onFocus={(e) => e.currentTarget.select()} />
-                <label className="share-expiry">
-                  Expires:
-                  <select
-                    className="prop-select"
-                    value={shareExpiry}
-                    onChange={(e) => void changeExpiry(Number(e.target.value))}
-                  >
-                    <option value={0}>{t('Never')}</option>
-                    <option value={1}>{t('In 1 day')}</option>
-                    <option value={7}>{t('In 7 days')}</option>
-                    <option value={30}>{t('In 30 days')}</option>
-                  </select>
-                </label>
-                <input
-                  className="share-input"
-                  type="password"
-                  placeholder={t('Password (optional)')}
-                  value={sharePassword}
-                  onChange={(e) => setSharePassword(e.target.value)}
-                  onBlur={() => void createShare(shareExpiry, sharePassword)}
-                />
-                <div className="share-actions">
-                  <button
-                    className="btn-sm"
-                    onClick={() => shareUrl && void navigator.clipboard.writeText(shareUrl)}
-                  >
-                    {t('Copy')}
-                  </button>
-                  <button className="btn-sm danger" onClick={stopShare}>
-                    {t('Stop sharing')}
-                  </button>
-                </div>
+                {shareUrl ? (
+                  <>
+                    <div className="share-hint">{t('Anyone with this link can view this page (read-only).')}</div>
+                    <input className="share-input" readOnly value={shareUrl} onFocus={(e) => e.currentTarget.select()} />
+                  </>
+                ) : isShared ? (
+                  <div className="share-hint">
+                    {t('This page is shared publicly. Its address was only shown when the link was made.')}
+                  </div>
+                ) : (
+                  <div className="share-hint">{t('This page is not public. A link lets anyone who has it read the page.')}</div>
+                )}
+                {canEdit ? (
+                  <>
+                    <label className="share-expiry">
+                      {t('Expires:')}
+                      <select
+                        className="prop-select"
+                        value={shareExpiry}
+                        onChange={(e) => setShareExpiry(Number(e.target.value))}
+                      >
+                        <option value={0}>{t('Never')}</option>
+                        <option value={1}>{t('In 1 day')}</option>
+                        <option value={7}>{t('In 7 days')}</option>
+                        <option value={30}>{t('In 30 days')}</option>
+                      </select>
+                    </label>
+                    {/* new-password: a browser must not fill the account's own
+                        password in here. */}
+                    <input
+                      className="share-input"
+                      type="password"
+                      autoComplete="new-password"
+                      placeholder={t('Password (optional)')}
+                      value={sharePassword}
+                      onChange={(e) => setSharePassword(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && (!shareUrl || shareSettingsChanged)) {
+                          e.preventDefault();
+                          void createShare();
+                        }
+                      }}
+                    />
+                    {isShared && (!shareUrl || shareSettingsChanged) && (
+                      <div className="share-hint">{t('A new link stops the old one from working.')}</div>
+                    )}
+                    <div className="share-actions">
+                      {!isShared && (
+                        <button className="btn-sm" disabled={shareBusy} onClick={() => void createShare()}>
+                          {t('Create link')}
+                        </button>
+                      )}
+                      {shareUrl && (
+                        <button className="btn-sm" onClick={() => copyShare(shareUrl)}>
+                          {t('Copy')}
+                        </button>
+                      )}
+                      {isShared && (!shareUrl || shareSettingsChanged) && (
+                        <button className="btn-sm" disabled={shareBusy} onClick={() => void createShare()}>
+                          {t('New link')}
+                        </button>
+                      )}
+                      {isShared && (
+                        <button className="btn-sm danger" disabled={shareBusy} onClick={() => void stopShare()}>
+                          {t('Stop sharing')}
+                        </button>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <div className="share-hint">{t('Only people who can edit this page can share it or stop sharing it.')}</div>
+                )}
               </div>
             )}
           </div>
@@ -1246,7 +1419,7 @@ function PageHeader({
           cover, icon, title, tags and the content leave the screen together —
           only the slim topbar stays. Crucial on mobile, where a static header
           left just a tiny scrolling window. */}
-      <div className={'page-body' + (cover ? ' has-cover' : '')} ref={bodyRef}>
+      <div className={'page-body' + (cover ? ' has-cover' : '')} ref={bodyRef} data-page-id={pageId}>
       {cover && (
         <div className="page-cover" style={coverStyle(cover)}>
           <div className="page-cover-actions">
@@ -1323,6 +1496,7 @@ function PageHeader({
       <div className={'page-head' + (cover ? ' with-cover' : '') + (page.type === 'collection' ? ' page-head--db' : '')}>
         <textarea
           ref={titleRef}
+          {...navItem('title', { keepTabOrder: true })}
           className="page-title"
           value={title}
           placeholder={t('Untitled')}
@@ -1336,7 +1510,9 @@ function PageHeader({
             // (it jumps into the body instead of breaking the title).
             if (e.key === 'Enter') {
               e.preventDefault();
-              bodyRef.current?.querySelector<HTMLElement>('[contenteditable="true"]')?.focus();
+              // The region knows how to focus its own items, including the one
+              // that wraps a ProseMirror rather than being an input.
+              focusKey('content', 'body');
             }
           }}
         />
@@ -1596,6 +1772,7 @@ function CollabEditor({ page, user, theme, canEdit, onReset, ...rest }: CollabPr
   useEffect(() => {
     const p = new DworkspaceProvider(
       page.id,
+      page.docGen ?? null,
       (isNew) => {
         // Seed a brand-new CRDT doc from the page's stored content once.
         if (isNew && Array.isArray(page.content) && page.content.length > 0) {
@@ -1684,9 +1861,9 @@ function BlockContent({
   pagesById,
   tagColors,
   onNavigate,
+  onOpenInNewTab,
   onCreatePage,
   onPagesChanged,
-  onOpenInNewTab,
   structureOpen,
   onAddSectionComment,
   onOpenCommentAt,
@@ -1723,6 +1900,64 @@ function BlockContent({
     uploadFile: (file: File) => api.upload(file, pageId),
     // Column layout: edge-drop cursor + its dictionary entries.
     dictionary: coreEn,
+  });
+
+  // Ctrl+Enter, kept literal (not `mod`) on every platform — ⌘↩ already means
+  // something to plenty of hands from other editors, and borrowing it here
+  // would fight that. Ticks whatever checklist line the cursor is CURRENTLY
+  // inside: BlockNote hands back the whole block, not the run of text under
+  // the caret, so this works from anywhere on the line. With a range selected
+  // across several lines, getSelection() answers instead of the cursor — every
+  // checklist line it touches flips on its own, so a selection with two boxes
+  // ticked and three not does not collapse into one state, it just keeps
+  // flipping each. `when` limits it to the document actually holding focus —
+  // the region has exactly one item ('body') below the title — and `run`
+  // returns false when nothing in reach is a checklist line, so the chord
+  // falls through untouched everywhere else.
+  useShortcut({
+    id: 'checkbox.toggle',
+    keys: ['ctrl+enter'],
+    scope: 'editor',
+    whileTyping: true,
+    when: () => canEdit && focusedKey('content') === 'body',
+    label: () => t('Tick/untick the checkbox'),
+    group: () => t('Page'),
+    run: () => {
+      const selection = editor.getSelection();
+      const blocks = selection ? selection.blocks : [editor.getTextCursorPosition().block];
+      let touched = false;
+      for (const b of blocks) {
+        if (b.type !== 'checkListItem') continue;
+        editor.updateBlock(b, { props: { checked: !b.props.checked } } as never);
+        touched = true;
+      }
+      if (!touched) return false;
+    },
+  });
+
+  // Alt+↑/↓, not Mod+Shift+↑/↓ (BlockNote's own default for the same move —
+  // still there underneath, just not what anyone's hand reaches for first).
+  // moveBlocksUp/Down act on the selection when there is one and the cursor's
+  // own block otherwise, so this needs no lookup of its own.
+  useShortcut({
+    id: 'block.moveUp',
+    keys: ['alt+arrowup'],
+    scope: 'editor',
+    whileTyping: true,
+    when: () => canEdit && focusedKey('content') === 'body',
+    label: () => t('Move block up'),
+    group: () => t('Page'),
+    run: () => editor.moveBlocksUp(),
+  });
+  useShortcut({
+    id: 'block.moveDown',
+    keys: ['alt+arrowdown'],
+    scope: 'editor',
+    whileTyping: true,
+    when: () => canEdit && focusedKey('content') === 'body',
+    label: () => t('Move block down'),
+    group: () => t('Page'),
+    run: () => editor.moveBlocksDown(),
   });
 
   const [preview, setPreview] = useState<{ name: string; url: string } | null>(null);
@@ -1916,14 +2151,32 @@ function BlockContent({
         icon: <span>📑</span>,
         onItemClick: () => insertOrUpdateBlockForSlashMenu(editor, { type: 'toc' } as never),
       },
+      {
+        title: t('Sub-pages'),
+        subtext: t('List of pages below this one'),
+        aliases: ['subpages', 'unterseiten', 'children', 'sub-pages'], // i18n-ok: search aliases, deliberately multilingual so a German user can type it
+        group: 'Basic blocks',
+        icon: <span>📄</span>,
+        onItemClick: () => insertOrUpdateBlockForSlashMenu(editor, { type: 'subpages' } as never),
+      },
     ];
-    return filterSuggestionItems(
+    const matches = filterSuggestionItems(
       [
         ...getDefaultReactSlashMenuItems(editor),
         ...custom,
       ],
       query,
     );
+    // The menu keys headings by group. Repeated, non-adjacent groups create
+    // duplicate React keys and leave stale headings behind when filtering.
+    // Keep each group contiguous, with the first occurrence defining its order.
+    const groups = new Map<string | undefined, typeof matches>();
+    for (const item of matches) {
+      const group = groups.get(item.group);
+      if (group) group.push(item);
+      else groups.set(item.group, [item]);
+    }
+    return [...groups.values()].flat();
   };
 
   // Page-link menu (shared by the "@" mention trigger and the "[[" wiki-link
@@ -2007,10 +2260,37 @@ function BlockContent({
     ...buildPersonItems(query),
     ...(await buildLinkItems(query)),
   ];
-  // Wiki-links: the trigger is "[" (BlockNote uses single-char triggers), so the
-  // text after it starts with a second "[" when the user types "[[". We strip
-  // stray brackets ("[[Page]]") before matching.
-  const getWikiItems = (raw: string) => buildLinkItems(raw.replace(/^\[+/, '').replace(/\]+$/, ''));
+  // Wiki-links: the trigger is "[", and BlockNote has no real concept of a
+  // two-character one — passing it "[[" never fires on ordinary typing,
+  // since its match compares the WHOLE trigger string against (n trailing
+  // characters already in the doc) + (the character just typed), which is
+  // always one character too long to equal an n-character trigger.
+  //
+  // So "[[" is two separate triggers of the same one-character kind. The
+  // first opens a menu with an empty query; typing the second "[" re-matches
+  // the same trigger, and BlockNote's reaction to a trigger firing while one
+  // is already open is to close the old menu and start a completely fresh
+  // one anchored right after this new "[" — it does not extend the query
+  // with the character, so the menu's query is only ever what comes after
+  // the LAST "[" typed. Selecting an item then deletes just that: the second
+  // "[" and the query text, leaving the first "[" sitting untouched right
+  // before wherever the item's own onItemClick inserts things.
+  //
+  // Deleting it here — once, before the item does its own thing — is
+  // cheaper than fighting the plugin for a query that spans both brackets.
+  const getWikiItems = async (raw: string) => {
+    const items = await buildLinkItems(raw);
+    return items.map((item) => ({
+      ...item,
+      onItemClick: () => {
+        editor.transact((tr) => {
+          const pos = tr.selection.from;
+          if (pos > 0 && tr.doc.textBetween(pos - 1, pos) === '[') tr.delete(pos - 1, pos);
+        });
+        item.onItemClick();
+      },
+    }));
+  };
 
   // Seed initial content into an empty shared doc exactly once. If seeding
   // throws (e.g. a block shape BlockNote rejects), we must NOT enter the
@@ -2039,22 +2319,40 @@ function BlockContent({
   useEffect(() => {
     const flush = (keepalive: boolean) => {
       if (seedFailed.current || !dirty.current) return;
+      // The document was replaced from outside the editor (an agent's rewrite,
+      // a restore, an import): this copy is of the old one. The 4001 that says
+      // so is also what unmounts us, so this is the flush that used to put the
+      // old text back over the new (#79). Named by its generation, the server
+      // refuses it and keeps it in the page history; a server that sends no
+      // generation would write it, so then it is dropped.
+      if (provider.replacedDoc && provider.gen === null) {
+        dirty.current = false;
+        return;
+      }
       const doc = editor.document;
       // Guard against clobbering stored content with an accidentally-empty doc.
       if (hadContent && isEffectivelyEmpty(doc)) return;
       dirty.current = false;
+      // Named so the server can refuse a copy of a replaced document even when
+      // the 4001 never reached this tab (server/docgen.go).
+      const opts = { materialize: true, gen: provider.gen, replaced: provider.replacedDoc };
       if (keepalive) {
         // Unmount (e.g. following a link chip): a normal fetch would be
         // cancelled, so use keepalive to guarantee the write — otherwise the
         // just-inserted @-mention's backlink would never be recorded.
-        void fetch(`/api/pages/${provider.pageId}?materialize=1`, {
+        void fetch(`/api/pages/${provider.pageId}${materializeQuery(opts)}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ content: doc }),
           keepalive: true,
         });
       } else {
-        api.updatePage(provider.pageId, { content: doc }, { materialize: true }).catch(() => {
+        api.updatePage(provider.pageId, { content: doc }, opts).catch((e: unknown) => {
+          if (e instanceof ApiError && e.code === 'doc_replaced') {
+            // Replaced while our socket was down: reload onto the new document.
+            provider.replaced();
+            return;
+          }
           dirty.current = true; // retry on next change / unmount flush
           toast(t('Page content not saved'));
         });
@@ -2197,7 +2495,7 @@ function BlockContent({
   }, [dropping]);
 
   return (
-    <div className="editor-scroll" ref={scrollRef}>
+    <div className="editor-scroll" ref={scrollRef} {...navItem('body', { keepTabOrder: true })}>
       {dropping && (
         <div className="drop-hint" aria-hidden>
           <FilePlus2 size={18} />
@@ -2209,7 +2507,7 @@ function BlockContent({
             not reach the page list, the tag colours or navigation. */}
         <div className="comment-marker-anchor" ref={markerAnchorRef}>
         <BlockContext.Provider
-          value={{ pagesById, tagColors, onNavigate, onPagesChanged, onOpenInNewTab }}
+          value={{ pagesById, tagColors, onNavigate, onOpenInNewTab, onPagesChanged, pageId: provider.pageId }}
         >
         {/* The page being read counts as an ancestor of everything in it, so a
             page that embeds ITSELF is caught at the first hop rather than after

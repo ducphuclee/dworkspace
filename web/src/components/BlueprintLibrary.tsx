@@ -134,7 +134,7 @@ export default function BlueprintLibrary({
                 <Library size={18} /> {t('Start with a ready-made workspace')}
               </h2>
               <p className="dialog-hint">
-                {t('Each one brings its databases, views and house rules — and no data. You fill it.')}
+                {t('Each one brings its databases, views and house rules, and no data. You fill it.')}
               </p>
 
               <div className="lib-body" ref={bodyRef}>
@@ -217,7 +217,7 @@ export default function BlueprintLibrary({
                   </p>
                 )}
                 {choice.kind === 'empty' && (
-                  <p className="dialog-hint">{t('No databases, no rules — a blank workspace.')}</p>
+                  <p className="dialog-hint">{t('No databases, no rules: a blank workspace.')}</p>
                 )}
               </div>
 

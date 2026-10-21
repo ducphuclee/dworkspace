@@ -2,7 +2,7 @@
 
 A **property** is a typed field on a [collection](collections.md). Every row of
 that collection has a slot for it, and every [view](views.md) of that collection
-can show it or hide it, and — with the exceptions noted below — filter and sort
+can show it or hide it, and (with the exceptions noted below) filter and sort
 by it. There are thirteen types. Ten store a value; three are computed every
 time a row is read and never written down.
 
@@ -16,7 +16,7 @@ both sides.
    dialog is titled **Collection properties**.
 2. Type a name into **New property name**, choose a type from the list beside
    it, and click **Add**. The property appears at the bottom of the list.
-3. Fill in whatever the type needs — a select needs options, a relation needs
+3. Fill in whatever the type needs: a select needs options, a relation needs
    **Links to**, a rollup needs four answers. Those fields appear under the
    property as soon as you pick the type.
 4. Click **Save**. Nothing is written until you do; **Cancel** discards the lot.
@@ -34,7 +34,7 @@ press Enter, and clicking an option's chip opens the nine-colour palette
 Remove a property with the ✕ at the end of its row (**Delete property**). **The
 values stay in the rows too.** Add a property with the same name again and the
 old values are visible again, because the id is derived from the name. This is
-deliberate — an accidental deletion is curable.
+deliberate: an accidental deletion is curable.
 
 Removing a property also cleans up after itself in the views: a filter, a sort
 or a hidden-column entry that pointed at it is dropped, a board that grouped by
@@ -49,7 +49,7 @@ dropdown in the bar above the timeline.
 ## Names and ids
 
 Every property has a **name** and an **id**. People see the name. Everything
-written down — a stored value, a filter, a formula reference, an MCP call — uses
+written down (a stored value, a filter, a formula reference, an MCP call) uses
 the id.
 
 The id is made from the name when the property is created and then never
@@ -62,7 +62,7 @@ digit into a hyphen. An agent's `update_schema` keeps letters and digits, turns
 spaces, hyphens and underscores into hyphens, **drops** everything else, and
 spells German umlauts out. So a property named "Größe" gets the id `gr-e` when a
 person adds it in the dialog and `groesse` when an agent adds it. Colliding ids
-get an underscore in the dialog and a number over MCP. Never assume an id —
+get an underscore in the dialog and a number over MCP. Never assume an id;
 read it from `get_collection`.
 
 Select options work the same way: each has an id, a name and a colour, and the
@@ -87,9 +87,9 @@ id, every type and every option id.
 | [url](#url) | URL | a link |
 | [person](#person) | Person | one person |
 | [relation](#relation) | Relation | a list of row ids |
-| [backrelation](#backrelation) | Backrelation | nothing — computed |
-| [rollup](#rollup) | Rollup | nothing — computed |
-| [formula](#formula) | Formula | nothing — computed |
+| [backrelation](#backrelation) | Backrelation | nothing (computed) |
+| [rollup](#rollup) | Rollup | nothing (computed) |
+| [formula](#formula) | Formula | nothing (computed) |
 
 ## Stored types
 
@@ -100,7 +100,7 @@ or click away to save.
 
 **Filters** with is, is not, contains, is empty, is not empty. **Sorts** the way
 the active language sorts words, ignoring case and accents, and a number inside
-the text compares as a number — so "Room 2" comes before "Room 10". Because
+the text compares as a number, so "Room 2" comes before "Room 10". Because
 accents are ignored rather than ordered, "Ander" and "Änder" compare as equal
 and land next to each other in no fixed order.
 
@@ -109,7 +109,7 @@ it goes. An email address, a phone number or a postcode-and-town line becomes a
 small icon in the card's bottom row: on a card those say "this exists", and the
 value itself is in the tooltip. An IPv4 address such as `192.0.2.40` stays a
 labelled line, because the digits are the whole point of it. Anything else
-becomes a note — one paragraph clamped to two lines, and only the first such
+becomes a note: one paragraph clamped to two lines, and only the first such
 property gets that treatment.
 
 ### number
@@ -122,7 +122,7 @@ defaults to 100. A bar or a ring shows the figure beside it and turns back into
 a plain input when you click it. Its tooltip reads the value and the maximum,
 which is the only place the configured Max can be seen while reading.
 
-**Filters** with is, is not, >, <, is empty, is not empty — but use > and <
+**Filters** with is, is not, >, <, is empty, is not empty, but use > and <
 rather than an exact is, which matches nothing (see
 [Filtering](#filtering-sorting-and-hiding)). **Sorts** numerically. In a table
 the column footer shows the sum of the column, marked with a Σ.
@@ -140,8 +140,20 @@ does not exist yet and an entry appears offering to create it on the spot, or
 click the ⋯ beside an option to recolour it (nine named colours, Gray through
 Red) or delete it. Choosing the option that is already set clears the cell.
 
+In **Properties**, click an option chip to edit its **Option name**. Names update in the dialog as you type. Blank names and names already used by another
+option are not accepted. Drag an option chip before or after another chip to change its position in
+pickers and board columns (or focus it and press Alt + Left/Right); the red **Delete option** trash icon asks for confirmation before removing its definition. Colours
+are available in the same panel. Names, colours and option order stay local until **Save**; **Cancel** discards
+them. Escape closes the option panel. Invalid names are not applied. The panel starts at its original 150px width and expands
+for longer names, within the viewport. This also works for multi-select options.
+
+Renaming and reordering preserve option ids, row selections and filters.
+Deleting in Properties keeps existing row values; references to a deleted
+option appear as stray ids, as described below. Reordering does not change
+sorting by stored option id.
+
 Deleting an option here removes it from the collection's schema and clears it
-from the row you are on — **but not from other rows**. Those cells keep the id
+from the row you are on, **but not from other rows**. Those cells keep the id
 and show it in grey, which is how a stray `in-progress` sometimes appears on
 screen. On a board they collect in the catch-all column.
 
@@ -154,7 +166,7 @@ select is still reachable: it is invisible until you hover the card, so a status
 can be set without opening the row.
 
 A board groups by a select by default: one column per option, plus a catch-all
-column named "No " and the property's name — "No Status" — which also collects
+column named "No " and the property's name ("No Status"), which also collects
 every row whose value points at an option that no longer exists, so no card can
 get lost.
 
@@ -170,7 +182,7 @@ contains that option. **Sorts** by the ids joined together, which is rarely
 what you want.
 
 **On a board card** each option is a chip. An empty multi-select behaves like an
-empty select — invisible until you hover the card, editable there. A board can
+empty select: invisible until you hover the card, editable there. A board can
 group by a multi-select, and then a row with two options appears as a card in
 both columns.
 
@@ -182,11 +194,11 @@ arrive from an import or from an agent, and is shown when it is there.
 
 **A date is never converted between time zones.** A deadline on the 18th is the
 18th for a reader in Auckland and for one in Los Angeles. This is deliberate and
-pinned by tests — converting it moves it, and a contract then expires a day
+pinned by tests: converting it moves it, and a contract then expires a day
 early. It is also why the date is shown in the reader's regional format but not
 in their zone. See [Language and time](language-and-time.md).
 
-**Dates carry urgency where they are read rather than edited** — on a board
+**Dates carry urgency where they are read rather than edited**, on a board
 card, on a gallery card, and anywhere the row is read-only: a date in the past
 is drawn in bold orange, today and tomorrow in bold amber, everything else
 quietly. A cell you can type into is a plain date picker and shows no colour at
@@ -209,7 +221,7 @@ dropped as noise. The same goes for a lone number called "Number" or `Zahl`.
 True or false. The cell is a checkbox; click it.
 
 **Filters** with is, is not, is empty, is not empty, and the value is offered as
-**Checked** or **Unchecked** — though "is" matches nothing either way (see
+**Checked** or **Unchecked**, though "is" matches nothing either way (see
 [Filtering](#filtering-sorting-and-hiding)), so narrow with "is not" instead:
 "is not Checked" gives you the unfinished rows.
 
@@ -226,21 +238,21 @@ done" is worth seeing.
 ### checklist
 
 A list of sub-tasks, each with its own text and its own tick. One property, many
-boxes — for the case where a row has a handful of steps that do not deserve a
+boxes: for the case where a row has a handful of steps that do not deserve a
 collection of their own.
 
 A filled cell shows a progress bar with a percentage; the tooltip says how many
 of how many. An empty one reads **+ Sub-task**, so there is always something to
 click. Inside: tick items, type over their text, press Enter or click
 **Sub-task** to add the next one, use the bin to remove one, and click **Done**
-to close. Empty items are kept while the list is open — you have to be able to
-type into a fresh one — and dropped when you close it. Items with no text never
+to close. Empty items are kept while the list is open (you have to be able to
+type into a fresh one) and dropped when you close it. Items with no text never
 count towards the percentage.
 
 The progress is derived from the ticks. There is no stored percentage to keep in
 step, which is the whole reason this is a type and not a convention.
 
-**Filters** with is, is not, is empty, is not empty, against a typed value —
+**Filters** with is, is not, is empty, is not empty, against a typed value,
 which is of limited use, since the stored value is a list of objects. **Sorts**
 by the same raw value.
 
@@ -250,15 +262,15 @@ checklist cannot be filled in on a [form](forms.md).
 ### url
 
 A link, **stored exactly as typed**. An address with no scheme is opened as
-`https://` anyway — the scheme is added to the link and to the shortened label,
+`https://` anyway: the scheme is added to the link and to the shortened label,
 never to the value in the row.
 
 The cell shows a link chip with only the host, `www.` removed, and the full
 address in the tooltip. Clicking opens it in a new tab without opening the row
 behind it.
 
-**A URL cell cannot be typed into.** It renders as a link everywhere — in a
-table, on a card, on the row's own page — and it is not offered on a
+**A URL cell cannot be typed into.** It renders as a link everywhere (in a
+table, on a card, on the row's own page), and it is not offered on a
 [form](forms.md) either, so the only ways to fill one in are an agent or the
 API, or switching the property to Text, typing the address, and switching it
 back (values survive a type change).
@@ -267,14 +279,14 @@ back (values survive a type change).
 text.
 
 **On a board card** it is a link icon in the bottom row, next to the other
-contact icons — on a card a full address is noise.
+contact icons: on a card a full address is noise.
 
 ### person
 
-One person: an account, or a name typed for somebody without one.
+One person, or several: an account, or a name typed for somebody without one.
 
-Click the cell — an empty one reads **＋ Person** so there is always something to
-hit — and pick a colleague from the list, or type a name and take it as it
+Click the cell (an empty one reads **＋ Person** so there is always something to
+hit) and pick a colleague from the list, or type a name and take it as it
 stands. Enter takes the single remaining match, or, if there is none, the text
 as typed, so somebody without an account can be entered without touching the
 mouse. **Remove** at the foot of the list clears the cell.
@@ -286,8 +298,17 @@ unrecognised value stays readable text rather than disappearing.
 The list holds the members of every workspace this browser can see. It is
 fetched once and shared by every cell on the page.
 
+Two settings in **Properties** change that. **Several people** lets a cell hold
+more than one: the list stays open, each pick adds or removes a tick, and the
+cell shows the faces side by side. Below it, ticking people narrows the list to
+them, so a "Creative team" property offers only the creative team; nobody
+ticked means everybody, and with a list set, a name outside it cannot be typed
+in either. Switching between one and several keeps what the rows already hold: a single
+person reads as a list of one, and a row holding several keeps showing all of
+them until somebody picks one person for it.
+
 **Filters** with is, is not, contains, is empty, is not empty. **Sorts** by what
-is stored — an id for somebody with an account, the typed text otherwise — so
+is stored (an id for somebody with an account, the typed text otherwise), so
 sorting a person column will not put people in alphabetical order.
 
 **On a board card** people do not get a line of their own. Every person property
@@ -297,7 +318,7 @@ and the names are in the tooltip. Three faces are shown, the rest become "+2".
 
 ### relation
 
-A pointer at rows in another collection — or in the same one.
+A pointer at rows in another collection, or in the same one.
 
 Click the cell (**＋ Link** when empty) and pick rows by title; the picker
 searches the target collection and shows each row's icon. Picking again removes
@@ -306,7 +327,7 @@ up to 500 rows of the target collection and searches within those, so a row
 beyond that cannot be linked from here.
 
 Two things it can do beyond linking. A board can **group by** a relation, giving
-one column per row of the target collection — one column per customer, per
+one column per row of the target collection: one column per customer, per
 system, per project. And a table can use a relation that points at its *own*
 collection as a **sub-item** relation, which draws the rows as a collapsible
 tree.
@@ -315,13 +336,13 @@ tree.
 per target row where the value is *used*: a [rollup](#rollup) over the relation
 and a [backrelation](#backrelation) both skip rows you are not allowed to read,
 so neither can reveal that such a row exists. The chips themselves are a
-different matter — an id the picker cannot resolve is drawn as a chip reading
+different matter: an id the picker cannot resolve is drawn as a chip reading
 "Untitled" rather than being hidden, and that is what you see for a row you may
 not read, for a row that has been deleted, and for a target beyond the picker's
 500.
 
 **Filters** with is, is not, is empty, is not empty, and the value is picked
-from a list of row titles rather than typed — filtering by a 32-character id was
+from a list of row titles rather than typed: filtering by a 32-character id was
 possible in theory and unusable in practice. **Sorts** by the stored ids.
 
 **On a board card** each linked row is a chip carrying its icon and title. On a
@@ -334,7 +355,7 @@ More in [Relations and rollups](relations-and-rollups.md).
 
 These three hold no data. They are worked out by the server every time rows are
 read, in this order: **backrelation, then rollup, then formula.** The order is
-load-bearing — each one can build on the one before.
+load-bearing: each one can build on the one before.
 
 Because the rows are chosen in the database *before* the values exist, computed
 properties behave differently from stored ones in two places.
@@ -356,7 +377,7 @@ zero. Everything else has to be aimed at the stored properties the computation
 reads.
 
 **Sorting by one works in a view but not over `query_rows`**, for the same
-reason — the interface re-sorts once the values are there, the tool does not.
+reason: the interface re-sorts once the values are there, the tool does not.
 
 ### backrelation
 
@@ -366,7 +387,7 @@ there point at me?" and it stores nothing at all.
 It needs two answers, both in the property's own configuration: **Rows from**
 (the collection that points here) and **That point here via** (which of that
 collection's relation properties does the pointing). The second dropdown only
-lists relations, and only after the first is chosen — a collection can hold
+lists relations, and only after the first is chosen. A collection can hold
 several relations back to yours, and picking the wrong one silently lists the
 wrong rows. A backrelation missing either half is an empty column, not an error,
 which is why an agent that omits one is refused outright.
@@ -375,7 +396,7 @@ Nothing is stored because a stored reverse side means keeping two lists in step
 on every write from both directions, and the first missed update leaves them
 disagreeing with no way to tell which is right.
 
-It reads exactly like a relation — the same chips, the same titles — but it is
+It reads exactly like a relation (the same chips, the same titles), but it is
 never editable: you change it by changing the relation that produces it.
 Permission is checked per row, so a row you may not read is left out.
 
@@ -397,13 +418,13 @@ changes it over MCP.
 The time comes from the row's own last-changed stamp, which every write path
 sets. The
 name comes from the newest entry in the activity log for that row, and is simply
-left out when nothing was logged — a guess would be worse than a gap.
+left out when nothing was logged: a guess would be worse than a gap.
 
 Read-only, like a rollup or a formula. Setting it does nothing.
 
 ### rollup
 
-Aggregates a property across the rows a relation — or a backrelation — points
+Aggregates a property across the rows a relation (or a backrelation) points
 at. Four answers configure it:
 
 | Field | Means |
@@ -431,20 +452,20 @@ related rows, then is, is not, contains, is empty or is not empty, then a value.
 For a select the value is offered as its options, because the comparison is
 against the stored option id and typing the label yields a silent zero. For
 **is** and **is not** you may tick *several* options: "open" is neither done nor
-discarded, and one comparison cannot say that — an "is not done" that forgets
+discarded, and one comparison cannot say that. An "is not done" that forgets
 the discarded rows overstates the work left by exactly the amount nobody
 notices.
 
-Point the condition at a property that holds one value — a select, a checkbox, a
+Point the condition at a property that holds one value: a select, a checkbox, a
 date, a number, a text field. On a **multi-select** the whole list is compared
 as one piece of text, so "is" and "is not" never match an entry, and "is empty"
 never matches even a multi-select that has been emptied, because an emptied list
-is still something rather than nothing. Only **contains** is usable there — it
+is still something rather than nothing. Only **contains** is usable there: it
 finds an option inside the list.
 
 **Percent** exists so that a progress bar needs no arithmetic: set Calculate to
-Percent, set a condition, set **Display** to Progress bar. The alternative — two
-rollups and a formula that divides — puts a division-by-zero message in the
+Percent, set a condition, set **Display** to Progress bar. The alternative, two
+rollups and a formula that divides, puts a division-by-zero message in the
 column of every newly created row, because zero of zero related rows is a
 perfectly ordinary state.
 
@@ -482,7 +503,7 @@ Three behaviours worth knowing:
   id does not produce an error; it produces a wrong number quietly. Copy the
   references out of the dialog instead of typing them.
 
-A bad expression — a division by zero, an unbalanced bracket, a circle — shows
+A bad expression (a division by zero, an unbalanced bracket, a circle) shows
 in the cell as a short warning beginning with a warning sign, in place of the
 number. Like a number, a formula can be displayed as a bar or a ring.
 
@@ -493,7 +514,7 @@ More in [Formulas](formulas.md).
 ## Filtering, sorting and hiding
 
 The bar above the rows carries these controls, and each one belongs to the
-**current view only** — filtering the board does not touch the table. A view of
+**current view only**: filtering the board does not touch the table. A view of
 type `form` has no Filter, Sort or Group control at all; it can only hide
 columns.
 
@@ -519,7 +540,7 @@ columns.
 - **Columns** shows every property under **Shown** or **Hidden** with its type
   icon; clicking one moves it between the two, and **Hide all** / **Show all**
   do the obvious. A hidden property is dropped from every renderer of that view
-  — table columns, cards, list lines, the form — but keeps its values, and the
+  (table columns, cards, list lines, the form) but keeps its values, and the
   row's own page still shows it.
 
 Two view-specific dropdowns sit in the same bar. Above a **table** that has a
@@ -532,7 +553,7 @@ bars run between; leaving the end unset draws one-day bars.
 
 A table with rows in it ends in a calculation row. The first cell counts the
 rows. Under a number, a rollup or a formula column stands **Σ** and the sum of
-that column. Under every other column stands how many cells are filled — an
+that column. Under every other column stands how many cells are filled: an
 empty list, an empty string and an unticked box all count as unfilled.
 
 ## What a board card shows
@@ -569,7 +590,7 @@ Four rules on top of the zones:
   an empty multi-select.
 
 Beyond reading, a card can be acted on. Drag it to another column to set the
-grouping property. The ⋯ in its corner — or a right-click anywhere on the card —
+grouping property. The ⋯ in its corner (or a right-click anywhere on the card)
 opens a menu with **Open**, a **Move to** list naming every column the card is
 not already in, and **Move to trash**. And the **＋ New** button at the foot of a
 column creates a row that already carries that column's value, which is how a
@@ -582,7 +603,7 @@ Agents read and write the same properties, by id.
 
 | Tool | Does |
 | --- | --- |
-| `get_collection` | the full schema and views — call this first, always |
+| `get_collection` | the full schema and views; call this first, always |
 | `update_schema` | add or change properties; merges, so unmentioned ones are untouched |
 | `set_properties` | set values on one row; merges per property, `null` clears one |
 | `create_rows` | up to 200 rows in one call, each with its properties |
@@ -598,7 +619,7 @@ spelling used to fail quietly:
   way, so an agent that writes with a name can search with it too.
 - **A single value written to a list-shaped property is wrapped in a list.**
   `{"system": "abc"}` is stored as `["abc"]`. Writing it unwrapped used to look
-  correct — the row still grouped and still filtered — while every backrelation
+  correct (the row still grouped and still filtered), while every backrelation
   and rollup passed straight over it.
 
 Options may be written the short way, `["To do", "Done"]`, or with colours,
@@ -607,3 +628,11 @@ Options may be written the short way, `["To do", "Done"]`, or with colours,
 A type an agent invents is refused with the list of the thirteen, and a
 backrelation missing either of its two coordinates is refused as well. See
 [Agents](agents.md) and [MCP tools](mcp-tools.md).
+
+## Reordering properties
+
+In **Collection properties**, drag a property's grip above or below another
+property, then choose **Save**. **Cancel** discards the new order. This order is
+shared by the collection's views, while each view keeps its hidden fields,
+filters, and sorting. Reordering does not change property IDs, options, or row
+values.

@@ -1,7 +1,7 @@
 # Collections
 
-A **collection** is a page whose child pages are its rows. It carries a schema —
-the typed properties every row can hold — and a set of views that decide how
+A **collection** is a page whose child pages are its rows. It carries a schema (the
+typed properties every row can hold) and a set of views that decide how
 those rows are drawn: a table, a board, a calendar, a form. The interface calls
 it a Collection. Agents connected over MCP call the same object a **database**,
 and both words are permanent; the last section of this page says why.
@@ -21,13 +21,13 @@ Three things, and nothing else:
   read on screen.
 - **Rows.** Ordinary pages whose parent is the collection. Their property values
   live on the row itself.
-- **Views.** Saved configurations — type, filters, sort, hidden columns, what a
+- **Views.** Saved configurations: type, filters, sort, hidden columns, what a
   board groups by. A collection always has at least one; the last one cannot be
   deleted.
 
 A collection page has no body text of its own. Where a document has an editor,
 a collection has its table. That is also why the collection page carries no
-comment button and no raw note trail — a row has both, the collection itself
+comment button and no raw note trail; a row has both, the collection itself
 does not. It does keep an icon, a cover, a description and tags, like any page.
 
 ## Creating one
@@ -37,7 +37,7 @@ In the interface there are three ways to create one:
 1. **The `+` on the Collections section** in the sidebar (tooltip
    *New collection*). Creates one at the top level of the current workspace.
    This section only exists while the sidebar keeps documents and collections
-   apart — see [Nesting](#nesting).
+   apart. See [Nesting](#nesting).
 2. **The `+` beside any page** in the sidebar, then **Collection** in the little
    menu that opens (the other entry is **Page**). Creates it inside that page.
 3. **Right-click a page** (or its `⋯`) and choose **New collection inside**.
@@ -51,7 +51,7 @@ Whichever route you take, a new collection starts with:
 
 - one property, **Status**, a select with the options **To do**, **In progress**
   and **Done**;
-- two views, **Board** (grouped by Status) and **Table**, in that order — so the
+- two views, **Board** (grouped by Status) and **Table**, in that order, so the
   board is what opens first.
 
 Over MCP, `create_database` takes an optional schema in place of that default
@@ -73,7 +73,7 @@ Two things about that call are easy to get wrong:
 - **The two views are always the same two, whatever schema you pass**, and the
   board still groups by the property id `status`. Give your schema a select
   property that slugs to `status`, or repoint the board with `set_view`
-  afterwards — otherwise the new database opens on a board saying
+  afterwards; otherwise the new database opens on a board saying
   *This board needs a Select property to group by.* with no rows on it.
 - **Without a `parent_id`, pass `workspace_id`.** With neither, the database is
   created in your first workspace and nothing on screen says which one that was.
@@ -100,21 +100,22 @@ Two consequences that surprise people:
 
 **Bare rows are not in the sidebar tree.** A collection can hold tens of
 thousands of rows, and putting them all in the page list would flood every
-listing. A row *does* appear once it has a live sub-page — otherwise that
+listing. A row *does* appear once it has a live sub-page; otherwise that
 sub-page would hang in the tree with no visible parent. Expanding a collection
 in the sidebar loads up to 50 rows on demand and shows them there.
 
 **A private row is invisible to everyone else.** The lock in the page header
-works on rows too. The row list applies it: a row set to private is filtered out
-of the table, the board and the count for every other member. Workspace admins
-still see everything. See [Permissions](permissions.md).
+works on rows too. A row set to private is filtered out of the table, the board
+and the count for every other member, and just as much out of the Markdown
+export, the calendar feed, `get_page` for agents and a published collection.
+Workspace admins still see everything. See [Permissions](permissions.md).
 
 ### The property panel on a row
 
 Open a row and its properties sit between the title and the body, one per line:
 the property name on the left, the value on the right. The panel shows **every**
 property in the schema, including ones hidden in the view you came from, and
-including the empty ones — this is the place to fill a field in rather than hunt
+including the empty ones; this is the place to fill a field in rather than hunt
 for its column.
 
 The cells are the same editors the table uses, so they behave the same way:
@@ -133,13 +134,13 @@ right, the settings for the view you are on.
 | --- | --- |
 | View tabs | Switch views. **Double-click** a tab to rename it. |
 | `+` (Add view) | Menu: **Table**, **Board**, **Gallery**, **Calendar**, **Timeline**, **List**, **Form**. The new view is named after its type and opens straight away. |
-| **Start:** / **End:** | Timeline only — which date property draws the bars. Leaving End empty gives one-day bars. |
+| **Start:** / **End:** | Timeline only: which date property draws the bars. Leaving End empty gives one-day bars. |
 | Sub-item picker | Table only, and only when a relation points back at this same collection. Choosing it draws the table as a tree; **No sub-items** turns it off. |
 | **Filter** | Conditions on properties, ANDed. The button shows the count. |
 | **Sort** | One property, **Ascending** or **Descending**, or **No sort**. |
-| **Group** | Board only — which property makes the columns. |
+| **Group** | Board only: which property makes the columns. |
 | **Columns** | Show and hide properties. Two lists, **Shown** and **Hidden**, with **Hide all** and **Show all**. The button reads **Columns**, and `Columns (4/7)` once something is hidden. |
-| **Properties** | Opens the schema dialog — see below. |
+| **Properties** | Opens the schema dialog (see below). |
 | `⋯` (View options) | **Rename view**, **Move left**, **Move right**, **Remove view**. The arrows grey out at the ends; with only one view left the menu offers nothing but **Rename view**. |
 | **New** | Creates a row and opens it. |
 
@@ -170,7 +171,7 @@ offered depends on the type:
 
 The value box adapts too. A select or multi-select offers its options, a
 checkbox offers **Checked** / **Unchecked**, and a relation offers the titles of
-the rows it points at — you never have to type an id. Anything else is a free
+the rows it points at; you never have to type an id. Anything else is a free
 text box.
 
 Filtering and sorting happen in the database first: a collection with fifty
@@ -185,7 +186,7 @@ title, use [Search](search.md).
 ### What the table adds
 
 The first column is always **Name** and links to the row. After it comes one
-column per visible property, editable in place — except **rollup**, **formula**
+column per visible property, editable in place, except **rollup**, **formula**
 and **backrelation** columns. Those are computed on the server and always read
 as text; a backrelation is edited from the side that owns the relation.
 
@@ -195,35 +196,35 @@ columns) or how many cells are filled.
 
 With a sub-item relation chosen, rows nest: a row that points at other rows in
 the same collection gets a `▾` to fold them away. A relation cycle cannot loop
-the display — each branch remembers what it has already drawn.
+the display: each branch remembers what it has already drawn.
 
 ### What the board adds
 
 One column per option of the grouping property, plus a catch-all column named
-**No _<property>_** that collects rows with no value — and rows whose value
+**No _<property>_** that collects rows with no value, and rows whose value
 refers to an option that has since been deleted, so no card is ever lost. Each
 column heading carries the option's colour and the number of cards in it.
 
 Cards move by dragging, which works with a mouse and with a finger. Each card
 also has a `⋯` (and answers a right-click) with **Open**, a **Move to** list of
-every other column, and **Move to trash** — which asks first and is reversible
+every other column, and **Move to trash**, which asks first and is reversible
 from [Trash](trash-and-recovery.md).
 
 A card shows a fixed set of zones rather than every property in schema order:
 
-1. **Chips** — select, multi-select and relation values, coloured.
-2. **Facts** — numbers, dates, checkboxes, checklists, rollups and formulas,
+1. **Chips**: select, multi-select and relation values, coloured.
+2. **Facts**: numbers, dates, checkboxes, checklists, rollups and formulas,
    each with its field name in front of it, because a bare "55" or a second
    date means nothing.
 3. **One text note**, clamped to a few lines.
-4. **Contact icons** — an email, a phone number, a postal line or a URL
+4. **Contact icons**: an email, a phone number, a postal line or a URL
    property becomes an icon with the value in its tooltip. An IP address is
    treated as a fact instead, so the digits stay on screen.
 5. **People**, collected into a single stack of faces in the card's top-right
    corner and deduplicated across every person property, so the same colleague
    never appears twice.
 
-A **backrelation never appears on a card at all** — on a system row it would be
+A **backrelation never appears on a card at all**: on a system row it would be
 every task pointing at it, which is useful in a table and far too much here.
 Everything else that does not fit is counted, not dropped: a card prints one
 text note and up to eight facts, and the rest becomes **+3 more**, which opens
@@ -237,7 +238,7 @@ outside. Open comments show as a small speech bubble with their count, and a
 coloured dot marks a row an agent is working on right now.
 
 Grouping by a **relation** turns the rows of the other collection into the
-columns — one column per customer, per system, per whatever the rows point at.
+columns: one column per customer, per system, per whatever the rows point at.
 
 If the grouping property is missing, the board says
 *This board needs a Select property to group by. Open ⚙ Properties to add one.*
@@ -250,7 +251,7 @@ and the description under it are text boxes you type into, and they are what a
 visitor reads. Above them sits a strip: **Share publicly** mints a public link,
 after which it reads **Public** and offers **Copy link** and **Revoke**, with
 the link itself in a box you can select. Anybody holding that link can add a row
-without an account — see [Forms](forms.md) and [Sharing](sharing.md).
+without an account. See [Forms](forms.md) and [Sharing](sharing.md).
 
 The fields are the visible properties, with the row title first and always
 required. Only seven types can be filled in: text, number, select,
@@ -275,20 +276,20 @@ Some types ask for more, right under the property:
 
 | Type | What it asks |
 | --- | --- |
-| Number, Rollup, Formula | **Display**: Number, Progress bar or Ring — plus **Max (= 100%)** for the last two |
-| Relation | **Links to** — which collection |
-| Backrelation | **Rows from** — the collection that points here — and **That point here via** — which of its relation properties |
-| Rollup | **Via relation**, **Of property**, **Calculate** (Sum, Count, Average, Min, Max, Percent) and **Only rows where** — an optional condition with is / is not / contains / is empty / is not empty |
+| Number, Rollup, Formula | **Display**: Number, Progress bar or Ring, plus **Max (= 100%)** for the last two |
+| Relation | **Links to**: which collection |
+| Backrelation | **Rows from** (the collection that points here) and **That point here via** (which of its relation properties) |
+| Rollup | **Via relation**, **Of property**, **Calculate** (Sum, Count, Average, Min, Max, Percent) and **Only rows where** (an optional condition with is / is not / contains / is empty / is not empty) |
 | Formula | **Expression**, with the available `{id}` tokens listed underneath |
 
 A rollup's condition can name **several** options at once. With *is* or *is not*
 on a select or multi-select, the value box turns into a row of option chips and
-you tick as many as apply — which is how "open" gets expressed at all, as
+you tick as many as apply, which is how "open" gets expressed at all, as
 *status is not Done and not Discarded*. Tick exactly one and it is stored as a
 single value, the same as before.
 
 Select and multi-select properties show their options as coloured chips.
-Clicking a chip opens the colour picker — that is where a board column's colour
+Clicking a chip opens the colour picker; that is where a board column's colour
 comes from. The `+ Option` box adds one when you press Enter.
 
 Three things about editing a schema that are worth knowing before you do it:
@@ -311,7 +312,7 @@ Agents change the schema with `update_schema`, which **merges**: properties you
 do not mention stay untouched, an id you pass changes that property, and one
 without an id is added. Passing property ids in that call's `remove_properties`
 list takes them away. This is deliberately different from the interface's Save,
-which writes the whole schema at once — an agent adding one column should not
+which writes the whole schema at once: an agent adding one column should not
 delete the rest by omission.
 
 One trap in the merge: a property sent without an id gets one derived from its
@@ -326,7 +327,7 @@ something.
 A collection can sit at the top level, under a document, or inside another
 collection; and a row can have sub-pages, which can themselves be collections.
 The `⋯` menu on any page offers **New collection inside**, and **Move to top
-level** for anything that has a parent — which is the way back out for a
+level** for anything that has a parent, which is the way back out for a
 collection you dragged somewhere.
 
 How the sidebar draws all this is a workspace setting, under **Layout** → *How
@@ -339,18 +340,18 @@ the sidebar is arranged*:
 - **One tree, filed where you put it.** One section, called *Pages*, holding
   both. A collection stays under the document it belongs to. Right for
   documentation. There is no Collections section in this mode, and therefore no
-  `+` on one — create collections from a page's `+` or its `⋯` menu instead.
+  `+` on one. Create collections from a page's `+` or its `⋯` menu instead.
 
 A collection nested **inside another collection** is not one of its rows: it
 keeps its own chevron and its full menu, so it can always be moved back out.
-Pages that live under a row — a dossier under a deal — belong to that
+Pages that live under a row (a dossier under a deal) belong to that
 collection's subtree and are found by expanding the row.
 
 ## Collections inside documents
 
 A collection can be **embedded** in a document's body: type `/` and choose
 **Embed a collection**, then search for it by name. What you get is fully usable
-in place — filter it, add rows, drag cards — with the document's own text above
+in place (filter it, add rows, drag cards), with the document's own text above
 and below it. The heading of the block opens it as its own page
 (**Open as page ↗**).
 
@@ -373,14 +374,14 @@ See [Editor blocks](editor-blocks.md) for the other block types.
 | Source | How |
 | --- | --- |
 | By hand | **New**, or **＋ New** in a board column |
-| A public form | a `form` view, shared as a link — see [Forms](forms.md) |
-| A Notion export (`.zip`) | each CSV in it becomes a **new** collection — see [Import and export](import-export.md) |
+| A public form | a `form` view, shared as a link (see [Forms](forms.md)) |
+| A Notion export (`.zip`) | each CSV in it becomes a **new** collection (see [Import and export](import-export.md)) |
 | An agent | `create_rows`, up to 200 rows per call |
 | A JSON API | `import_url`, which fetches and writes on the server |
 
 The import row is narrower than it looks, and worth spelling out: nothing in
 the interface fills the collection you are looking at from a file. The `⋯` menu
-on a page offers **Import (.md / .zip)**, which takes Markdown or an archive —
+on a page offers **Import (.md / .zip)**, which takes Markdown or an archive;
 a Markdown file imported there becomes a page at the **top level**, not a page
 inside whatever you had open. **Import workspace…** in the workspace settings
 takes a `.zip` only. A CSV is read solely as part of a Notion export archive,
@@ -390,7 +391,7 @@ and it creates a collection rather than adding rows to one.
 through the agent's context. It returns a job id to poll with
 `get_import_status`.
 
-## Collection or database — the two words
+## Collection or database: the two words
 
 The interface says **Collection** everywhere: the sidebar section, the create
 menus, the properties dialog. It covers table, board, calendar and gallery
@@ -400,8 +401,8 @@ The MCP surface says **database**: `create_database`, `embed_database`, and the
 `database_id` argument. Renaming those would break every agent configuration
 already in the wild, and an agent reads a schema, not marketing.
 
-They are the same object. `get_collection` — the tool that hands an agent a
-database's schema and its view ids — is named for both halves of that history,
+They are the same object. `get_collection` (the tool that hands an agent a
+database's schema and its view ids) is named for both halves of that history,
 and is the call to make before writing anything, because property values are
 stored under **ids**, not names.
 
@@ -418,7 +419,7 @@ stored under **ids**, not names.
 
 Two of them behave in a way worth knowing before the first call:
 
-- **`query_rows` filters, sorts and paginates on the server** — the same
+- **`query_rows` filters, sorts and paginates on the server**: the same
   conditions the toolbar offers (`is`, `is_not`, `contains`, `gt`, `lt`,
   `between`, `is_empty`, `is_not_empty`), ANDed, with `sort` spelled
   `propertyId:asc`. `is` / `is_not` take a set through `values`, `between` takes
@@ -439,11 +440,11 @@ Collections section.
 
 ## Where to go next
 
-- [Properties](properties.md) — all thirteen types, and what each one stores
-- [Views](views.md) — table, board, gallery, calendar, timeline, list, form
-- [Relations and rollups](relations-and-rollups.md) — pointing at other
+- [Properties](properties.md): all thirteen types, and what each one stores
+- [Views](views.md): table, board, gallery, calendar, timeline, list, form
+- [Relations and rollups](relations-and-rollups.md): pointing at other
   collections, and counting what points back
-- [Formulas](formulas.md) — arithmetic across a row's own properties
-- [Forms](forms.md) — a collection view anybody can fill in without an account
-- [Templates](templates.md) and [Library](library.md) — starting from something
+- [Formulas](formulas.md): arithmetic across a row's own properties
+- [Forms](forms.md): a collection view anybody can fill in without an account
+- [Templates](templates.md) and [Library](library.md): starting from something
   instead of from nothing

@@ -129,14 +129,14 @@ func (s *Server) handleMailOAuthCallback(w http.ResponseWriter, r *http.Request)
 	}
 	c, err := r.Cookie(mailOauthCookie)
 	if err != nil {
-		fail("mail_oauth_expired", "Expired — please connect again.")
+		fail("mail_oauth_expired", "Expired. Please connect again.")
 		return
 	}
 	raw, err := base64.RawURLEncoding.DecodeString(c.Value)
 	var tx oauthTx
 	if err != nil || json.Unmarshal(raw, &tx) != nil || tx.Provider != pname ||
 		tx.Exp < time.Now().Unix() || tx.State == "" || tx.State != r.URL.Query().Get("state") {
-		fail("mail_oauth_bad_state", "Could not be verified — please connect again.")
+		fail("mail_oauth_bad_state", "Could not be verified. Please connect again.")
 		return
 	}
 	code := r.URL.Query().Get("code")
@@ -178,7 +178,7 @@ func (s *Server) handleMailOAuthCallback(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	if tok.RefreshToken == "" {
-		fail("mail_oauth_no_refresh", "No refresh token received — remove the access in your account settings and connect again.")
+		fail("mail_oauth_no_refresh", "No refresh token received. Remove the access in your account settings and connect again.")
 		return
 	}
 	email, _, _ := parseIDToken(tok.IDToken)
@@ -257,7 +257,7 @@ func (s *Server) refreshedAccessToken(provider string) (string, error) {
 		if msg == "" {
 			msg = tok.Error
 		}
-		return "", coded("mail_refresh_failed", "The connection to the mailbox has expired — connect it again.", msg)
+		return "", coded("mail_refresh_failed", "The connection to the mailbox has expired. Connect it again.", msg)
 	}
 	// Microsoft rotates refresh tokens — keep the new one.
 	if tok.RefreshToken != "" && tok.RefreshToken != refresh {

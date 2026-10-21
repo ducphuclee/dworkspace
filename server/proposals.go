@@ -982,12 +982,12 @@ func (s *Server) applyProposedEditTx(tx *sql.Tx, u *user, p pageChangeProposal, 
 		return err
 	}
 	if legacyHash {
-		if _, err := tx.Exec(`UPDATE pages SET title = ?, content = ?, updated_at = ? WHERE id = ?`, p.ProposedTitle, string(p.ProposedContent), ts, pageID); err != nil {
+		if _, err := tx.Exec(`UPDATE pages SET title = ?, content = ?, updated_at = ?, `+bumpDocGen+` WHERE id = ?`, p.ProposedTitle, string(p.ProposedContent), ts, pageID); err != nil {
 			return err
 		}
 		return nil
 	}
-	if _, err := tx.Exec(`UPDATE pages SET title = ?, content = ?, updated_at = ?, icon = ?, cover = ?, description = ?, tags = ?, props = ? WHERE id = ?`, p.ProposedTitle, string(p.ProposedContent), ts, p.ProposedIcon, p.ProposedCover, p.ProposedDesc, string(normalizeTags(p.ProposedTags)), string(p.ProposedProps), pageID); err != nil {
+	if _, err := tx.Exec(`UPDATE pages SET title = ?, content = ?, updated_at = ?, icon = ?, cover = ?, description = ?, tags = ?, props = ?, `+bumpDocGen+` WHERE id = ?`, p.ProposedTitle, string(p.ProposedContent), ts, p.ProposedIcon, p.ProposedCover, p.ProposedDesc, string(normalizeTags(p.ProposedTags)), string(p.ProposedProps), pageID); err != nil {
 		return err
 	}
 	return nil

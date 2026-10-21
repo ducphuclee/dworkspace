@@ -353,6 +353,17 @@ button {
   text-overflow: ellipsis;
 }
 
+/* A live public link on the page. Muted, not accent: sharing is a state to
+   notice, not an action calling for attention — and it must never read as a
+   second icon-button next to the row's real actions. */
+.tree-shared {
+  display: inline-flex;
+  align-items: center;
+  color: var(--muted);
+  flex-shrink: 0;
+  margin-left: 4px;
+}
+
 .tree-actions {
   display: none;
   align-items: center;
@@ -452,6 +463,23 @@ button {
 .menu-item svg {
   color: var(--muted);
   flex: none;
+}
+
+/* A shortcut shown next to the action it performs. Pushed to the right edge and
+   quiet: it is a reminder for the next time, not a second label competing with
+   the first. Empty when the action is not bound here, and an empty <kbd> must
+   take no room — hence the :empty rule. */
+.menu-chord {
+  margin-left: auto;
+  padding-left: 12px;
+  font-family: inherit;
+  font-size: 11.5px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.menu-chord:empty {
+  display: none;
 }
 
 /* ---- Page tags (Welle 25/28) ---- */
@@ -708,6 +736,119 @@ button {
   color: var(--danger);
 }
 
+/* Open, the trash has a search field and two lines per entry; at the closed
+   height only three entries would fit. */
+.trash-section.open {
+  max-height: 340px;
+}
+
+.trash-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 2px 4px 6px;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--muted);
+}
+
+.trash-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--fg);
+  outline: none;
+}
+
+/* The entry itself opens the preview. It is a button like the two beside it,
+   so it has to shed their 20px square. */
+.trash-item .trash-peek {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+  height: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  text-align: left;
+  color: inherit;
+  background: none;
+}
+
+.trash-item .trash-peek:hover {
+  background: none;
+}
+
+.trash-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.trash-text .tree-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trash-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.trash-empty {
+  padding: 4px 10px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.trash-preview-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.trash-preview-head .dialog-hint {
+  margin: 0;
+}
+
+.trash-preview-head h2 {
+  margin: 2px 0 4px;
+}
+
+.trash-preview-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* White in either theme: the page is shown as a sheet of paper, the way its
+   export and its print view show it. */
+.trash-preview-frame {
+  display: block;
+  width: 100%;
+  height: min(60vh, 560px);
+  margin-top: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+}
+
 .sidebar-footer {
   border-top: 1px solid var(--border);
   padding: 8px;
@@ -912,6 +1053,23 @@ button {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+/* The picker belongs on top. Over a cover the icon row sticks, and a sticky
+   row with a z-index is a stacking context of its own (7): the editor's
+   floating side menu, the + and the drag handle, sat above the whole row,
+   picker included. Raised while the picker is open, with and without a cover;
+   the second selector has to outweigh the sticky rule's, which comes later. */
+.page-body .page-icon-row:has(.icon-picker),
+.page-body.has-cover .page-icon-row:has(.page-icon):has(.icon-picker) {
+  z-index: 100;
+}
+
+/* And the editor behind it holds still. Its side menu follows the pointer by
+   position, under the picker as much as anywhere else, and reacted to every
+   move across the icons. */
+body:has(.icon-picker) .bn-side-menu {
+  visibility: hidden;
 }
 
 .icon-picker-tabs {
@@ -2789,11 +2947,32 @@ button {
   min-height: max(320px, calc(100dvh - var(--topbar-h) - 108px));
   overscroll-behavior-x: contain;
 }
-/* Ein in ein Dokument eingebettetes Board (Notion-Stil) steht MITTEN im Text —
-   dort waere fast volle Fensterhoehe absurd. Es bekommt eine bescheidene
-   Mindesthoehe zurueck. */
+/* A board embedded in a document (Notion style) stands in the MIDDLE of the
+   text, where almost the full window height would be absurd. It gets a modest
+   minimum height back. It needs a max-height too: .bn-db-embed is an ordinary
+   block, not a flex ancestor with a defined height, so .board-col
+   { max-height: 100% } otherwise resolves against NOTHING. The column grew with
+   every card, and the button for a new one ended up below the screen instead
+   of the column scrolling itself. */
 .bn-db-embed .board {
   min-height: 240px;
+  max-height: min(560px, 70vh);
+}
+
+/* An embed is a window onto the rows, not a second copy of the collection
+   (#22): its toolbar keeps to filter, sort and New, and steps back until the
+   pointer comes to the embed. Only where there IS a pointer (on a touch screen
+   nothing would ever bring it back), and never while a filter of the embed's
+   own is on: rows quietly missing from a table are worse than a toolbar. */
+@media (hover: hover) {
+  .collection-scroll.is-embed:not(.is-filtered) .collection-actions {
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+  .bn-db-embed:hover .collection-scroll.is-embed .collection-actions,
+  .bn-db-embed:focus-within .collection-scroll.is-embed .collection-actions {
+    opacity: 1;
+  }
 }
 
 /* Widened from 272px. At that width a normal task title broke after three or
@@ -2857,9 +3036,20 @@ button {
 .board-col-head {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
   padding: 4px 6px 8px;
   flex: 0 0 auto;
+}
+
+/* Chip + count stay grouped on the left; the add button sits on its own at
+   the right end of the row, pushed there by .board-col-head's
+   justify-content: space-between. */
+.board-col-head-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
 }
 
 .board-chip {
@@ -3102,12 +3292,16 @@ button {
   order: 1;
 }
 
+/* Icon-only, sitting in .board-col-head next to the status chip — not the
+   full-width "+ New" label it used to be at the bottom of the column. */
 .board-add {
-  padding: 7px;
-  border-radius: 7px;
-  font-size: 12.5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 4px;
+  border-radius: 6px;
   color: var(--muted);
-  text-align: left;
 }
 
 .board-add:hover {
@@ -3663,6 +3857,36 @@ body.is-col-resizing {
   align-items: stretch;
 }
 
+/* A person property's settings (#11): a tick for "several", and the people who
+   may be picked, as a short wrapping list of ticks. The general label rule
+   above is for captions; these labels are the controls themselves. */
+.schema-person {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.schema-config .schema-person-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--fg);
+}
+
+.schema-person-pool {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 14px;
+}
+
+.schema-person-hint {
+  flex-basis: 100%;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
 .formula-input {
   width: 100%;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -3973,6 +4197,19 @@ body.is-col-resizing {
   }
 }
 
+/* Keyboard navigation (nav.ts): the focused row.
+   An inset outline rather than the offset one below — a row is as wide as the
+   sidebar, so a ring drawn 2px OUTSIDE it is clipped on both sides and reads as
+   two vertical bars. `:focus-visible`, not `:focus`: these rows carry a
+   tabindex now, so a plain click focuses them too, and nobody wants a ring
+   round something they just clicked. */
+
+.tree-item:focus-visible,
+.tree-db-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
 /* Accessibility: visible keyboard focus (many controls set outline:none) */
 
 :focus-visible {
@@ -4100,10 +4337,24 @@ body.is-col-resizing {
   gap: 10px;
   align-items: flex-start;
   width: 100%;
-  background: var(--accent-soft);
+  background: #f1f1ef;
   border-radius: 10px;
   padding: 12px 14px;
 }
+
+/* The icon determines the tone; no separate color is stored in the document. */
+.bn-callout[data-tone='warning'] { background: #fff3bf; }
+.bn-callout[data-tone='danger'] { background: #fde2e2; }
+.bn-callout[data-tone='success'] { background: #e1f3e5; }
+.bn-callout[data-tone='amber'] { background: #ffe8bd; }
+.bn-callout[data-tone='info'] { background: #e0f0ff; }
+
+[data-theme='dark'] .bn-callout { background: #2c2c2a; }
+[data-theme='dark'] .bn-callout[data-tone='warning'] { background: #40391f; }
+[data-theme='dark'] .bn-callout[data-tone='danger'] { background: #442827; }
+[data-theme='dark'] .bn-callout[data-tone='success'] { background: #243c2c; }
+[data-theme='dark'] .bn-callout[data-tone='amber'] { background: #44321f; }
+[data-theme='dark'] .bn-callout[data-tone='info'] { background: #243747; }
 
 .bn-callout-emoji {
   border: none;
@@ -4160,6 +4411,12 @@ body.is-col-resizing {
 
 .bn-toc-entry:hover {
   background: var(--hover);
+}
+
+.bn-subpages .bn-toc-entry {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .bn-bookmark-input {
@@ -4238,6 +4495,25 @@ body.is-col-resizing {
   max-height: 60vh;
   overflow-y: auto;
   padding-right: 4px;
+}
+
+/* Agent keys from listed addresses only (Access tab). An address list is read
+   column by column, so it is set in the monospace face the config blocks use. */
+.prop-input.agent-addresses {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  resize: vertical;
+  /* The settings body is a scrolling flex column; without this the box was
+     squeezed to one clipped line. */
+  flex-shrink: 0;
+  min-height: 7em;
+}
+
+.agent-addresses-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
 }
 
 /* ---------- Instanz-Einstellungen (W36) ---------- */
@@ -4910,6 +5186,11 @@ body.is-col-resizing {
 
 .icon-btn.active-star {
   color: #e0a91b;
+}
+
+/* The share button while the page carries a live public link. */
+.icon-btn.shared-active {
+  color: var(--accent);
 }
 
 /* ---------- Page cover ---------- */
@@ -5710,6 +5991,7 @@ body.is-col-resizing {
 
 .share-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
   justify-content: flex-end;
 }
@@ -7056,13 +7338,16 @@ a.btn {
   flex: none;
 }
 
-/* Six shelves do not fit a narrow window; the row scrolls instead of wrapping
-   into two, which would push the table down on every visit. */
-@media (max-width: 900px) {
-  .index-modes {
-    max-width: 100%;
-    overflow-x: auto;
-  }
+/* Seven shelves do not fit a narrow pane; the row scrolls instead of wrapping
+   into two, which would push the table down on every visit. It used to do so
+   only below 900px of WINDOW, but what runs out is the pane: a sidebar beside a
+   1100px window leaves the library less room than that, and the last tabs ran
+   off the right edge (#19). */
+.index-modes {
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
 }
 
 .index-mode-count {
@@ -8521,12 +8806,6 @@ a,
    editing the first one silently did nothing. That is the whole reason the
    board stayed cramped: the numbers being read were not the numbers being
    changed. */
-
-/* The "New" button stays pinned to the end of the column. */
-.board-add {
-  flex: 0 0 auto;
-  margin-top: 6px;
-}
 
 /* Both lines, always — and the exception that had to go.
 
@@ -11071,8 +11350,18 @@ body:has(.live-down) .update-banner {
   padding: 10px 12px;
   border: 1px solid var(--border, #e3e2df);
   border-radius: 8px;
-  background: var(--code-bg, #f5f5f4);
-  color: inherit;
+  /* Was --code-bg, a variable nothing ever defined — it always fell back to
+     the light literal, so the box stayed white in dark mode while its text
+     (inherited) turned dark-theme-light-grey: light-on-light, unreadable.
+     --card is themed for both modes, same as every other textarea here (see
+     .cp-compose textarea). */
+  background: var(--card);
+  color: var(--fg);
+  caret-color: var(--fg);
+}
+.bn-mermaid-src::placeholder {
+  color: var(--muted);
+  opacity: 0.7;
 }
 .bn-mermaid-hint {
   margin: 5px 2px 0;
@@ -12190,3 +12479,175 @@ body:has(.live-down) .update-banner {
 .bn-page-embed-body [contenteditable='false'] {
   caret-color: transparent;
 }
+
+/* ---------- Installed app: pull to refresh, and the sync button ---------- */
+
+/* The dial that follows your finger down. Fixed rather than in the flow, so it
+   floats over whatever is on screen and moves nothing while you drag. Sits
+   below the status bar in a full-screen app window. */
+.ptr {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 6px);
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 400;
+}
+
+.ptr-dial {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--card);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  color: var(--accent);
+}
+
+.ptr-spin {
+  animation: ptr-turn 0.9s linear infinite;
+}
+
+@keyframes ptr-turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ptr-spin {
+    animation-duration: 2.4s;
+  }
+}
+
+/* Only ever rendered in an installed desktop window — see SyncButton. */
+.sync-btn:disabled {
+  opacity: 1; /* it is working, not unavailable */
+  color: var(--accent);
+}
+
+.schema-drag-handle {
+  display: flex;
+  flex-shrink: 0;
+  padding: 4px;
+  cursor: grab;
+  color: var(--muted);
+}
+
+.schema-drag-handle:active { cursor: grabbing; }
+.schema-dragging { opacity: 0.5; }
+.schema-drop-before { box-shadow: 0 -2px 0 var(--accent); }
+.schema-drop-after { box-shadow: 0 2px 0 var(--accent); }
+.schema-row > .prop-input { min-width: 0; }
+
+@media (max-width: 480px) {
+  .schema-item .schema-row {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) 24px;
+  }
+  .schema-item .schema-row > .prop-input { grid-column: 2 / -1; }
+  .schema-item .schema-type-select { grid-column: 2; width: 100%; }
+  .schema-item .schema-row > .danger { grid-column: 3; }
+}
+
+.schema-options { position: relative; }
+.schema-option-editor .select-rename { display: flex; gap: 6px; padding: 4px 0 8px; }
+.schema-option-editor .select-rename button { padding: 4px 6px; border-radius: 6px; }
+.schema-option-editor .select-rename button:hover:not(:disabled) { background: var(--hover); }
+.schema-option-backdrop { position: fixed; inset: 0; z-index: 900; }
+.schema-option-editor { position: fixed; z-index: 901; min-width: 0; overflow-y: auto; overscroll-behavior: contain; }
+.schema-option-editor .select-rename .prop-input { min-width: 0; width: 0; flex: 1; border: 1px solid var(--border); }
+.schema-option-editor button:disabled { opacity: 0.5; cursor: default; }
+
+.draggable-option { cursor: grab; }
+.draggable-option:active { cursor: grabbing; }
+.option-dragging { opacity: 0.4; }
+.option-drop-before { box-shadow: -3px 0 0 0 var(--accent); }
+.option-drop-after { box-shadow: 3px 0 0 0 var(--accent); }
+
+.schema-option-editor .select-rename .danger { color: var(--danger, #d44b40); }
+
+/* ---- The shortcut sheet (?) ----
+ *
+ * Two columns, label left and chord right, because the eye scans one column at
+ * a time: looking for "what cuts a row" reads the labels, looking up "what does
+ * ⌘K do" reads the chords. A single run-on line makes both searches slower.
+ */
+.shortcut-sheet {
+  width: min(520px, 92vw);
+  max-height: 80vh;
+  overflow-y: auto;
+  padding: 20px 22px 24px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+}
+
+.shortcut-sheet-head h2 {
+  margin: 0 0 4px;
+  font-size: 16px;
+}
+
+.shortcut-sheet-empty {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.shortcut-group {
+  margin-top: 18px;
+}
+
+.shortcut-group h3 {
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.shortcut-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.shortcut-row:last-child {
+  border-bottom: none;
+}
+
+.shortcut-label {
+  font-size: 14px;
+}
+
+/* A chord is a fixed-width thing: proportional digits and letters make ⌃⌥→ and
+ * Ctrl+Alt+→ jitter against each other down the column. */
+.shortcut-keys {
+  flex: none;
+  font-family: var(--mono, ui-monospace, monospace);
+  font-size: 12px;
+  color: var(--muted);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 2px 7px;
+  white-space: nowrap;
+}
+
+/* A URL cell edits in place; opening the destination is a separate target. */
+.prop-url-value { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.prop-url-edit { flex: 1; min-width: 0; border: 0; background: transparent; padding: 3px 0; text-align: left; cursor: text; font: inherit; }
+.prop-url-edit span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.prop-url-open { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 24px; height: 24px; color: var(--muted); border-radius: 4px; }
+.prop-url-open:hover { color: var(--accent); background: var(--hover); }
+.prop-url-value :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }

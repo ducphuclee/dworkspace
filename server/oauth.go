@@ -208,14 +208,14 @@ func (s *Server) handleOAuthCallback(w http.ResponseWriter, r *http.Request) {
 
 	c, err := r.Cookie(oauthCookie)
 	if err != nil {
-		loginErrorRedirect(w, r, "oauth_expired", "Sign-in expired — please try again.")
+		loginErrorRedirect(w, r, "oauth_expired", "Sign-in expired. Please try again.")
 		return
 	}
 	raw, err := base64.RawURLEncoding.DecodeString(c.Value)
 	var tx oauthTx
 	if err != nil || json.Unmarshal(raw, &tx) != nil || tx.Provider != pname ||
 		tx.Exp < time.Now().Unix() || tx.State == "" || tx.State != r.URL.Query().Get("state") {
-		loginErrorRedirect(w, r, "oauth_bad_state", "Sign-in could not be verified — please try again.")
+		loginErrorRedirect(w, r, "oauth_bad_state", "Sign-in could not be verified. Please try again.")
 		return
 	}
 
@@ -376,10 +376,10 @@ func (s *Server) oauthCreateUser(email, name string) (string, error) {
 		// erlaubt
 	case "domain":
 		if !s.domainAllowsSelfSignup(email) {
-			return "", fmt.Errorf("this email address may not register here — ask an admin for an invitation")
+			return "", fmt.Errorf("this email address may not register here. Ask an admin for an invitation")
 		}
 	default:
-		return "", fmt.Errorf("no account for %s — registration here is by invitation", email)
+		return "", fmt.Errorf("no account for %s: registration here is by invitation", email)
 	}
 	if name = strings.TrimSpace(name); name == "" {
 		name = strings.SplitN(email, "@", 2)[0]

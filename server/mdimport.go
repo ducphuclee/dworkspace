@@ -360,7 +360,7 @@ func (s *Server) appendMarkdownToPage(pageID, md string) error {
 	if err != nil {
 		return err
 	}
-	if _, err := tx.Exec(`UPDATE pages SET content = ?, updated_at = ? WHERE id = ?`, string(merged), now(), pageID); err != nil {
+	if _, err := tx.Exec(`UPDATE pages SET content = ?, updated_at = ?, `+bumpDocGen+` WHERE id = ?`, string(merged), now(), pageID); err != nil {
 		return err
 	}
 	if err := tx.Commit(); err != nil {

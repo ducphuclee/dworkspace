@@ -14,7 +14,6 @@ func (s *Server) handleListFavorites(w http.ResponseWriter, r *http.Request) {
 		httpError(w, 500, err.Error())
 		return
 	}
-	userID := requestUser(r).ID
 	var cand []string
 	for rows.Next() {
 		var id string
@@ -29,7 +28,7 @@ func (s *Server) handleListFavorites(w http.ResponseWriter, r *http.Request) {
 	// Filter after draining (single DB connection — see handleSearch).
 	ids := []string{}
 	for _, id := range cand {
-		if s.canRead(userID, id) {
+		if s.canReadReq(r, id) {
 			ids = append(ids, id)
 		}
 	}
@@ -39,7 +38,7 @@ func (s *Server) handleListFavorites(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleAddFavorite(w http.ResponseWriter, r *http.Request) {
 	pageID := r.PathValue("id")
 	userID := requestUser(r).ID
-	if !s.canRead(userID, pageID) {
+	if !s.canReadReq(r, pageID) {
 		httpError(w, 404, "page not found")
 		return
 	}

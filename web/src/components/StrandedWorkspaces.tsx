@@ -44,7 +44,7 @@ export default function StrandedWorkspaces({ onClose, onChanged }: { onClose: ()
   const adopt = async (w: Stranded) => {
     try {
       await api.adoptWorkspace(w.id);
-      toast(t('Adopted “{name}” — it is in your list now.', { name: w.name }));
+      toast(t('Adopted “{name}”. It is in your list now.', { name: w.name }));
       load();
       onChanged();
     } catch (e) {
@@ -78,13 +78,13 @@ export default function StrandedWorkspaces({ onClose, onChanged }: { onClose: ()
           <h2>{t('Workspaces with nobody in charge')}</h2>
           <p className="dialog-hint">
             {t(
-              'These are workspaces nobody can look after any more. With no members left at all you can adopt or delete them. Where members remain, only someone in charge is missing — appoint one of them in user management.',
+              'These are workspaces nobody can look after any more. With no members left at all you can adopt or delete them. Where members remain, only someone in charge is missing. Appoint one of them in user management.',
             )}
           </p>
           {error && <div className="login-error">{error}</div>}
           {list === null && <div className="dialog-hint">{t('Loading…')}</div>}
           {list?.length === 0 && (
-            <div className="dialog-hint">{t('All clear — every workspace has someone in charge.')}</div>
+            <div className="dialog-hint">{t('All clear: every workspace has someone in charge.')}</div>
           )}
           {list && list.length > 0 && (
             <div className="bg-list">
@@ -109,7 +109,7 @@ export default function StrandedWorkspaces({ onClose, onChanged }: { onClose: ()
                     <span className="dialog-hint">{t('Still has members: make one of them an admin.')}</span>
                   )}
                   {w.deletable && w.personal && (
-                    <span className="dialog-hint">{t('Orphaned personal space — clean up only, do not open.')}</span>
+                    <span className="dialog-hint">{t('Orphaned personal space: clean up only, do not open.')}</span>
                   )}
                 </div>
               ))}

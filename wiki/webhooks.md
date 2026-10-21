@@ -7,7 +7,7 @@ and n8n need to start a scenario, and it is what a script on your own server
 needs to react to a page without polling.
 
 Webhooks are instance configuration, not content. Only an instance admin can add
-or remove one, and only from a signed-in browser — an [API token](api.md) cannot
+or remove one, and only from a signed-in browser: an [API token](api.md) cannot
 reach them whatever its scope. A hook is instance-wide: it is not attached to a
 workspace and it fires for pages in every workspace on the instance.
 
@@ -27,11 +27,11 @@ workspace and it fires for pages in every workspace on the instance.
 ![Outbound webhooks. The signing secret is shown once, when the webhook is created.](img/admin-webhooks.png)
 
 The button stays disabled until there is an address and at least one event
-ticked. If the address is rejected, the reason appears above the button —
+ticked. If the address is rejected, the reason appears above the button:
 *that does not look like a URL*, *a webhook URL has to start with https:// or
 http://*, *the URL has no host*, or *that URL is too long*.
 
-Under **Configured**, a fresh instance shows *Nothing yet — nobody is being
+Under **Configured**, a fresh instance shows *Nothing yet. Nobody is being
 called.* until the first hook exists.
 
 Adding and removing a webhook is written to the [audit log](history-and-audit.md)
@@ -48,12 +48,12 @@ page.trashed.* Compare the `events` field of the answer against what you sent.
 
 As soon as the hook is created, a box appears:
 
-> **Copy this secret now — it is shown only once.**
+> **Copy this secret now. It is shown only once.**
 >
 > Your receiver uses it to check that a message really came from us. We send it
 > as a signature in the X-Dworkspace-Signature header.
 
-Below it sits the secret — 64 hexadecimal characters — and a button labelled
+Below it sits the secret (64 hexadecimal characters) and a button labelled
 **I have it**, which dismisses the box.
 
 Copy it before you dismiss it. The secret is write-only through the interface
@@ -63,7 +63,7 @@ the new one gets a new secret, and your receiver has to be updated.
 
 It is **not** hashed the way an [API token](api.md) is. A token is stored as a
 hash and cannot be recovered by anybody, but a webhook secret has to stay usable
-— the server computes the signature with it on every delivery — so it sits in
+(the server computes the signature with it on every delivery), so it sits in
 the database as it is. An instance backup (the owner's **Download backup
 (.tar.gz)** in Instance settings → Maintenance, or `./dworkspace backup` from cron)
 therefore contains every webhook secret on the instance. Keep the archive as
@@ -91,7 +91,7 @@ the coverage is not complete. This is what fires today:
 | Editing a page's text in the editor | `page.updated` |
 | Renaming, changing icon, cover, description, tags, visibility or properties | `page.updated` |
 | Moving a page under a different parent | `page.updated` |
-| Dragging a page up or down in the sidebar — a position is a detail like any other | `page.updated` |
+| Dragging a page up or down in the sidebar (a position is a detail like any other) | `page.updated` |
 | Marking a page as a template, or removing that flag | `page.updated` |
 | An agent replacing a body with `write_content` in mode `replace` | `page.updated` |
 | Moving a page to the trash | `page.trashed`, one per page in the subtree |
@@ -105,12 +105,12 @@ before you build on it:
   take the same route through the server, and that route is silent. Duplicating
   is not noisier for agents than for people; it is silent for both.
 - A collection created by an agent with `create_database`. The same collection
-  created in the browser does fire `page.created` — the two paths differ.
+  created in the browser does fire `page.created`; the two paths differ.
 - A database placed into a document with `embed_database`. That changes the
   document's body, and no `page.updated` follows it.
 - Rows added with `create_rows`.
 - Pages created by a [form](forms.md) submission from outside.
-- Anything created by an [import](import-export.md) — Markdown, a ZIP archive,
+- Anything created by an [import](import-export.md): Markdown, a ZIP archive,
   a CSV, or `import_url`. A new workspace made from the
   [blueprint library](library.md) is silent for the same reason: both write many
   pages at once, and a two-thousand-page import would otherwise become two
@@ -130,7 +130,7 @@ before you build on it:
   personal pages.** Every page inside goes, and not one `page.trashed` is sent.
   This is the sharpest gap on the list: an integration keeping a mirror will go
   on holding pages that no longer exist here, with nothing to tell it otherwise.
-- Comments and notes — see [Comments and notes](comments-and-notes.md).
+- Comments and notes (see [Comments and notes](comments-and-notes.md)).
 
 If your integration has to see every change without exception, a webhook is not
 the whole answer. Read the page list or the search index on a schedule as well.
@@ -175,12 +175,12 @@ A `POST` with a JSON body. The body names the page and does not carry it:
 Two things about the body are deliberate, and worth knowing before you build on
 it.
 
-**It never carries the page content.** Id, title, workspace and path — never the
+**It never carries the page content.** Id, title, workspace and path, never the
 blocks. A webhook address is typed once by an admin and then sends forever to a
 host nobody re-checks; if the message carried the text, one careless paste would
 become a standing export of everything anybody writes. A receiver that is
-allowed to read the page can fetch it with its own credentials — see
-[API](api.md).
+allowed to read the page can fetch it with its own credentials (see
+[API](api.md)).
 
 **It carries no permission check.** The title and workspace id go out for every
 page the event applies to, including a page whose visibility is private. Adding
@@ -204,7 +204,7 @@ X-Dworkspace-Signature: sha256=<64 hex characters>
 
 That is an HMAC-SHA256 of the **exact raw request body**, keyed with the secret
 you were shown once. Compute it over the bytes as they arrived, before any JSON
-parsing and re-serialising — a body that has been decoded and re-encoded will
+parsing and re-serialising: a body that has been decoded and re-encoded will
 not match.
 
 Node.js:
@@ -231,8 +231,8 @@ def verify(raw_body: bytes, header: str, secret: str) -> bool:
 ```
 
 Reject anything that does not match, and use a constant-time comparison as both
-examples do. Without the check, anyone who learns your URL — it travels in logs,
-in proxy configuration, in a screenshot — can post whatever they like to it and
+examples do. Without the check, anyone who learns your URL (it travels in logs,
+in proxy configuration, in a screenshot) can post whatever they like to it and
 your automation cannot tell the difference.
 
 ## Which addresses a webhook may reach
@@ -249,7 +249,7 @@ not happen:
 | Multicast and the unspecified address | any multicast range, `0.0.0.0` |
 
 That list is the whole of the check. Anything not on it is dialled, including
-address ranges that are not reachable from the public internet — the shared
+address ranges that are not reachable from the public internet: the shared
 range some providers put between a customer network and the internet (100.64.x)
 is the common example. So the rule is "these are refused", not "only the public
 internet is allowed".
@@ -270,7 +270,7 @@ There is one override, and it belongs to whoever runs the server, not to an
 admin in the interface: starting Dworkspace with `DWORKSPACE_IMPORT_ALLOW_PRIVATE=1` lifts
 the restriction for the whole process. Its name says import, but it opens
 webhooks as well. Set it only on an instance where every URL in the settings
-dialog is one you put there — see [Self-hosting](self-hosting.md).
+dialog is one you put there (see [Self-hosting](self-hosting.md)).
 
 ## Delivery, failures and what you see
 
@@ -281,28 +281,28 @@ zone](language-and-time.md).
 
 | Behaviour | Value |
 | --- | --- |
-| Attempts per event | one — there is **no retry** |
+| Attempts per event | one; there is **no retry** |
 | Timeout | 10 seconds |
 | Redirects | refused |
 | Response body | ignored; only the status code is recorded |
-| Order | none guaranteed — hooks are called in parallel |
+| Order | none guaranteed; hooks are called in parallel |
 
 What the status line can say:
 
 - `HTTP 200`, `HTTP 500`, and so on. Any answer at all is recorded as its
   status. A `500` is not retried and is not treated differently from a `200`;
   the only difference is what you read in this list.
-- `failed: …` — the call did not complete: the host did not resolve, the address
+- `failed: …`. The call did not complete: the host did not resolve, the address
   was refused as internal, the connection timed out, or the receiver redirected.
   The reason is cut off after 120 characters.
-- `bad request: …` — the stored address could not be turned into a request at
+- `bad request: …`. The stored address could not be turned into a request at
   all.
 
 **What your receiver should answer: anything.** There is no contract to meet.
 The status code is written to the status line and otherwise ignored, and the
 body is never read, so `204 No Content` with an empty body is a perfectly good
-reply. Nothing depends on answering quickly either, beyond the 10-second timeout
-— and since there is no retry, a slow or failing answer costs you the message
+reply. Nothing depends on answering quickly either, beyond the 10-second timeout.
+And since there is no retry, a slow or failing answer costs you the message
 rather than earning you a second one.
 
 A webhook never affects the person who triggered it. Deliveries run in the
@@ -318,7 +318,7 @@ reconstruct history from the messages.
 Nothing stops you adding several hooks, and nothing stops two of them pointing
 at the same address. There is no uniqueness check and no limit on how many a
 server holds. Each hook is its own thing: its own secret, its own event
-selection, its own status line — and its own delivery. Two hooks on one URL mean
+selection, its own status line, and its own delivery. Two hooks on one URL mean
 every matching event arrives there twice, signed with two different secrets.
 
 If a receiver is seeing doubles, that is the first place to look.
@@ -326,7 +326,7 @@ If a receiver is seeing doubles, that is the first place to look.
 ## Changing or removing a hook
 
 There is no edit. To change an address or the set of events, remove the hook and
-add a new one — which means a new secret in your receiver. There is no pause
+add a new one, which means a new secret in your receiver. There is no pause
 either: a hook is either configured or it is not.
 
 **Remove** deletes it immediately, with no confirmation step. The next event
@@ -334,27 +334,27 @@ produces nothing for that address.
 
 ## Reading them from the API
 
-`GET /api/webhooks` returns the configured hooks as JSON — id, url, events,
+`GET /api/webhooks` returns the configured hooks as JSON: id, url, events,
 active, createdAt, lastStatus, lastAt. The secret is not among them, for any
 hook, ever. `POST /api/webhooks` creates one and its answer is the only place
 the secret appears. `DELETE /api/webhooks/{id}` removes one. All three need an
 admin's browser session.
 
 One field needs a warning: `active` is always `true`. It is set when the hook is
-created and nothing in the product ever changes it — there is no enable/disable
+created and nothing in the product ever changes it: there is no enable/disable
 switch in the dialog and no route that flips it. Read it as a field the server
 consults before delivering, not as a setting you can use.
 
 ## When a webhook is the wrong tool
 
-- **Something inside Dworkspace should react to a change** — there is nothing for
+- **Something inside Salt should react to a change**: there is nothing for
   that. dworkspace has no rule engine and no scheduler; nothing in it says "when
   Status becomes Done, send an email". The logic lives at the other end of the
   webhook. See [Automation](automation.md) for the whole map of what reaches in
   and out.
-- **A program of your own wants to read and write pages** — call the API
+- **A program of your own wants to read and write pages**: call the API
   directly, or connect over MCP. See [API](api.md) and
   [Agents](agents.md).
-- **A browser tab needs live updates** — the app's own tabs already get them
+- **A browser tab needs live updates**: the app's own tabs already get them
   over `/api/events` while somebody is signed in. A webhook is for programs that
   hold no session and no open connection.

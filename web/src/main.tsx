@@ -10,6 +10,9 @@ import '@blocknote/mantine/style.css';
 import '@fontsource-variable/inter';
 import '@fontsource-variable/jetbrains-mono';
 import './styles.css';
+// The website's look, layered on top — see the head of theme.css for why it is
+// a file of its own rather than edits in styles.css.
+import './theme.css';
 import App from './App';
 import { installRingHover } from './ring';
 import { initLocale, useLocale } from './i18n';

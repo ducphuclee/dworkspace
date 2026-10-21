@@ -3,7 +3,7 @@
 A page is the unit everything in dworkspace is made of. It carries a title, an
 optional icon and cover, an optional one-line description, tags, a body of
 blocks, and any number of pages filed underneath it. A collection (a database)
-is a page too, and so is every row inside one — which is why a row can have
+is a page too, and so is every row inside one, which is why a row can have
 sub-pages, a cover and a comment thread like anything else. This page covers
 everything you can do to a page itself: making one, dressing it, filing it,
 linking it, attaching files to it, copying it, printing it. What goes *inside*
@@ -21,7 +21,7 @@ There are six ways in, and they differ only in where the new page lands.
    **Collections** makes a new collection. Both land at the top level of the
    workspace the sidebar is currently showing.
 2. **Inside another page.** Hover a row in the sidebar tree and press `+`
-   (**Add inside**). It asks what to put there — **Page** or **Collection** —
+   (**Add inside**). It asks what to put there (**Page** or **Collection**)
    and files it under that page. Database rows carry the same `+`, so a dossier
    under a deal is an ordinary thing to build. To reach a row's `+` you have to
    unfold its database first; see [Sub-pages](#sub-pages-and-the-sidebar-tree).
@@ -30,11 +30,11 @@ There are six ways in, and they differ only in where the new page lands.
    sidebar is showing. `⌘N` is reserved by browsers and cannot be intercepted,
    which is why the shortcut is this one.
 5. **From a mention.** Typing `@` or `[[` and then a name that does not exist
-   yet offers `Create "…"` — see [Page links](#page-links-and-backlinks).
+   yet offers `Create "…"`. See [Page links](#page-links-and-backlinks).
 6. **From a template**, from an import, or over MCP.
 
 A new page is created with no title and you land in it immediately. Nothing
-puts the cursor in the title — click the title to name it. Until you name it, it
+puts the cursor in the title; click the title to name it. Until you name it, it
 is called *Untitled* everywhere it appears.
 
 A page created **under a parent** inherits that parent's workspace. A page
@@ -44,14 +44,14 @@ You must be able to write to the parent, and be a member of the workspace.
 ## The title
 
 The title sits under the icon and above the body. It is a single line of text
-that wraps onto as many lines as it needs — the field grows with it, and it
+that wraps onto as many lines as it needs: the field grows with it, and it
 re-measures when the column gets narrower (a collapsed sidebar, a smaller
 window). Pressing **Enter** in the title does not insert a line break; it jumps
 the cursor into the body.
 
 The limit is 2000 characters in the browser and over the REST API: a longer
 title is refused rather than truncated. An agent writing over MCP is not held to
-it — see [Limits](#limits).
+it. See [Limits](#limits).
 
 Editing the title saves after half a second of quiet, and the breadcrumb at the
 top of the screen follows along as you type. If a save fails you get the notice
@@ -70,8 +70,8 @@ The picker has three tabs and a bin:
 | Tab | What it offers |
 | --- | --- |
 | **Emoji** | the full emoji set, grouped by category, with a search box |
-| **Icons** | line icons — **Lucide** (a curated set of about 380) or **Material** (the full set, about 7,400), with a row of colour dots |
-| **Upload** | your own picture: *PNG, JPG, GIF or SVG — shown square, as an icon.* |
+| **Icons** | line icons: **Lucide** (a curated set of about 380) or **Material** (the full set, about 7,400), with a row of colour dots |
+| **Upload** | your own picture: *PNG, JPG, GIF or SVG. Shown square, as an icon.* |
 | **Remove icon** | the bin button beside the tabs, which clears the icon |
 
 The two icon sets are different in kind. Lucide is a hand-picked selection
@@ -95,7 +95,7 @@ Once a page has a cover, the two buttons live on the cover itself:
 **Change cover** and **Remove**.
 
 A cover can only be **an image you uploaded** or **a gradient**. An external
-image address is refused — a stored `url()` pointing at somebody else's host
+image address is refused: a stored `url()` pointing at somebody else's host
 would fire a request from every reader's browser each time the page opens, which
 is a tracking beacon planted in a document other people read. Agents are refused
 by the same rule, and their error names the two forms a cover may take.
@@ -111,13 +111,13 @@ click away.
 In the browser and over the REST API it is capped at 2000 characters, and
 anything longer is trimmed on save. It is shown to readers who cannot edit as
 plain text. The description is also the subtitle of the page's row in the
-[Library](library.md) — where a page without one falls back to the first line of
+[Library](library.md), where a page without one falls back to the first line of
 its body instead.
 
 ## Tags
 
 Tags are lightweight labels that cut across the tree. A page sits under exactly
-one parent, but it can carry any number of tags — and a tag gathers pages from
+one parent, but it can carry any number of tags, and a tag gathers pages from
 anywhere in the workspace, wherever they are filed. They sit under the title as
 coloured chips.
 
@@ -125,14 +125,14 @@ coloured chips.
   **Enter**, **comma** or **Tab** to add.
 - As you type, tags already used elsewhere are suggested with how often they
   occur; near-misses are marked *similar*. Arrow keys move through the list,
-  Enter takes the highlighted one — which is what stops you creating a second
+  Enter takes the highlighted one, which is what stops you creating a second
   spelling of a tag you already have. **Escape** closes the list.
 - **Backspace** in an empty field removes the last tag.
 - The `×` on a chip removes it. Clicking the chip's label opens
   **Colour**: *Default* plus Gray, Brown, Orange, Yellow, Green, Blue, Purple,
   Pink and Red.
 
-A tag's colour is **shared by everyone in the workspace** — it belongs to the
+A tag's colour is **shared by everyone in the workspace**: it belongs to the
 tag, not to the page or to you. *Default* means no override: the colour is then
 derived from the tag's own name, so the same tag looks the same everywhere
 without anybody deciding anything.
@@ -147,7 +147,7 @@ The sidebar has a **Tags** section listing every tag with its count; clicking
 one filters the tree to the pages carrying it.
 
 If a label wants a *value* as well as a name, it wants to be a collection
-property instead — see [Properties](properties.md).
+property instead. See [Properties](properties.md).
 
 ## Row properties
 
@@ -182,7 +182,7 @@ not:
   is listed under **Collections**. In mixed mode there is no second section, so
   it stays under its document.
 - **The number beside a section heading counts the whole section**, folded rows
-  included — not the rows currently on screen.
+  included, not the rows currently on screen.
 
 **Unfolding a database.** A collection in the tree has a chevron. Opening it
 lists its rows, so you can walk collection → row → sub-page without opening the
@@ -196,39 +196,44 @@ drawn as a proper tree item rather than as a row, so it keeps its full ⋯ menu.
 dworkspace keeps several pages open at once, like an editor rather than like a web
 page. Three ways to open one in a new tab:
 
-- **Open in new tab** — the first entry of the sidebar ⋯ menu.
-- **⌘-click** (Ctrl-click on Windows and Linux) a row in the sidebar tree.
-- **Middle-click** a row in the sidebar tree.
+- **Open in new tab**, the first entry of the sidebar ⋯ menu and of a board
+  card's ⋯ menu.
+- **⌘-click** (Ctrl-click on Windows and Linux) a row in the sidebar tree, a
+  card on a board, a row in any collection view, or a note in the notes column.
+- **Middle-click** any of those.
+
+The same two gestures therefore work wherever a page is listed: the sidebar, a
+board, a table, a gallery, a list, a calendar, a timeline and the notes column.
 
 A new tab opens immediately after the active one and takes focus. Ordinary
 clicking navigates the tab you are in, so the number of tabs only grows when you
 ask for it.
 
-The strip of tabs appears above the page **only once there are two** — a single
+The strip of tabs appears above the page **only once there are two**: a single
 document needs no tab bar. Each tab shows the page's icon and title; click one
 to switch, click its `×` or middle-click it to close. Closing the active tab
 lands you on the tab that slides into its place.
 
 `Ctrl+Alt+←` and `Ctrl+Alt+→` cycle through the open tabs. The shortcut is
-ignored while you are typing, and it deliberately does not use ⌘ — on macOS
+ignored while you are typing, and it deliberately does not use ⌘: on macOS
 `⌘⌥←/→` is the browser's own tab switch.
 
 ## The sidebar ⋯ menu
 
-Every row in the sidebar tree — and every database row listed under an unfolded
-collection — carries the same menu. Reach it with the ⋯ button that appears on
+Every row in the sidebar tree, and every database row listed under an unfolded
+collection, carries the same menu. Reach it with the ⋯ button that appears on
 hover, or by **right-clicking the row**, which is faster and works the same way.
 
 | Entry | When it is there | What it does |
 | --- | --- | --- |
 | **Open in new tab** | always | opens the page beside the current one |
 | **Add to favorites** / **Remove from favorites** | always | the same star as the top bar |
-| **Duplicate** | always | deep copy — see [Duplicating](#duplicating) |
+| **Duplicate** | always | deep copy; see [Duplicating](#duplicating) |
 | **New collection inside** | always | a collection filed under this page |
 | **Move to top level** | the page has a parent | drops the parent link |
 | **Move to workspace** | you belong to more than one | lists the others |
 | **Files in this subtree** | always | see [Files on a page](#files-on-a-page) |
-| **Save as template** | always | snapshot copy — see [Templates](templates.md) |
+| **Save as template** | always | snapshot copy; see [Templates](templates.md) |
 | **Export Markdown** | always | downloads this page as `.md` |
 | **Move to trash** | always | this page and everything under it |
 
@@ -237,7 +242,7 @@ and people learn only one of the two places. Both menus do the same thing.
 
 ## Files on a page
 
-**Drop a file from the desktop anywhere on the page** — onto the cover, the
+**Drop a file from the desktop anywhere on the page**: onto the cover, the
 title, the tag strip, the empty space beside the text, or into the text itself.
 While you drag, the page outlines itself and says *Drop to add to this page*.
 A drop that lands in the text is placed exactly where the pointer was; a drop
@@ -246,7 +251,7 @@ anywhere else is appended after the last block.
 Files are uploaded **one at a time**, on purpose: uploads are size-capped and
 the server sizes PDF text extraction to the memory it has, and ten at once from
 a folder drag is the shape that has taken an instance down before. A failure
-does not stop the rest — dropping five and getting four plus a named failure
+does not stop the rest: dropping five and getting four plus a named failure
 beats getting nothing. The default cap is 50 MB per file and an administrator
 can change it.
 
@@ -255,7 +260,7 @@ id of the page it landed on. See [Files](files.md) and [Search](search.md).
 
 **Clicking a PDF in the body opens it in a viewer** rather than downloading it:
 a framed preview with the file's name, **Download** and **Close**. Escape closes
-it too. Only PDFs stored on this instance open this way — a file block pointing
+it too. Only PDFs stored on this instance open this way; a file block pointing
 at a foreign address keeps opening the normal way. Anything that is not a PDF is
 handed to the browser.
 
@@ -266,7 +271,7 @@ with size, date and the page carrying it; you can filter by name or page and
 narrow to one file type, and clicking a page name jumps to it. The same list
 without a page restriction is in the workspace settings.
 
-This is not the same list as the structure panel's **Files** section — that one
+This is not the same list as the structure panel's **Files** section: that one
 is always the page you are standing on, this one is anywhere in the tree.
 
 ## The structure panel
@@ -279,7 +284,7 @@ parts:
 | --- | --- |
 | (unlabelled, at the top) | the chain of pages above this one, indented, closing with **This page** |
 | **Sub-pages** | the whole subtree, depth-first and indented, with a count. Empty: *No sub-pages* |
-| **Files** | every file on this page **and its sub-pages**, with kind, size, and — when it came from a sub-page — which one. Empty: *No files* |
+| **Files** | every file on this page **and its sub-pages**, with kind, size, and (when it came from a sub-page) which one. Empty: *No files* |
 | **Linked from** | every page that links here, with a count. Empty: *Nothing links here* |
 
 ![The structure panel: where the page sits, what sits under it, its files and what links to it.](img/structure-panel.png)
@@ -288,23 +293,23 @@ Clicking a file opens a PDF in the built-in viewer and hands anything else to
 the browser in a new tab.
 
 The ancestor chain only appears when there is one, and the **Sub-pages** section
-is left out entirely on a collection — showing "0 sub-pages" beside a table full
+is left out entirely on a collection: showing "0 sub-pages" beside a table full
 of rows would read as a fault.
 
 Whether the panel is open is a **reading preference, not a property of the
 page**: it stays open as you move through the workspace, and it survives a
 reload. It shares the right-hand strip with the comments panel, so opening one
-closes the other — two columns in that width would leave neither usable.
+closes the other: two columns in that width would leave neither usable.
 
 ## Page links and backlinks
 
 Two triggers, one result:
 
-- **`@`** — mention a page
-- **`[[`** — the same thing, for wiki-link muscle memory
+- **`@`**: mention a page
+- **`[[`**: the same thing, for wiki-link muscle memory
 
 Both open the same list: up to twelve pages whose title contains what you have
-typed, each marked *Page* or *Database*, plus — when you have typed something —
+typed, each marked *Page* or *Database*, plus (when you have typed something)
 `Create "…"`, which makes a new page with that title and links it in one motion.
 That new page is created at the **top level of your default workspace**, not
 under the page you are writing in; move it afterwards if it belongs somewhere.
@@ -314,7 +319,7 @@ ranking, so type a little more when what you want does not appear.
 
 Either way you get a real **page link**: a chip in the text that carries the
 target's id and its label. Clicking it navigates in the tab you are in. This
-matters because the backlink index reads page links and nothing else — a
+matters because the backlink index reads page links and nothing else: a
 hand-typed URL is just text. (The [graph](library.md) draws page links as one
 kind of line and where a page is filed as another, so a page with no page links
 is not necessarily a dot on its own there.) A Markdown link to a page of this
@@ -322,7 +327,7 @@ instance is converted into a real page link on import.
 
 On the receiving side, everything pointing at a page is listed as
 **Linked from · N**: at the foot of the body when the structure panel is closed,
-and inside the panel when it is open — never in both places. On a collection
+and inside the panel when it is open, never in both places. On a collection
 there is no foot-of-body strip, because the body of a collection is its table,
 so open the structure panel to see its backlinks. Nobody maintains that list; it
 is rebuilt from the content every time a page is saved.
@@ -342,13 +347,13 @@ list on its own. New favourites are added to the end of the list; there is no
 way to reorder them in the interface.
 
 Use them for the handful of pages you open every day. Everything else is faster
-to reach with `⌘K` — see [Search](search.md).
+to reach with `⌘K`. See [Search](search.md).
 
 ## Moving a page
 
 **By dragging.** Drag a row in the sidebar tree onto another. The upper third of
 the target means *before it*, the lower third *after it*, and the middle
-*inside it* — a drop inside also expands the target so you can see where the
+*inside it*. A drop inside also expands the target so you can see where the
 page went.
 
 **By menu.** The sidebar ⋯ offers **Move to top level** (only when the page has
@@ -360,13 +365,13 @@ Rules the server enforces, in the interface and over MCP alike:
 - A page cannot become its own parent, and cannot be moved into its own subtree.
 - Re-parenting happens **within one workspace**. Hanging a page under a parent
   in another workspace is refused, because children are listed in places that do
-  not re-check permissions — database views, the Markdown export, the calendar
+  not re-check permissions: database views, the Markdown export, the calendar
   feed.
 - Moving to another workspace is therefore its own act: it takes the **whole
   subtree** along and drops the parent link, so the page arrives at the top level
   of the new workspace. The old parent stays where it is.
 - A move to another workspace is **refused outright when the subtree holds
-  private pages belonging to somebody else**. Not skipped — refused, with
+  private pages belonging to somebody else**. Not skipped: refused, with
   nothing moved. You may well be an admin in the target workspace, and admins
   can read private pages there, so carrying them along would be a way to make
   another person's notes readable. Leaving them behind is no option either:
@@ -375,12 +380,12 @@ Rules the server enforces, in the interface and over MCP alike:
   target workspace**, because a viewer cannot add pages to it.
 
 Comments, revisions, favourites, share links and the live editing session all
-hang off the page id, which does not change — a move takes them with it.
+hang off the page id, which does not change: a move takes them with it.
 
 ## Duplicating
 
 **Duplicate** in the sidebar ⋯ makes a deep copy: the page, its whole subtree,
-and — for a collection — its property schema and its views. The copy is added at
+and (for a collection) its property schema and its views. The copy is added at
 the **end of the same list** as the original, titled **Copy of <name>**, and you
 are taken to it. Duplicate the first of ten sub-pages and the copy appears
 tenth, not second.
@@ -407,21 +412,21 @@ globe, and **⋯** (*More*).
 | **Add a description** | you can edit, and there is no description | shows the description field |
 | **Remove description** | you can edit, and there is one | clears it |
 | **To the comments** | not on a collection | always *opens* the comments panel |
-| **Version history** | always | the revision list — see [History](history-and-audit.md) |
+| **Version history** | always | the revision list; see [History](history-and-audit.md) |
 | **Show comments** / **Hide comments** | narrow screens only, and not on a collection | toggles the panel |
 | **Make it private** / **Make it visible to the workspace** | narrow screens only | the same as the lock icon |
 | **Share to web (read-only link)** | narrow screens only | the same as the globe |
-| **Import (.md / .zip)** | you can edit | reads a Markdown file or a zip — see [Import and export](import-export.md) |
+| **Import (.md / .zip)** | you can edit | reads a Markdown file or a zip; see [Import and export](import-export.md) |
 | **Markdown (.md)** | always | downloads this page as Markdown |
-| **Web page (.html)** | always | downloads a document as a standalone HTML file. On a collection it falls back to Markdown — a table is the faithful form of its rows, so what arrives is a `.md` file |
+| **Web page (.html)** | always | downloads a document as a standalone HTML file. On a collection it falls back to Markdown: a table is the faithful form of its rows, so what arrives is a `.md` file |
 | **Print / as PDF** | always | see below |
 | **Move to trash** | you can edit | this page and everything under it |
 
 A collection carries no comments at all, so neither the comments button, the
 count, **To the comments** nor **Show comments** exists on one.
 
-On a phone the lock, the globe and the comments button step out of the top bar —
-six icons side by side made the head of the page look busier than its content —
+On a phone the lock, the globe and the comments button step out of the top bar
+(six icons side by side made the head of the page look busier than its content)
 and reappear in this menu, so nothing becomes unreachable.
 
 **Move to trash** is here because it is the one menu every page has. A database
@@ -430,7 +435,7 @@ this there was no way to throw one away from the interface at all. Trashing the
 page you are standing on takes you out of it. See
 [Trash and recovery](trash-and-recovery.md).
 
-The exports cover **this page only** — sub-pages are not included. For a whole
+The exports cover **this page only**: sub-pages are not included. For a whole
 tree or a whole workspace, see [Import and export](import-export.md).
 
 ## Printing
@@ -439,8 +444,8 @@ tree or a whole workspace, see [Import and export](import-export.md).
 
 For a **document** it opens a clean standalone version in a new tab: no
 application chrome, a readable measure, print-tuned page breaks that keep
-headings, images, tables and list items from being split. A bar at the top —
-visible on screen, never printed — offers **Print / Save as PDF** and reminds
+headings, images, tables and list items from being split. A bar at the top
+(visible on screen, never printed) offers **Print / Save as PDF** and reminds
 you that on a phone it is *Share → Print, or "Save to Files"*. On a desktop the
 print dialog opens by itself a moment after the page loads.
 
@@ -451,21 +456,22 @@ looking at, so what you print is the table, board or calendar as arranged.
 
 The **lock** toggles a page between *Visible to the workspace* and
 *Private (only you)*, and the setting is inherited by everything under it. The
-**globe** mints a read-only link anyone can open without signing in, with an
-optional expiry (*Never*, *In 1 day*, *In 7 days*, *In 30 days*) and an optional
-password, and **Stop sharing** revokes it. Both are covered properly in
+**globe** opens the menu where **Create link** mints a read-only link anyone can
+open without signing in, with an optional expiry (*Never*, *In 1 day*,
+*In 7 days*, *In 30 days*) and an optional password, and **Stop sharing**
+revokes it. Both are covered properly in
 [Permissions](permissions.md) and [Sharing](sharing.md).
 
 ## Saving, and what else lives on a page
 
 Nothing has a Save button. The body is written back about a second and a half
-after you stop typing, and once more when you leave the page — that last flush is
+after you stop typing, and once more when you leave the page. That last flush is
 what makes a mention you just inserted show up as a backlink on the other side.
 Title, icon, cover, description and tags save half a second after the last
 change, merged into one write, so a title edit followed straight away by a cover
 change does not cancel the first.
 
-Below the body of every document and every row sits the **raw trail** — dated,
+Below the body of every document and every row sits the **raw trail**: dated,
 append-only notes written while the work happens. Comments live in their own
 panel beside the document. Both are [Comments and notes](comments-and-notes.md).
 Two people opening the same page see each other's cursors and edits live; that is
@@ -485,26 +491,27 @@ correct where they stand.
 | `write_content` | Markdown into the body: `append` (the default), `prepend` or `replace` |
 | `duplicate_page` | the deep copy described above; returns the new id |
 | `save_as_template` | the snapshot copy |
-| `set_trashed` | `true` moves the page to the trash and the whole subtree goes with it. `false` restores **only the page named** — its sub-pages have to be restored one by one. (Restoring in the browser brings the whole batch back; the two paths differ here.) |
+| `set_trashed` | `true` moves the page to the trash and the whole subtree goes with it. `false` restores **only the page named**: its sub-pages have to be restored one by one. (Restoring in the browser brings the whole batch back; the two paths differ here.) |
 | `get_links` | with a page id: what points at it. Without: the whole graph, plus orphans |
-| `list` | `kind: "pages"` for the tree, `"tags"` for what exists already, `"files"` for attachments — and for files, `under` narrows to one page and its sub-pages |
+| `list` | `kind: "pages"` for the tree, `"tags"` for what exists already, `"files"` for attachments; and for files, `under` narrows to one page and its sub-pages |
 | `revisions` | the version history: list it, read one older state as Markdown, or restore it. Restoring saves the current state first, so it is itself reversible |
 | `set_sharing` | mints the page's public read-only link, or revokes it |
 | `upload_file` | attaches a file from base64 data; with a page id it becomes a block on that page, and a PDF becomes searchable |
 | `working_on` | announces that the agent is working on this page, shown live to anyone watching. Call it again with `done: true` at the end |
-| `note` | appends one line to the page's raw trail. It can never be edited or removed — correct a wrong one by adding another that says so |
+| `note` | appends one line to the page's raw trail. It can never be edited or removed; correct a wrong one by adding another that says so |
 | `embed_database` | puts an existing collection into a document, by reference |
 | `get_permissions` | can_read / can_write / can_delete, before attempting a write |
 
 Two honest limits. `write_content` with `mode: "replace"` goes around the live
-editor, so anyone with the page open at that moment loses their unsaved edits —
-appending cannot do that, which is why it is the default. And an agent that has
+editor, so anyone with the page open at that moment loses their unsaved edits
+from the page (they are kept in its version history); appending cannot do that,
+which is why it is the default. And an agent that has
 been connected since before a release keeps the tool list it fetched then; a
 renamed tool only appears after it reconnects.
 
 The REST equivalents are `/api/pages`, `/api/pages/{id}`,
 `/api/pages/{id}/duplicate`, `/api/pages/{id}/backlinks`, `/api/export/{id}`,
-`/api/upload`, `/api/files` and `/api/favorites/{id}` — see [API](api.md).
+`/api/upload`, `/api/files` and `/api/favorites/{id}`. See [API](api.md).
 
 ## Limits
 

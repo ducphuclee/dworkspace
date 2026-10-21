@@ -10,7 +10,8 @@
       "page": "getting-started.md",
       "caption": "The first screen of a brand new instance: it creates the first account, which is also the owner.",
       "shows": [
-        "web/src/components/Setup.tsx"
+        "web/src/components/Setup.tsx",
+        "web/src/theme.css"
       ],
       "steps": [
         {
@@ -24,7 +25,8 @@
         }
       ],
       "takenAt": {
-        "web/src/components/Setup.tsx": "9de35b8f5040"
+        "web/src/components/Setup.tsx": "9de35b8f5040",
+        "web/src/theme.css": "b1c3dece61ce"
       },
       "instance": "fresh",
       "element": ".login-card"
@@ -34,7 +36,8 @@
       "page": "getting-started.md",
       "caption": "Signing in. Buttons for Microsoft or Google appear here when single sign-on is configured.",
       "shows": [
-        "web/src/components/Login.tsx"
+        "web/src/components/Login.tsx",
+        "web/src/theme.css"
       ],
       "steps": [
         {
@@ -48,7 +51,8 @@
         }
       ],
       "takenAt": {
-        "web/src/components/Login.tsx": "bae6bf56b013"
+        "web/src/components/Login.tsx": "bae6bf56b013",
+        "web/src/theme.css": "b1c3dece61ce"
       },
       "instance": "anon",
       "element": ".login-card"
@@ -60,7 +64,8 @@
       "shows": [
         "web/src/components/Sidebar.tsx",
         "web/src/components/Editor.tsx",
-        "web/src/App.tsx"
+        "web/src/App.tsx",
+        "web/src/theme.css"
       ],
       "steps": [
         {
@@ -74,9 +79,10 @@
         }
       ],
       "takenAt": {
-        "web/src/components/Sidebar.tsx": "28b3a909497a",
-        "web/src/components/Editor.tsx": "9e0067996975",
-        "web/src/App.tsx": "37414e889d16"
+        "web/src/components/Sidebar.tsx": "7d75823681d0",
+        "web/src/components/Editor.tsx": "a82f85a01bf3",
+        "web/src/App.tsx": "c5104863af1e",
+        "web/src/theme.css": "b1c3dece61ce"
       }
     },
     {
@@ -85,7 +91,8 @@
       "caption": "The sidebar: documents and collections in separate sections, each with a count.",
       "shows": [
         "web/src/components/Sidebar.tsx",
-        "web/src/treeMode.ts"
+        "web/src/treeMode.ts",
+        "web/src/theme.css"
       ],
       "steps": [
         {
@@ -99,8 +106,9 @@
         }
       ],
       "takenAt": {
-        "web/src/components/Sidebar.tsx": "28b3a909497a",
-        "web/src/treeMode.ts": "413de5b84cd9"
+        "web/src/components/Sidebar.tsx": "7d75823681d0",
+        "web/src/treeMode.ts": "413de5b84cd9",
+        "web/src/theme.css": "b1c3dece61ce"
       },
       "element": ".sidebar"
     },
@@ -109,7 +117,8 @@
       "page": "pages.md",
       "caption": "Everything a page can do, behind the ... button. The same entries appear on a right-click.",
       "shows": [
-        "web/src/components/Editor.tsx"
+        "web/src/components/Editor.tsx",
+        "web/src/theme.css"
       ],
       "steps": [
         {
@@ -132,7 +141,8 @@
         }
       ],
       "takenAt": {
-        "web/src/components/Editor.tsx": "9e0067996975"
+        "web/src/components/Editor.tsx": "a82f85a01bf3",
+        "web/src/theme.css": "b1c3dece61ce"
       }
     },
     {
@@ -140,7 +150,8 @@
       "page": "pages.md",
       "caption": "The structure panel: where the page sits, what sits under it, its files and what links to it.",
       "shows": [
-        "web/src/components/StructurePanel.tsx"
+        "web/src/components/StructurePanel.tsx",
+        "web/src/theme.css"
       ],
       "steps": [
         {
@@ -160,7 +171,8 @@
         }
       ],
       "takenAt": {
-        "web/src/components/StructurePanel.tsx": "25eb900e98d2"
+        "web/src/components/StructurePanel.tsx": "47774ec631a4",
+        "web/src/theme.css": "b1c3dece61ce"
       }
     },
     {
@@ -168,7 +180,8 @@
       "page": "comments-and-notes.md",
       "caption": "Comments stand beside the text, not under it, and can be closed when you only want to read.",
       "shows": [
-        "web/src/components/CommentsPanel.tsx"
+        "web/src/components/CommentsPanel.tsx",
+        "web/src/theme.css"
       ],
       "steps": [
         {
@@ -188,7 +201,8 @@
         }
       ],
       "takenAt": {
-        "web/src/components/CommentsPanel.tsx": "1f381923d574"
+        "web/src/components/CommentsPanel.tsx": "1f381923d574",
+        "web/src/theme.css": "b1c3dece61ce"
       }
     },
     {
@@ -197,7 +211,8 @@
       "caption": "The raw trail at the foot of a page: dated notes that cannot be edited, only added to.",
       "shows": [
         "web/src/components/NoteTrail.tsx",
-        "server/notelog.go"
+        "server/notelog.go",
+        "web/src/theme.css"
       ],
       "steps": [
         {
@@ -211,8 +226,9 @@
         }
       ],
       "takenAt": {
-        "web/src/components/NoteTrail.tsx": "d4df84f029dd",
-        "server/notelog.go": "3f695c839dbd"
+        "web/src/components/NoteTrail.tsx": "160bdbf01513",
+        "server/notelog.go": "3f695c839dbd",
+        "web/src/theme.css": "b1c3dece61ce"
       },
       "element": ".trail-wrap"
     },
@@ -222,7 +238,8 @@
       "caption": "Search opens with Ctrl/Cmd + K and matches page text, file contents and titles.",
       "shows": [
         "web/src/components/SearchModal.tsx",
-        "server/searchindex.go"
+        "server/searchindex.go",
+        "web/src/theme.css"
       ],
       "steps": [
         {
@@ -249,7 +266,8 @@
       ],
       "takenAt": {
         "web/src/components/SearchModal.tsx": "1d4b76382c41",
-        "server/searchindex.go": "d169bf46ae39"
+        "server/searchindex.go": "d169bf46ae39",
+        "web/src/theme.css": "b1c3dece61ce"
       }
     },
     {
@@ -257,7 +275,8 @@
       "page": "views.md",
       "caption": "A table view. Every row is a page in its own right.",
       "shows": [
-        "web/src/components/CollectionView.tsx"
+        "web/src/components/CollectionView.tsx",
+        "web/src/theme.css"
       ],
       "steps": [
         {
@@ -280,7 +299,8 @@
         }
       ],
       "takenAt": {
-        "web/src/components/CollectionView.tsx": "a0eca2059205"
+        "web/src/components/CollectionView.tsx": "d44cff82757c",
+        "web/src/theme.css": "b1c3dece61ce"
       }
     },
     {
@@ -289,7 +309,8 @@
       "caption": "A board view, grouped by a select property. Each column is one option.",
       "shows": [
         "web/src/components/CollectionView.tsx",
-        "web/src/cardLayout.ts"
+        "web/src/cardLayout.ts",
+        "web/src/theme.css"
       ],
       "steps": [
         {
@@ -312,8 +333,9 @@
         }
       ],
       "takenAt": {
-        "web/src/components/CollectionView.tsx": "a0eca2059205",
-        "web/src/cardLayout.ts": "eb7f92584275"
+        "web/src/components/CollectionView.tsx": "d44cff82757c",
+        "web/src/cardLayout.ts": "eb7f92584275",
+        "web/src/theme.css": "b1c3dece61ce"
       }
     },
     {
@@ -321,7 +343,8 @@
       "page": "views.md",
       "caption": "A calendar view. It needs a date property to place rows on.",
       "shows": [
-        "web/src/components/CollectionView.tsx"
+        "web/src/components/CollectionView.tsx",
+        "web/src/theme.css"
       ],
       "steps": [
         {
@@ -344,7 +367,8 @@
         }
       ],
       "takenAt": {
-        "web/src/components/CollectionView.tsx": "a0eca2059205"
+        "web/src/components/CollectionView.tsx": "d44cff82757c",
+        "web/src/theme.css": "b1c3dece61ce"
       }
     },
     {
@@ -352,7 +376,8 @@
       "page": "library.md",
       "caption": "The library lists every page of one workspace, on shelves and as a tree.",
       "shows": [
-        "web/src/components/IndexView.tsx"
+        "web/src/components/IndexView.tsx",
+        "web/src/theme.css"
       ],
       "steps": [
         {
@@ -369,7 +394,8 @@
         }
       ],
       "takenAt": {
-        "web/src/components/IndexView.tsx": "38620799fb17"
+        "web/src/components/IndexView.tsx": "83c7b646c75f",
+        "web/src/theme.css": "b1c3dece61ce"
       }
     },
     {
@@ -377,7 +403,8 @@
       "page": "library.md",
       "caption": "The graph: a dot per page, a thin line where a page is filed and a bright one where it mentions another.",
       "shows": [
-        "web/src/components/GraphView.tsx"
+        "web/src/components/GraphView.tsx",
+        "web/src/theme.css"
       ],
       "steps": [
         {
@@ -400,7 +427,8 @@
         }
       ],
       "takenAt": {
-        "web/src/components/GraphView.tsx": "f3863f6af3dc"
+        "web/src/components/GraphView.tsx": "31bba0536156",
+        "web/src/theme.css": "b1c3dece61ce"
       }
     },
     {
@@ -409,7 +437,8 @@
       "caption": "Publishing a page: the link, an optional password and an optional expiry.",
       "shows": [
         "server/public.go",
-        "web/src/components/Editor.tsx"
+        "web/src/components/Editor.tsx",
+        "web/src/theme.css"
       ],
       "steps": [
         {
@@ -419,15 +448,19 @@
           "waitFor": ".sidebar"
         },
         {
-          "click": "[title^=\"Share to web\"]"
+          "click": ".share-wrap .icon-btn[title=\"Shared\"]"
+        },
+        {
+          "click": ".share-menu button:has-text(\"New link\")"
         },
         {
           "wait": 700
         }
       ],
       "takenAt": {
-        "server/public.go": "37843af6889b",
-        "web/src/components/Editor.tsx": "9e0067996975"
+        "server/public.go": "ec29068c71bb",
+        "web/src/components/Editor.tsx": "a82f85a01bf3",
+        "web/src/theme.css": "b1c3dece61ce"
       }
     },
     {
@@ -435,7 +468,8 @@
       "page": "account.md",
       "caption": "Your own account: name, colour and picture, and changing the password.",
       "shows": [
-        "web/src/components/UserMenu.tsx"
+        "web/src/components/UserMenu.tsx",
+        "web/src/theme.css"
       ],
       "steps": [
         {
@@ -455,7 +489,8 @@
         }
       ],
       "takenAt": {
-        "web/src/components/UserMenu.tsx": "b04ae6a80b19"
+        "web/src/components/UserMenu.tsx": "0d048bde4d85",
+        "web/src/theme.css": "b1c3dece61ce"
       },
       "element": ".dialog"
     },
@@ -465,7 +500,8 @@
       "caption": "API tokens carry your own identity and narrow it by scope and workspace.",
       "shows": [
         "server/users.go",
-        "web/src/components/UserMenu.tsx"
+        "web/src/components/UserMenu.tsx",
+        "web/src/theme.css"
       ],
       "steps": [
         {
@@ -485,8 +521,9 @@
         }
       ],
       "takenAt": {
-        "server/users.go": "b08479ea99c2",
-        "web/src/components/UserMenu.tsx": "b04ae6a80b19"
+        "server/users.go": "2fa3d9b82071",
+        "web/src/components/UserMenu.tsx": "0d048bde4d85",
+        "web/src/theme.css": "b1c3dece61ce"
       },
       "element": ".dialog"
     },
@@ -496,7 +533,8 @@
       "caption": "Five settings, each of which can stay automatic. They live on the account, not on the device.",
       "shows": [
         "web/src/components/LanguageTime.tsx",
-        "server/prefs.go"
+        "server/prefs.go",
+        "web/src/theme.css"
       ],
       "steps": [
         {
@@ -516,8 +554,9 @@
         }
       ],
       "takenAt": {
-        "web/src/components/LanguageTime.tsx": "09ce243294b4",
-        "server/prefs.go": "b8cdac760108"
+        "web/src/components/LanguageTime.tsx": "274ac44244e0",
+        "server/prefs.go": "b8cdac760108",
+        "web/src/theme.css": "b1c3dece61ce"
       },
       "element": ".dialog"
     },
@@ -527,7 +566,8 @@
       "caption": "What an agent needs to connect: the endpoint address and a credential.",
       "shows": [
         "web/src/components/AgentConnect.tsx",
-        "server/mcp.go"
+        "server/mcp.go",
+        "web/src/theme.css"
       ],
       "steps": [
         {
@@ -547,8 +587,9 @@
         }
       ],
       "takenAt": {
-        "web/src/components/AgentConnect.tsx": "048c1dc5ffa2",
-        "server/mcp.go": "2d5082cb3a61"
+        "web/src/components/AgentConnect.tsx": "e0a5a3a2e940",
+        "server/mcp.go": "17c81c043186",
+        "web/src/theme.css": "b1c3dece61ce"
       },
       "element": ".dialog"
     },
@@ -557,7 +598,8 @@
       "page": "account.md",
       "caption": "Turning on two-factor sign-in.",
       "shows": [
-        "server/users.go"
+        "server/users.go",
+        "web/src/theme.css"
       ],
       "steps": [
         {
@@ -577,7 +619,8 @@
         }
       ],
       "takenAt": {
-        "server/users.go": "b08479ea99c2"
+        "server/users.go": "2fa3d9b82071",
+        "web/src/theme.css": "b1c3dece61ce"
       },
       "element": ".dialog"
     },
@@ -587,7 +630,8 @@
       "caption": "Instance settings: the name and logo everyone sees.",
       "shows": [
         "web/src/components/AdminSettings.tsx",
-        "server/instance.go"
+        "server/instance.go",
+        "web/src/theme.css"
       ],
       "steps": [
         {
@@ -613,8 +657,9 @@
         }
       ],
       "takenAt": {
-        "web/src/components/AdminSettings.tsx": "f3efac85c5ac",
-        "server/instance.go": "4d41044b9102"
+        "web/src/components/AdminSettings.tsx": "62ab18d78308",
+        "server/instance.go": "2dafc80f532d",
+        "web/src/theme.css": "b1c3dece61ce"
       },
       "element": ".dialog"
     },
@@ -624,7 +669,8 @@
       "caption": "Who may register, and single sign-on with Microsoft or Google.",
       "shows": [
         "web/src/components/AdminSettings.tsx",
-        "server/oauth.go"
+        "server/oauth.go",
+        "web/src/theme.css"
       ],
       "steps": [
         {
@@ -650,8 +696,9 @@
         }
       ],
       "takenAt": {
-        "web/src/components/AdminSettings.tsx": "f3efac85c5ac",
-        "server/oauth.go": "840714b5c2cf"
+        "web/src/components/AdminSettings.tsx": "62ab18d78308",
+        "server/oauth.go": "a368868d9144",
+        "web/src/theme.css": "b1c3dece61ce"
       },
       "element": ".dialog"
     },
@@ -662,7 +709,8 @@
       "shows": [
         "web/src/components/AdminSettings.tsx",
         "server/mail_oauth.go",
-        "server/admin.go"
+        "server/admin.go",
+        "web/src/theme.css"
       ],
       "steps": [
         {
@@ -688,9 +736,10 @@
         }
       ],
       "takenAt": {
-        "web/src/components/AdminSettings.tsx": "f3efac85c5ac",
-        "server/mail_oauth.go": "d58b546dbcb4",
-        "server/admin.go": "17fae480cc90"
+        "web/src/components/AdminSettings.tsx": "62ab18d78308",
+        "server/mail_oauth.go": "7613e2c78ba8",
+        "server/admin.go": "9a3faf12361d",
+        "web/src/theme.css": "b1c3dece61ce"
       },
       "element": ".dialog"
     },
@@ -699,7 +748,8 @@
       "page": "domain.md",
       "caption": "The public address: what share links and agents are told to use.",
       "shows": [
-        "web/src/components/AdminSettings.tsx"
+        "web/src/components/AdminSettings.tsx",
+        "web/src/theme.css"
       ],
       "steps": [
         {
@@ -725,7 +775,8 @@
         }
       ],
       "takenAt": {
-        "web/src/components/AdminSettings.tsx": "f3efac85c5ac"
+        "web/src/components/AdminSettings.tsx": "62ab18d78308",
+        "web/src/theme.css": "b1c3dece61ce"
       },
       "element": ".dialog"
     },
@@ -735,7 +786,8 @@
       "caption": "Outbound webhooks. The signing secret is shown once, when the webhook is created.",
       "shows": [
         "web/src/components/AdminSettings.tsx",
-        "server/webhooks.go"
+        "server/webhooks.go",
+        "web/src/theme.css"
       ],
       "steps": [
         {
@@ -761,8 +813,9 @@
         }
       ],
       "takenAt": {
-        "web/src/components/AdminSettings.tsx": "f3efac85c5ac",
-        "server/webhooks.go": "49e796d4fa6b"
+        "web/src/components/AdminSettings.tsx": "62ab18d78308",
+        "server/webhooks.go": "49e796d4fa6b",
+        "web/src/theme.css": "b1c3dece61ce"
       },
       "element": ".dialog"
     },
@@ -772,7 +825,8 @@
       "caption": "Documents: how a printed document or a PDF from this instance looks.",
       "shows": [
         "web/src/components/AdminSettings.tsx",
-        "server/export_html.go"
+        "server/export_html.go",
+        "web/src/theme.css"
       ],
       "steps": [
         {
@@ -799,8 +853,9 @@
       ],
       "element": ".dialog",
       "takenAt": {
-        "web/src/components/AdminSettings.tsx": "f3efac85c5ac",
-        "server/export_html.go": "76fc484206b3"
+        "web/src/components/AdminSettings.tsx": "62ab18d78308",
+        "server/export_html.go": "3de1d301fa95",
+        "web/src/theme.css": "b1c3dece61ce"
       }
     },
     {
@@ -809,7 +864,8 @@
       "caption": "Maintenance: the database file, backups and the search index.",
       "shows": [
         "web/src/components/AdminSettings.tsx",
-        "server/backup.go"
+        "server/backup.go",
+        "web/src/theme.css"
       ],
       "steps": [
         {
@@ -835,8 +891,9 @@
         }
       ],
       "takenAt": {
-        "web/src/components/AdminSettings.tsx": "f3efac85c5ac",
-        "server/backup.go": "7b11cc725a0a"
+        "web/src/components/AdminSettings.tsx": "62ab18d78308",
+        "server/backup.go": "7b11cc725a0a",
+        "web/src/theme.css": "b1c3dece61ce"
       },
       "element": ".dialog"
     },
@@ -847,7 +904,8 @@
       "shows": [
         "web/src/components/AdminSettings.tsx",
         "server/admin.go",
-        "server/lifecycle_account.go"
+        "server/lifecycle_account.go",
+        "web/src/theme.css"
       ],
       "steps": [
         {
@@ -867,9 +925,10 @@
         }
       ],
       "takenAt": {
-        "web/src/components/AdminSettings.tsx": "f3efac85c5ac",
-        "server/admin.go": "17fae480cc90",
-        "server/lifecycle_account.go": "1dd1c28800c0"
+        "web/src/components/AdminSettings.tsx": "62ab18d78308",
+        "server/admin.go": "9a3faf12361d",
+        "server/lifecycle_account.go": "3bbd986cbe7e",
+        "web/src/theme.css": "b1c3dece61ce"
       },
       "element": ".dialog"
     },
@@ -878,7 +937,8 @@
       "page": "history-and-audit.md",
       "caption": "The activity log: who did what, and when.",
       "shows": [
-        "server/audit.go"
+        "server/audit.go",
+        "web/src/theme.css"
       ],
       "steps": [
         {
@@ -898,7 +958,8 @@
         }
       ],
       "takenAt": {
-        "server/audit.go": "194c77a5759e"
+        "server/audit.go": "116fb6f3f15d",
+        "web/src/theme.css": "b1c3dece61ce"
       },
       "element": ".dialog"
     }

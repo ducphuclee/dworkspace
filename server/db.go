@@ -261,6 +261,7 @@ CREATE TABLE IF NOT EXISTS audit_log (
 	detail TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS idx_audit_ws ON audit_log(workspace_id, id);
+CREATE INDEX IF NOT EXISTS idx_audit_page ON audit_log(page_id);
 CREATE TABLE IF NOT EXISTS idempotency (
 	key TEXT PRIMARY KEY,
 	result TEXT NOT NULL,
@@ -817,6 +818,14 @@ func openDB(path string) (*sql.DB, error) {
 	if err := ensureColumn(db, "page_revisions", "assets", `assets TEXT NOT NULL DEFAULT ''`); err != nil {
 		return nil, fmt.Errorf("migrate page_revisions.assets: %w", err)
 	}
+	// The generation of the live document. Every write that REPLACES the body
+	// from outside the editor (API, MCP, restore, import) moves it, in the same
+	// statement as the content, and resets the CRDT doc. An editor's copy names
+	// the generation it descends from, so the server can refuse a copy of a
+	// document that has since been replaced (#79). See docgen.go.
+	if err := ensureColumn(db, "pages", "doc_gen", `doc_gen INTEGER NOT NULL DEFAULT 0`); err != nil {
+		return nil, fmt.Errorf("migrate pages.doc_gen: %w", err)
+	}
 	// API token workspace scope (empty = all the user's workspaces; else a
 	// comma-separated allow-list of workspace ids the token may reach).
 	if err := ensureColumn(db, "api_tokens", "workspace_scope", `workspace_scope TEXT NOT NULL DEFAULT ''`); err != nil {
@@ -999,9 +1008,9 @@ const welcomeContent = `[
  {"type":"checkListItem","props":{"checked":false},"content":[{"type":"text","text":"Create your first page (button in the sidebar)","styles":{}}]},
  {"type":"checkListItem","props":{"checked":false},"content":[{"type":"text","text":"Press Ctrl/Cmd + K to search everything","styles":{}}]},
  {"type":"heading","props":{"level":2},"content":[{"type":"text","text":"Your data stays yours","styles":{}}]},
- {"type":"bulletListItem","content":[{"type":"text","text":"Single binary, single SQLite file — trivial to back up","styles":{}}]},
- {"type":"bulletListItem","content":[{"type":"text","text":"Export any page — or your whole workspace — as Markdown","styles":{}}]},
- {"type":"bulletListItem","content":[{"type":"text","text":"Clean REST API — build your own clients on top","styles":{}}]}
+ {"type":"bulletListItem","content":[{"type":"text","text":"Single binary, single SQLite file: trivial to back up","styles":{}}]},
+ {"type":"bulletListItem","content":[{"type":"text","text":"Export any page, or your whole workspace, as Markdown","styles":{}}]},
+ {"type":"bulletListItem","content":[{"type":"text","text":"Clean REST API: build your own clients on top","styles":{}}]}
 ]`
 
 func (s *Server) seed() error {

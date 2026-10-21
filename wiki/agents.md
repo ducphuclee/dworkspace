@@ -1,13 +1,13 @@
 # Agents
 
 dworkspace carries an MCP server inside the same binary that serves the interface.
-An AI agent connects to it and works on your pages the way you do — searching,
+An AI agent connects to it and works on your pages the way you do: searching,
 reading, writing, maintaining collections, commenting, saying what it is working
 on. This page is the overview: what MCP is, where the endpoint is, the two ways
 an agent authenticates, what it can and cannot reach, and what the tools are for.
 The parameter-by-parameter reference is on [MCP tools](mcp-tools.md).
 
-It is written for both sides — the person connecting an agent, and the agent
+It is written for both sides: the person connecting an agent, and the agent
 reading this to find out how the place works.
 
 ## What MCP is
@@ -31,12 +31,12 @@ true of it and will save you a debugging session:
 | Address | Must be the one an agent can reach. A cloud agent cannot open a private address, and the connect dialog warns when the instance is on plain `http://` outside localhost. See [Domain and proxy](domain.md). |
 | Batches | A JSON-RPC batch (a top-level array) is refused with `batch requests are not supported`. |
 | Size | The request body is capped at roughly the upload limit plus a third, since base64 inflates. The size is checked against what the request announces before any of the body is read; past that, the answer names the limit and points at `/api/upload`. |
-| Pace | About 240 calls a minute per account, with a burst of 60. Over that, a call comes back with `rate limit exceeded — too many requests, slow down`. |
+| Pace | About 240 calls a minute per account, with a burst of 60. Over that, a call comes back with `rate limit exceeded: too many requests, slow down`. |
 | Deactivated accounts | Refused here in their own right, not only in the browser: `this account has been deactivated`. |
 
 When a client connects, the server introduces itself as **dworkspace**, reports its
 version, and sends one instruction with it: workspaces can carry rules their
-admin wrote for agents — read them before writing into a workspace. It sends its
+admin wrote for agents; read them before writing into a workspace. It sends its
 own logo along with the introduction, so a client that reads icons shows the
 dworkspace mark instead of a placeholder. Not every client does; nothing depends
 on it.
@@ -46,7 +46,7 @@ on it.
 1. Click your name in the sidebar footer.
 2. Choose **Agents & MCP**. The **Connect an agent** dialog opens.
 3. Pick how the agent authenticates: **Sign in** or **Token in the address**.
-4. Pick your client from the gallery — Claude (App & Web), Claude Code, ChatGPT,
+4. Pick your client from the gallery: Claude (App & Web), Claude Code, ChatGPT,
    OpenAI Codex, Cursor, OpenClaw, Hermes Agent, Gemini CLI, or **Other agent**.
 5. Press **Copy** and paste the snippet where that client keeps its
    configuration. The dialog says where, per client.
@@ -63,13 +63,13 @@ the network still works for an agent outside it.
 | --- | --- | --- |
 | The address | `https://dworkspace.example.com/mcp` | `https://dworkspace.example.com/mcp/<token>` |
 | What is secret | Nothing in the address | The address itself |
-| Who decides the reach | The client asks for read, or for read and write. You decide, on a consent screen, which workspaces it gets — and whether it gets anything at all. | Whoever creates the token, in advance: the scope and the workspaces both |
+| Who decides the reach | The client asks for read, or for read and write. You decide, on a consent screen, which workspaces it gets, and whether it gets anything at all. | Whoever creates the token, in advance: the scope and the workspaces both |
 | Lifetime | An access token expires after an hour and is renewed in the background | Until it is revoked |
-| Ends by | Revoking the grant — see below, this one is unfinished | **Revoke**, in the **API tokens** dialog |
+| Ends by | Revoking the grant (see below, this one is unfinished) | **Revoke**, in the **API tokens** dialog |
 
 Sign-in is offered first because nothing secret ends up in a configuration file
 or in the logs of every proxy along the way. A client that cannot sign in will
-ask for a token instead — that is the signal to use the other way, and plenty of
+ask for a token instead. That is the signal to use the other way, and plenty of
 good clients are still in that group.
 
 ### Signing in
@@ -80,14 +80,14 @@ where to authorize, discovers the rest by itself, and sends you to a browser.
 The consent screen shows the instance name and host at the top, then:
 
 - **Grant access?** and the client's name, with the plain warning that *that name
-  was chosen by whoever set up the connection* — anyone can register a client
+  was chosen by whoever set up the connection*: anyone can register a client
   under any name, so the screen presents the name as a claim rather than as an
   identity.
-- **It will be allowed to** — *read pages*, or *read and change pages*. This half
+- **It will be allowed to**: *read pages*, or *read and change pages*. This half
   is shown, not chosen. The client asked for it in the request that sent you
   here, and there is no control to narrow it: your decision is whether to
   approve what was asked.
-- **Where** — **Every workspace, including ones added later**, or **Only the ones
+- **Where**: **Every workspace, including ones added later**, or **Only the ones
   I pick**. Nothing is ticked to begin with, and **Allow** stays dead until you
   pick something. The difference is not convenience: a list of workspaces is a
   photograph of today, so a workspace created next week is outside a picked list
@@ -99,8 +99,8 @@ invisibly; nobody signs in again every hour.
 
 **Ending one is the unfinished corner of this.** The consent screen says the
 connection can be ended at any time in your account settings, and that screen
-does not exist yet. The server half does — grants can be listed and revoked at
-`/api/oauth/grants` — but nothing in the interface calls it. Until something
+does not exist yet. The server half does (grants can be listed and revoked at
+`/api/oauth/grants`), but nothing in the interface calls it. Until something
 does, a signed-in connection ends when the client revokes it from its own side,
 or when the account behind it is deactivated or deleted: a deactivated account is
 turned away at the MCP endpoint whatever it is carrying. If a connection has to
@@ -111,18 +111,18 @@ that works. See [Administration](administration.md).
 
 Choose **Token in the address** and the dialog offers **Read & write** or **Read
 only**, and **Only “<this workspace>”** or **All workspaces**. **Create token**
-mints it and fills it into the snippet — it is shown once and never again. You
+mints it and fills it into the snippet; it is shown once and never again. You
 can also paste an existing token into *… or paste an existing token here*.
 
 Clients that have a headers field can use the classic form instead: the endpoint
 `/mcp` plus `Authorization: Bearer <token>`. The same token also works against
-the REST interface — see [API](api.md).
+the REST interface (see [API](api.md)).
 
 ### The API tokens dialog
 
 The same menu holds **API tokens**, where tokens are minted and managed outside
-the connect flow. The form at the bottom takes a name — *Token name (e.g.
-claude-code)* — a scope, **Read-write** or **Read-only**, and a reach, **All
+the connect flow. The form at the bottom takes a name, *Token name (e.g.
+claude-code)*, a scope, **Read-write** or **Read-only**, and a reach, **All
 workspaces** or **Specific workspaces…**, which unfolds a checkbox per
 workspace. **Create token** mints it.
 
@@ -140,9 +140,15 @@ Guessing at tokens is throttled per calling address, and only failures count
 towards the budget. An agent making hundreds of calls a minute with a good token
 is never slowed down by it.
 
+An admin can also accept agent keys from listed addresses only: **Instance
+settings → Access → Agent keys** ([Administration](administration.md#agent-keys)).
+With that on, a key used from anywhere else is refused with `403`
+`agent_address_not_allowed`, whether it is a token or a sign-in, on MCP and on the
+REST API.
+
 ## What an agent can and cannot do
 
-**An agent has the permissions of the human whose credential it carries — never
+**An agent has the permissions of the human whose credential it carries, never
 more, and often less.** Three limits stack, in this order:
 
 1. **The person.** A viewer cannot write. Someone else's private pages are
@@ -150,7 +156,7 @@ more, and often less.** Three limits stack, in this order:
    as far as the agent is concerned. See [Permissions](permissions.md).
 2. **The credential.** A read-only credential refuses every writing tool with
    `this API token is read-only`. A credential granted particular workspaces
-   cannot reach the others — and does not even learn their names, only that some
+   cannot reach the others, and does not even learn their names, only that some
    exist. It also cannot create a workspace at all: the new one would be outside
    its own list, so `workspace` refuses rather than making something it could not
    then open.
@@ -162,9 +168,9 @@ more, and often less.** Three limits stack, in this order:
 | --- | --- |
 | **Anything they were granted** | Any connection that was given this workspace. The default. |
 | **Only signed-in connections** | A permanent token stops finding the workspace, even one that names it: the workspace is gone from `list`, `search` returns nothing out of it, and `get_workspace` refuses it. A signed-in connection is unaffected. For confidential material. |
-| **No agents at all** | The same, for every kind of agent credential — signed-in connections included. |
+| **No agents at all** | The same, for every kind of agent credential, signed-in connections included. |
 
-A browser session is never limited by that setting — the person who sets it is
+A browser session is never limited by that setting: the person who sets it is
 not the one it is aimed at.
 
 **What the setting governs is what an agent can find.** It sits on top of the
@@ -186,7 +192,7 @@ interface and want a signed-in browser:
 | Creating or deleting accounts, setting passwords | [Administration](administration.md) |
 | Backup and restore, tunnel, mail, instance settings | [Administration](administration.md) |
 | Workspace membership and roles | [Workspaces](workspaces.md) |
-| Applying workspace rules | The workspace menu — an admin's agent may submit a draft |
+| Applying workspace rules | The workspace menu (an admin's agent may submit a draft) |
 | Discarding a page's note trail | The **Raw trail** on the page |
 
 A credential that could mint a better credential would not be a boundary, which
@@ -213,13 +219,13 @@ because renaming a tool breaks every agent configuration in existence.
 
 | Tool | For |
 | --- | --- |
-| `search` | Full text across everything the caller may read — titles, content, indexed PDFs. Returns matching passages with their heading path. |
+| `search` | Full text across everything the caller may read: titles, content, indexed PDFs. Returns matching passages with their heading path. |
 | `list` | What is there of a kind: pages, templates, tags, workspaces, files, users, cover presets. For files, `under: <page id>` narrows it to one page and its sub-pages. |
 | `get_page` | One page as Markdown; `include_children` returns the whole sub-tree in one answer. |
 | `get_collection` | A database's property schema and its views, with ids. |
-| `query_rows` | Rows with server-side filter, sort and paging, including computed rollups and formulas. |
+| `query_rows` | Rows with server-side filter, sort and paging, including computed rollups and formulas. `filter_groups` adds OR: every condition in `filter` holds, plus one of the groups. |
 | `get_links` | What points at one page, or the whole graph. |
-| `get_workspace` | Name, role, members and their ids, page and database counts — and the workspace rules. |
+| `get_workspace` | Name, role, members and their ids, page and database counts, and the workspace rules. |
 | `get_permissions` | Whether a page can be read, written or deleted, and why it is read-only if it is. |
 | `whoami` | Who this connection is, its scope, its workspaces, and what is closed to it. |
 | `revisions` | A page's history, one older state, or putting the page back to it. |
@@ -228,7 +234,7 @@ Two of those repay a closer look. Called without a page, `get_links` returns the
 whole graph as edges of *from, to, kind*, where a kind is a Markdown link, a
 sub-page, a row of a database, or a database embedded in a page. It takes a list
 of kinds to keep, a workspace to stay inside, and an optional flag to return
-every page as a node as well — off by default, because it is large and because the orphans it
+every page as a node as well, off by default, because it is large and because the orphans it
 returns anyway already answer "what is connected to nothing". And `revisions`
 lists 20 by default and 100 at most, but the part worth knowing is that restoring
 saves the CURRENT state as a new revision first: putting a page back is itself
@@ -244,7 +250,7 @@ reversible.
 | `duplicate_page` | A deep copy of a page and its sub-tree. |
 | `save_as_template` | Snapshot a page as a template. See [Templates](templates.md). |
 | `upload_file` | A file onto a page. PDF text becomes searchable. See [Files](files.md). |
-| `set_trashed` | To the trash and back — both directions, because both are reversible. See [Trash and recovery](trash-and-recovery.md). |
+| `set_trashed` | To the trash and back: both directions, because both are reversible. See [Trash and recovery](trash-and-recovery.md). |
 | `set_sharing` | Mint or revoke a public read-only link. See [Sharing](sharing.md). |
 
 Three things about those belong here rather than in a parameter list:
@@ -257,8 +263,8 @@ Three things about those belong here rather than in a parameter list:
   is never indexed for search, because indexing hangs off the page it went on.
   Pass the page id.
 - **A public link can carry an expiry in days and a password**, and sharing a
-  page again replaces the link it had. That is deliberate — a link somebody
-  believes revoked must not go on working — but it also means re-sharing
+  page again replaces the link it had. That is deliberate (a link somebody
+  believes revoked must not go on working), but it also means re-sharing
   invalidates whatever was already circulating.
 
 ### Collections
@@ -269,7 +275,7 @@ Three things about those belong here rather than in a parameter list:
 | `create_rows` | Up to 200 rows in one call. |
 | `set_properties` | Typed values on a row, merged field by field. |
 | `update_schema` | Add or change properties, including relations, backrelations and rollups. |
-| `set_view` | Create a view or change one — grouping, filters, sort, hidden columns. |
+| `set_view` | Create a view or change one: grouping, filters, sort, hidden columns. |
 | `delete_view` | Remove a view. The last one cannot be deleted. |
 | `embed_database` | Put an existing collection inside a document. |
 
@@ -284,12 +290,12 @@ database. See [Collections](collections.md) and [Properties](properties.md).
 | Tool | For |
 | --- | --- |
 | `working_on` | Check in before a long job, check out when done. Shown live in the interface. |
-| `note` | One line onto a page's raw trail — dated, append-only, permanent. |
+| `note` | One line onto a page's raw trail: dated, append-only, permanent. |
 | `comments` | List, add, resolve or reopen comments. |
 | `delete_comment` | Remove one permanently. Its own tool on purpose, so it cannot be reached by landing on the wrong enum value. |
 
 A note cannot be edited or removed afterwards, by the agent that wrote it or by
-anybody else — which is exactly what makes a trail worth reading later. What a
+anybody else, which is exactly what makes a trail worth reading later. What a
 person can do, in the browser, is discard a page's whole trail in one act:
 **Discard the whole trail**, in the **Raw trail** section, which asks for
 confirmation and is written into the activity log, so the gap in the record is
@@ -299,19 +305,19 @@ itself a dated decision. See [Comments and notes](comments-and-notes.md).
 
 | Tool | For |
 | --- | --- |
-| `workspace` | Create a workspace, or rename one and set its icon. `from_workspace` copies another one's structure — rules, databases, schemas, views, no content. |
+| `workspace` | Create a workspace, or rename one and set its icon. `from_workspace` copies another one's structure: rules, databases, schemas, views, no content. |
 | `propose_workspace_rules` | Submit a draft of the rules. Workspace admins only, and it never activates by itself. |
 | `import_url` | Bulk-import records from a JSON URL. Dworkspace fetches and writes them, so none of the content passes through the agent. |
 | `get_import_status` | Progress of that job. |
 
 `import_url` reaches **publicly routable addresses only**. Loopback, private
-ranges and link-local — which is where the cloud metadata address
-169.254.169.254 lives — are refused before the connection is made, and again on
+ranges and link-local (which is where the cloud metadata address
+169.254.169.254 lives) are refused before the connection is made, and again on
 every redirect, so an import cannot be turned into a way of probing the network
 the server sits in. A source on your own network needs whoever runs the service
 to allow it at startup; an agent cannot decide that for itself. The tool also
 takes request headers for an API key, a map that turns foreign ids into readable
-names using another array from the same response, and a limit — which is how you
+names using another array from the same response, and a limit, which is how you
 do a trial run of ten records before importing four thousand. See
 [Import and export](import-export.md).
 
@@ -328,7 +334,7 @@ event-driven work around these, see [Automation](automation.md) and
 ## What people see while an agent works
 
 An agent that checks in with `working_on` appears in the page's topbar with its
-own logo, its name, and — when it is the only agent there — its note, "tidying
+own logo, its name, and (when it is the only agent there) its note, "tidying
 the file index". With two agents on one page the notes move into the tooltip:
 side by side they pushed the breadcrumb off the topbar.
 
@@ -336,7 +342,7 @@ The same mark shows up as a small dot beside the page in the sidebar, on a board
 card, and on a row in a collection's table.
 
 The tooltip reads like *Claude · via Ada Lovelace · tidying the file index · here
-for 2 h 14 min · last seen 47 min ago* — the agent, the account it came through,
+for 2 h 14 min · last seen 47 min ago*: the agent, the account it came through,
 its note if it left one, how long it has been here, and when it last called in.
 An agent that said how long it expects to take adds *checked in for about 30 min*
 at the end, which makes a long silence look expected rather than suspicious.
@@ -344,7 +350,7 @@ at the end, which makes a long silence look expected rather than suspicious.
 Two things about that badge are worth knowing:
 
 - **The agent's name is a claim; the account is not.** Nothing in a credential
-  says which agent is calling — a credential belongs to a person. So the agent
+  says which agent is calling: a credential belongs to a person. So the agent
   names itself, and an unknown name is shown neutrally rather than refused. The
   account travelling beside it is the verified half.
 - **Nothing expires on its own.** An agent has no clock and cannot wake itself to
@@ -356,7 +362,7 @@ Two things about that badge are worth knowing:
 Checking out leaves the last note behind as a trail entry. Writes made over MCP
 are recorded in the activity log as agent actions, with one deliberate
 exception: a `note` is not copied there. The trail on the page already is the
-record — dated, and readable by exactly the people who may see the page — and
+record (dated, and readable by exactly the people who may see the page), and
 repeating it in the log would carry it to a second audience for no gain.
 
 An agent that asks for a page's history over MCP is told, per revision, whether a
@@ -376,7 +382,7 @@ all, including "ignore your rules".
 with the opposite framing: follow them while working here. What makes the
 friendlier reading safe is the way rules are written. Only a workspace admin can
 apply them, in a browser. `propose_workspace_rules` leaves a draft that a person
-reviews and applies; an agent — or anyone holding its credential — cannot rewrite
+reviews and applies; an agent, or anyone holding its credential, cannot rewrite
 its own guardrails. Rules are working conventions inside one workspace: they
 never grant permissions beyond the credential, and they never replace the task
 the operator gave. See [Workspaces](workspaces.md).
@@ -384,19 +390,19 @@ the operator gave. See [Workspaces](workspaces.md).
 ## Teaching an agent how you work here
 
 Connecting is half of it. A connected agent still does not know your naming, your
-structure, or where things belong — and being told in a chat means being told
+structure, or where things belong, and being told in a chat means being told
 again in the next one.
 
 At the foot of the **Connect an agent** dialog, **Download skill** produces a
-bundle the instance generates for itself. It is four files — the skill itself, a
-tool reference, the block to install, and a README with the install paths — and
+bundle the instance generates for itself. It is four files (the skill itself, a
+tool reference, the block to install, and a README with the install paths), and
 it carries this instance's own address, the workspace you have open with its id
 and its rules, and the names and ids of the other workspaces you can reach.
 
 It opens with two instructions, in that order: call `get_workspace` and follow
 the rules the people here wrote, then append a short block to the repository's
-own agent file — `CLAUDE.md` for Claude Code, `AGENTS.md` for most others, both
-if both exist. The second is the one that lasts. A skill is loaded when it is
+own agent file (`CLAUDE.md` for Claude Code, `AGENTS.md` for most others, both
+if both exist). The second is the one that lasts. A skill is loaded when it is
 invoked; that file is read at the start of every session, by every agent that
 opens the repository.
 
@@ -405,17 +411,20 @@ or `.claude/skills/dworkspace/` for one repository. Anything else that reads
 instruction files can use the skill directly — it is plain Markdown with a small
 header.
 
-**No credential is in the bundle, deliberately** — it gets unpacked into a
+**No credential is in the bundle, deliberately**: it gets unpacked into a
 repository, and repositories get pushed. See [The agent skill](skill.md).
 
 ## When something is refused
 
 Call `whoami` first. It separates "I used the wrong id" from "I am not allowed to
-do this", and those need very different next moves. `get_permissions` answers the
+do this", and those need very different next moves. If even `whoami` answers
+`agent_address_not_allowed`, the instance accepts agent keys only from listed
+addresses and the agent is calling from somewhere else; an admin adds the address
+named in the answer. `get_permissions` answers the
 same question for one page before a write is attempted.
 
 A page that cannot be reached answers `page "…" not found` whether it is missing,
-private, or outside the credential's workspaces — telling the three apart would
+private, or outside the credential's workspaces: telling the three apart would
 confirm that the page exists. The one case that says more is a workspace on your
 own account that this connection was not granted: there the answer names the
 reason, because the caller already knows the workspace is theirs.

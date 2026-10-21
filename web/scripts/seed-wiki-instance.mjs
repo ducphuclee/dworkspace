@@ -141,5 +141,14 @@ for (const [title, status, area, due, effort, blocked, sys] of rows) {
 }
 
 const pages = await call('GET', '/api/pages');
+
+// The welcome page starts out shared. Opening the share menu on a page that is
+// not shared yet publishes it, so without this the light shot of the menu
+// would share the page and the dark one would find a different menu. Shared
+// from the start, every run sees the same thing, and the sidebar shows the
+// marker a shared page carries.
+const welcome = pages.find((p) => p.title === 'Welcome to salt.md');
+if (welcome) await call('POST', `/api/pages/${welcome.id}/share`, {});
+
 console.log(`\n  seeded ${BASE}: ${pages.length} pages, 2 collections, ${rows.length} rows`);
 console.log(`  now: node scripts/shoot-wiki.mjs\n`);

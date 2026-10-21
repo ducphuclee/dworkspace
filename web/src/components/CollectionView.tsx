@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api';
+import { onRefresh } from '../pwa';
 import Portal from './Portal';
 import { useBoardDrag } from '../boardDrag';
 import { tagColorClass } from '../tags';
@@ -19,6 +20,7 @@ import type {
   ViewDef,
 } from '../types';
 import PropertyValue, { PersonStack, idList, loadRelationOptions, type RelOption } from './PropertyValue';
+import { openPage, openPageAux } from '../pageOpen';
 import { AgentDot } from './AgentBadge';
 import { planCard, isBlank, zoneOf, contactKind, needsLabel } from '../cardLayout';
 import SchemaEditor from './SchemaEditor';
@@ -62,6 +64,7 @@ import {
   Pencil,
   Trash2,
   SquareArrowOutUpRight,
+  ExternalLink,
   ArrowLeft,
   ArrowRight, History} from 'lucide-react';
 
@@ -93,12 +96,31 @@ function propTypeIcon(t: PropDef['type']) {
   }
 }
 
+/** A collection shown inside a document rather than as its own page.
+ *
+ *  The rows stay the collection's: an edit in an embed is an edit everywhere.
+ *  What an embed keeps to itself is how it LOOKS at them — which view, and the
+ *  filters and sort it applies there — so filtering the Tasks embedded in
+ *  Project A to Project A no longer filters Tasks for everybody, everywhere
+ *  (#26). A view without an entry shows what the collection's view says, which
+ *  is every embed written before this existed. */
+export interface EmbedState {
+  viewId: string;
+  views: Record<string, { filters?: Filter[]; sort?: ViewDef['sort'] }>;
+  onViewId: (viewId: string) => void;
+  onView: (viewId: string, patch: { filters?: Filter[]; sort?: ViewDef['sort'] }) => void;
+}
+
 interface Props {
   collectionId: string;
   pages: Map<string, PageMeta>;
   tagColors: Record<string, string>;
   onNavigate: (id: string) => void;
+  /** ⌘/Ctrl-click and middle-click on a row open a second tab; a plain click
+   *  navigates the one you are in (see pageOpen). */
+  onOpenInNewTab?: (id: string) => void;
   onPagesChanged: () => void;
+  embed?: EmbedState;
 }
 
 interface Row {
@@ -215,10 +237,14 @@ function applyView(rows: Row[], view: ViewDef): Row[] {
   return out;
 }
 
-export default function CollectionView({ collectionId, pages, tagColors, onNavigate, onPagesChanged }: Props) {
+export default function CollectionView({ collectionId, pages, tagColors, onNavigate, onOpenInNewTab, onPagesChanged, embed }: Props) {
   const [config, setConfig] = useState<CollectionConfig | null>(null);
   const [rows, setRows] = useState<Row[]>([]);
-  const [viewId, setViewId] = useState<string>('');
+  const [viewId, setViewId] = useState<string>(embed?.viewId ?? '');
+  const pickView = (id: string) => {
+    setViewId(id);
+    embed?.onViewId(id);
+  };
   const [schemaOpen, setSchemaOpen] = useState(false);
 
   // Open comments per row. Trello shows on every card whether anything was
@@ -253,6 +279,9 @@ export default function CollectionView({ collectionId, pages, tagColors, onNavig
   const addViewBtnRef = useRef<HTMLButtonElement>(null);
   const [viewMenuFor, setViewMenuFor] = useState<string | null>(null);
   const [addViewPos, setAddViewPos] = useState<React.CSSProperties | null>(null);
+  // A right-click on a view's tab opens the same actions the ⋯ holds, for THAT
+  // view, at the pointer (#24). The ⋯ only ever acted on the view you are on.
+  const [tabMenu, setTabMenu] = useState<{ view: ViewDef; style: React.CSSProperties } | null>(null);
   useLayoutEffect(() => {
     if (!addViewOpen || !addViewBtnRef.current) {
       setAddViewPos(null);
@@ -271,7 +300,10 @@ export default function CollectionView({ collectionId, pages, tagColors, onNavig
   // Rows are fetched from the server (filtered/paginated there), NOT from the
   // global page list — a database can have tens of thousands of rows that must
   // not choke the sidebar tree load.
-  const view0 = config?.views.find((v) => v.id === viewId) ?? config?.views[0];
+  const savedView = config?.views.find((v) => v.id === viewId) ?? config?.views[0];
+  // In a document, the embed's own filters and sort stand in for the view's.
+  const own = savedView && embed?.views[savedView.id];
+  const view0 = savedView && own ? { ...savedView, ...own } : savedView;
   // Server-side filter/sort (real Q25): the view's filters/sort become query
   // params so a 50k-row database is filtered in SQLite, not in the browser.
   // Only finished conditions travel. An unfinished one is not "match nothing",
@@ -338,12 +370,25 @@ export default function CollectionView({ collectionId, pages, tagColors, onNavig
     const onRows = (e: Event) => {
       if ((e as CustomEvent<string>).detail !== collectionId) return;
       window.clearTimeout(timer);
-      timer = window.setTimeout(() => void loadRows(), 400);
+      // The schema and the views too: the event also stands for a new
+      // property or a changed view, and a tab that kept its first copy of
+      // those drew the database as it was when it opened.
+      timer = window.setTimeout(() => {
+        void loadRows();
+        loadConfig();
+      }, 400);
     };
     window.addEventListener('dworkspace:rows', onRows);
+    // Somebody pulled down, or pressed sync. Not debounced and not conditional:
+    // they asked for THIS table, now.
+    const stopRefresh = onRefresh(() => {
+      void loadRows();
+      loadConfig();
+    });
     return () => {
       window.clearTimeout(timer);
       window.removeEventListener('dworkspace:rows', onRows);
+      stopRefresh();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [collectionId, fsKey]);
@@ -353,15 +398,25 @@ export default function CollectionView({ collectionId, pages, tagColors, onNavig
   const view = view0;
   const schema = config?.schema ?? [];
 
+  // Only the half that changed goes to the server. Sending both put this tab's
+  // copy of the schema back on every view change, and that copy is as old as
+  // the tab: a property an agent or a colleague added meanwhile vanished again
+  // the moment somebody here resized a column.
   const saveConfig = async (next: CollectionConfig) => {
+    const patch: Partial<CollectionConfig> = {};
+    if (!config || next.schema !== config.schema) patch.schema = next.schema;
+    if (!config || next.views !== config.views) patch.views = next.views;
     setConfig(next);
-    await api.putCollection(collectionId, next);
+    if (!patch.schema && !patch.views) return;
+    await api.putCollection(collectionId, patch);
   };
 
   const addRow = async (presetProps?: Record<string, unknown>) => {
-    const p = await api.createPage(collectionId, 'Untitled', 'doc', presetProps);
+    // Deliberately does NOT onNavigate() into the new row: creating an item
+    // from a collection view should keep you looking at the collection, same
+    // as Notion. Opening it is the same click as any other existing row.
+    await api.createPage(collectionId, 'Untitled', 'doc', presetProps);
     onPagesChanged();
-    onNavigate(p.id);
   };
 
   // Persist an inline change to a select/multiselect property's options (create,
@@ -422,6 +477,17 @@ export default function CollectionView({ collectionId, pages, tagColors, onNavig
   if (!config || !view) return <div className="editor-loading" />;
 
   const updateView = (patch: Partial<ViewDef>) => {
+    // An embed keeps its filters and sort to itself (#26): set inside a
+    // document, they must not change the collection's view everywhere else.
+    if (embed && ('filters' in patch || 'sort' in patch)) {
+      const { filters, sort, ...rest } = patch;
+      embed.onView(view.id, {
+        ...('filters' in patch ? { filters } : {}),
+        ...('sort' in patch ? { sort } : {}),
+      });
+      if (Object.keys(rest).length === 0) return;
+      patch = rest;
+    }
     const next = {
       ...config,
       views: config.views.map((v) => (v.id === view.id ? { ...v, ...patch } : v)),
@@ -494,8 +560,8 @@ export default function CollectionView({ collectionId, pages, tagColors, onNavig
   const viewRows = applyView(rows, view);
   const emptyLabel =
     rows.length > 0 && viewRows.length === 0
-      ? 'No rows match the current filter.'
-      : 'No rows yet — click ＋ New above.';
+      ? t('No rows match the current filter.')
+      : t('No rows yet. Click ＋ New above.');
   const tabIcon = (t: ViewDef['type']) => {
     const sz = 14;
     if (t === 'board') return <Columns3 size={sz} />;
@@ -523,23 +589,73 @@ export default function CollectionView({ collectionId, pages, tagColors, onNavig
           <span key={v.id} className="view-tab-wrap">
             <button
               className={'view-tab view-tab--' + v.type + (v.id === view.id ? ' active' : '')}
-              onClick={() => setViewId(v.id)}
-              onDoubleClick={() => void renameView(v)}
+              onClick={() => pickView(v.id)}
+              onDoubleClick={() => {
+                if (!embed) void renameView(v);
+              }}
+              onContextMenu={(e) => {
+                // Inside a document the views are the collection's business,
+                // reached through "Open as page" — not something a reader of
+                // the document should rename or remove by accident.
+                if (embed) return;
+                e.preventDefault();
+                setTabMenu({
+                  view: v,
+                  style: {
+                    position: 'fixed',
+                    left: Math.max(8, Math.min(e.clientX, window.innerWidth - 208)),
+                    top: Math.max(8, Math.min(e.clientY, window.innerHeight - 180)),
+                    right: 'auto',
+                    zIndex: 320,
+                  },
+                });
+              }}
             >
               <span className="view-tab-ic">{tabIcon(v.type)}</span>
               {v.name}
             </button>
           </span>
         ))}
-        <button
-          ref={addViewBtnRef}
-          className="view-add"
-          title={t('Add view')}
-          onClick={() => setAddViewOpen((o) => !o)}
-        >
-          <Plus size={15} />
-        </button>
+        {!embed && (
+          <button
+            ref={addViewBtnRef}
+            className="view-add"
+            title={t('Add view')}
+            onClick={() => setAddViewOpen((o) => !o)}
+          >
+            <Plus size={15} />
+          </button>
+        )}
       </div>
+      {tabMenu && (
+        <Portal>
+          <div className="fs-backdrop" onClick={() => setTabMenu(null)} onContextMenu={(e) => { e.preventDefault(); setTabMenu(null); }} />
+          <div className="menu view-tab-menu" style={tabMenu.style}>
+            <button onClick={() => { setTabMenu(null); void renameView(tabMenu.view); }}>
+              <Pencil size={15} /> {t('Rename view')}
+            </button>
+            {config.views.length > 1 && (
+              <>
+                <button
+                  disabled={config.views[0]?.id === tabMenu.view.id}
+                  onClick={() => { setTabMenu(null); moveView(tabMenu.view, -1); }}
+                >
+                  <ArrowLeft size={15} /> {t('Move left')}
+                </button>
+                <button
+                  disabled={config.views[config.views.length - 1]?.id === tabMenu.view.id}
+                  onClick={() => { setTabMenu(null); moveView(tabMenu.view, 1); }}
+                >
+                  <ArrowRight size={15} /> {t('Move right')}
+                </button>
+                <button className="danger" onClick={() => { setTabMenu(null); removeView(tabMenu.view); }}>
+                  <Trash2 size={15} /> {t('Remove view')}
+                </button>
+              </>
+            )}
+          </div>
+        </Portal>
+      )}
       {addViewOpen && addViewPos && (
         <Portal>
           <div className="fs-backdrop" onClick={() => setAddViewOpen(false)} />
@@ -572,7 +688,7 @@ export default function CollectionView({ collectionId, pages, tagColors, onNavig
               value={view.dateProp ?? ''}
               onChange={(e) => updateView({ dateProp: e.target.value || undefined })}
             >
-              <option value="">{t('Start: —')}</option>
+              <option value="">{t('Start: (none)')}</option>
               {dateProps.map((p) => (
                 <option key={p.id} value={p.id}>
                   {t('Start:')} {p.name}
@@ -610,15 +726,22 @@ export default function CollectionView({ collectionId, pages, tagColors, onNavig
           </select>
         )}
         {view.type !== 'form' && <FilterSortControls schema={schema} view={view} onChange={updateView} />}
-        <ColumnsControl schema={schema} view={view} onChange={updateView} />
-        <button className="btn-sm" onClick={() => setSchemaOpen(true)}>
-          <Settings2 size={14} /> {t('Properties')}
-        </button>
+        {/* What the collection IS — its columns, its properties, its views —
+            is edited on its own page. An embed is a window onto the rows, and
+            carrying the whole toolbar into a document made it look like a
+            second copy of the collection (#22). */}
+        {!embed && <ColumnsControl schema={schema} view={view} onChange={updateView} />}
+        {!embed && (
+          <button className="btn-sm" onClick={() => setSchemaOpen(true)}>
+            <Settings2 size={14} /> {t('Properties')}
+          </button>
+        )}
         {/* Renaming and removing the view you are on. It sat inside the tab as a
             ⋯ first, which looked like a smudge in the pill and had to reserve
             room in a row where nothing else does. This bar is already "settings
             for the current view" — filter, sort, group, columns — so it is
             where the last two belong. */}
+        {!embed && (
         <div className="view-menu-wrap">
           <button
             className="btn-sm"
@@ -659,9 +782,10 @@ export default function CollectionView({ collectionId, pages, tagColors, onNavig
             </>
           )}
         </div>
+        )}
         {view.type !== 'form' && (
           <button className="btn-sm primary" onClick={() => void addRow()}>
-            <Plus size={14} /> New
+            <Plus size={14} /> {t('New')}
           </button>
         )}
       </div>
@@ -669,7 +793,14 @@ export default function CollectionView({ collectionId, pages, tagColors, onNavig
   );
 
   return (
-    <div className={'collection-scroll' + (view.type === 'board' ? ' is-board' : '')}>
+    <div
+      className={
+        'collection-scroll' +
+        (view.type === 'board' ? ' is-board' : '') +
+        (embed ? ' is-embed' : '') +
+        (embed && (view.filters ?? []).some(filterIsArmed) ? ' is-filtered' : '')
+      }
+    >
       {viewSwitcher}
       {view.type === 'form' ? (
         <FormView
@@ -687,6 +818,7 @@ export default function CollectionView({ collectionId, pages, tagColors, onNavig
           tagColors={tagColors}
           commentCounts={commentCounts}
           onNavigate={onNavigate}
+          onOpenInNewTab={onOpenInNewTab}
           onSetProp={setRowProp}
           onSetOptions={setPropOptions}
           onDrop={(rowId, groupBy, optId) => {
@@ -704,6 +836,7 @@ export default function CollectionView({ collectionId, pages, tagColors, onNavig
           emptyLabel={emptyLabel}
           tagColors={tagColors}
           onNavigate={onNavigate}
+          onOpenInNewTab={onOpenInNewTab}
           onSetProp={setRowProp}
           onSetOptions={setPropOptions}
         />
@@ -714,6 +847,7 @@ export default function CollectionView({ collectionId, pages, tagColors, onNavig
           dateProp={view.dateProp || schema.find((p) => p.type === 'date')?.id || ''}
           tagColors={tagColors}
           onNavigate={onNavigate}
+          onOpenInNewTab={onOpenInNewTab}
         />
       ) : view.type === 'list' ? (
         <ListView
@@ -722,6 +856,7 @@ export default function CollectionView({ collectionId, pages, tagColors, onNavig
           emptyLabel={emptyLabel}
           tagColors={tagColors}
           onNavigate={onNavigate}
+          onOpenInNewTab={onOpenInNewTab}
           onSetProp={setRowProp}
           onSetOptions={setPropOptions}
         />
@@ -733,6 +868,7 @@ export default function CollectionView({ collectionId, pages, tagColors, onNavig
           endProp={view.endDateProp || ''}
           tagColors={tagColors}
           onNavigate={onNavigate}
+          onOpenInNewTab={onOpenInNewTab}
         />
       ) : (
         <TableView
@@ -746,6 +882,7 @@ export default function CollectionView({ collectionId, pages, tagColors, onNavig
           colWidths={view.colWidths}
           onSetColWidths={(colWidths) => updateView({ colWidths })}
           onNavigate={onNavigate}
+          onOpenInNewTab={onOpenInNewTab}
           onSetProp={setRowProp}
           onSetOptions={setPropOptions}
         />
@@ -917,7 +1054,7 @@ function FormView({
         <textarea
           className="form-desc"
           value={view.formDesc ?? ''}
-          placeholder={t('Description (optional) — explains what the form is for.')}
+          placeholder={t('Description (optional): explains what the form is for.')}
           rows={2}
           onChange={(e) => onUpdateView({ formDesc: e.target.value })}
         />
@@ -945,7 +1082,7 @@ function FormView({
         </div>
         <div className="form-actions">
           <button className="btn-sm primary form-submit" disabled={busy || !title.trim()} onClick={() => void submit()}>
-            <Send size={14} /> {view.formSubmit?.trim() || 'Absenden'}
+            <Send size={14} /> {view.formSubmit?.trim() || t('Submit')}
           </button>
         </div>
       </div>
@@ -1294,7 +1431,7 @@ function FilterSortControls({
                     )}
                   </div>
                 )}
-                {!filterIsArmed(f) && <div className="fs-hint">{t('Not filtering yet — pick a value.')}</div>}
+                {!filterIsArmed(f) && <div className="fs-hint">{t('Not filtering yet. Pick a value.')}</div>}
               </div>
             );
           })}
@@ -1503,6 +1640,7 @@ function BoardView({
   tagColors,
   commentCounts,
   onNavigate,
+  onOpenInNewTab,
   onSetProp,
   onSetOptions,
   onDrop,
@@ -1515,6 +1653,7 @@ function BoardView({
   tagColors: Record<string, string>;
   commentCounts: Record<string, number>;
   onNavigate: (id: string) => void;
+  onOpenInNewTab?: (id: string) => void;
   onSetProp: (rowId: string, propId: string, value: unknown) => void;
   onSetOptions: (propId: string, options: PropOption[]) => void;
   onDrop: (rowId: string, groupBy: string, optId: string) => void;
@@ -1614,10 +1753,15 @@ function BoardView({
           style={col.id !== UNSET ? ({ '--col-c': col.color } as React.CSSProperties) : undefined}
         >
           <div className="board-col-head">
-            <span className="board-chip" style={{ background: col.color + '33', color: col.color }}>
-              {col.name}
+            <span className="board-col-head-left">
+              <span className="board-chip" style={{ background: col.color + '33', color: col.color }}>
+                {col.name}
+              </span>
+              <span className="board-count">{rowsFor(col.id).length}</span>
             </span>
-            <span className="board-count">{rowsFor(col.id).length}</span>
+            <button className="board-add" title={t('New')} onClick={() => onAddInColumn(groupBy, col.id)}>
+              <Plus size={14} />
+            </button>
           </div>
           <div className="board-cards">
             {rowsFor(col.id).map((r) => (
@@ -1629,12 +1773,13 @@ function BoardView({
                   (armedRow === r.id ? ' is-armed' : '')
                 }
                 onPointerDown={(e) => startDrag(e, r.id, col.id, r.title || 'Untitled')}
-                onClick={() => {
+                onClick={(e) => {
                   // Do NOT open after a drag — otherwise every move jumps
                   // straight into the card.
                   if (consumeClick()) return;
-                  onNavigate(r.id);
+                  openPage(e, r.id, { onNavigate, onOpenInNewTab });
                 }}
+                onAuxClick={(e) => openPageAux(e, r.id, { onNavigate, onOpenInNewTab })}
                 // Right-click opens the card's own menu, the same one behind
                 // the ⋯. On a board the card IS the object in front of you, and
                 // aiming at a small mark in its corner to reach "open" or
@@ -1693,6 +1838,18 @@ function BoardView({
                           }}
                         >
                           <SquareArrowOutUpRight size={15} /> {t('Open')}
+                        </button>
+                        {/* The visible way to a second tab, as in the sidebar's
+                            row menu: ⌘-click and middle-click work too, but a
+                            menu that stays silent about them leaves most people
+                            without a way to ask. */}
+                        <button
+                          onClick={() => {
+                            setMoveMenu(null);
+                            (onOpenInNewTab ?? onNavigate)(r.id);
+                          }}
+                        >
+                          <ExternalLink size={15} /> {t('Open in new tab')}
                         </button>
                         {columns.filter((c) => !rowsFor(c.id).some((x) => x.id === r.id)).length > 0 && (
                           <div className="menu-label">{t('Move to')}</div>
@@ -1754,12 +1911,6 @@ function BoardView({
               </div>
             ))}
           </div>
-          {/* Outside .board-cards: the button stays at the end of the column
-              stehen, statt mit den Karten wegzuscrollen — bei 100 Karten
-              waere er sonst unerreichbar weit unten. */}
-          <button className="board-add" onClick={() => onAddInColumn(groupBy, col.id)}>
-            ＋ New
-          </button>
         </div>
       ))}
 
@@ -1826,6 +1977,7 @@ function TableView({
   colWidths,
   onSetColWidths,
   onNavigate,
+  onOpenInNewTab,
   onSetProp,
   onSetOptions,
 }: {
@@ -1837,6 +1989,7 @@ function TableView({
   colWidths?: Record<string, number>;
   onSetColWidths: (next: Record<string, number>) => void;
   onNavigate: (id: string) => void;
+  onOpenInNewTab?: (id: string) => void;
   onSetProp: (rowId: string, propId: string, value: unknown) => void;
   onSetOptions: (propId: string, options: PropOption[]) => void;
 }) {
@@ -1988,7 +2141,11 @@ function TableView({
                       <span className="db-tree-spacer" />
                     )
                   ) : null}
-                  <button className="db-title-link" onClick={() => onNavigate(r.id)}>
+                  <button
+                    className="db-title-link"
+                    onClick={(e) => openPage(e, r.id, { onNavigate, onOpenInNewTab })}
+                    onAuxClick={(e) => openPageAux(e, r.id, { onNavigate, onOpenInNewTab })}
+                  >
                     {r.icon && <span className="inline-icon"><PageIcon icon={r.icon} size={14} /> </span>}
                     {r.title || 'Untitled'}
                   </button>
@@ -2155,6 +2312,7 @@ function TimelineView({
   startProp,
   endProp,
   onNavigate,
+  onOpenInNewTab,
 }: {
   rows: Row[];
   schema: PropDef[];
@@ -2162,6 +2320,7 @@ function TimelineView({
   endProp: string;
   tagColors: Record<string, string>;
   onNavigate: (id: string) => void;
+  onOpenInNewTab?: (id: string) => void;
 }) {
   if (!startProp || !schema.some((p) => p.id === startProp && p.type === 'date')) {
     return (
@@ -2248,7 +2407,8 @@ function TimelineView({
                   <div
                     className="tl-label"
                     style={{ width: LABELW }}
-                    onClick={() => onNavigate(row.id)}
+                    onClick={(e) => openPage(e, row.id, { onNavigate, onOpenInNewTab })}
+                    onAuxClick={(e) => openPageAux(e, row.id, { onNavigate, onOpenInNewTab })}
                     title={row.title}
                   >
                     {row.icon && (
@@ -2263,7 +2423,8 @@ function TimelineView({
                     <div
                       className="tl-bar"
                       style={{ left, width }}
-                      onClick={() => onNavigate(row.id)}
+                      onClick={(e) => openPage(e, row.id, { onNavigate, onOpenInNewTab })}
+                      onAuxClick={(e) => openPageAux(e, row.id, { onNavigate, onOpenInNewTab })}
                       title={row.title}
                     >
                       <span className="tl-bar-label">{row.title || 'Untitled'}</span>
@@ -2285,12 +2446,14 @@ function CalendarView({
   dateProp,
   tagColors,
   onNavigate,
+  onOpenInNewTab,
 }: {
   rows: Row[];
   schema: PropDef[];
   dateProp: string;
   tagColors: Record<string, string>;
   onNavigate: (id: string) => void;
+  onOpenInNewTab?: (id: string) => void;
 }) {
   const [month, setMonth] = useState(() => {
     const n = new Date();
@@ -2348,7 +2511,13 @@ function CalendarView({
             <div key={i} className={'calendar-cell' + (d ? '' : ' empty') + (key === today ? ' today' : '')}>
               {d && <div className="calendar-daynum">{d.getDate()}</div>}
               {dayRows.map((r) => (
-                <button key={r.id} className="calendar-event" onClick={() => onNavigate(r.id)} title={r.title}>
+                <button
+                  key={r.id}
+                  className="calendar-event"
+                  onClick={(e) => openPage(e, r.id, { onNavigate, onOpenInNewTab })}
+                  onAuxClick={(e) => openPageAux(e, r.id, { onNavigate, onOpenInNewTab })}
+                  title={r.title}
+                >
                   {r.icon && <span className="inline-icon"><PageIcon icon={r.icon} size={14} /> </span>}
                   {r.title || 'Untitled'}
                   {!!r.tags?.length && (

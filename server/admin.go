@@ -170,6 +170,11 @@ type appSettings struct {
 	// W97: may non-admins create workspaces of their own (and become their
 	// admin)? Default yes — that is how it was; the switch gives control.
 	AllowUserWorkspaces bool `json:"allowUserWorkspaces"`
+	// Agent keys from listed addresses only (agent_addresses.go). The
+	// Anthropic range travels with it so the dialog's button has one source.
+	AgentAddressesOn   bool   `json:"agentAddressesOn"`
+	AgentAddresses     string `json:"agentAddresses"`
+	AnthropicAddresses string `json:"anthropicAddresses"`
 }
 
 func (s *Server) loadSettings() appSettings {
@@ -203,6 +208,9 @@ func (s *Server) loadSettings() appSettings {
 		GoogleSecretSet:     s.setting("oauth_google_secret", "") != "",
 		MSClientID:          s.setting("oauth_ms_id", ""),
 		MSSecretSet:         s.setting("oauth_ms_secret", "") != "",
+		AgentAddressesOn:    s.boolSetting(settingAgentAddressesOn),
+		AgentAddresses:      s.setting(settingAgentAddresses, ""),
+		AnthropicAddresses:  anthropicOutbound,
 	}
 	res.MailProvider, res.MailAddress = s.mailProviderConfigured()
 	res.MailFrom = s.setting("mail_from_override", "")
@@ -253,10 +261,27 @@ func (s *Server) handlePutSettings(w http.ResponseWriter, r *http.Request) {
 		MSClientID          *string `json:"msClientId"`
 		MSSecret            *string `json:"msClientSecret"`
 		AllowUserWorkspaces *bool   `json:"allowUserWorkspaces"`
+		AgentAddressesOn    *bool   `json:"agentAddressesOn"`
+		AgentAddresses      *string `json:"agentAddresses"`
 	}
 	if err := decodeJSON(w, r, &body); err != nil {
 		httpError(w, 400, "invalid JSON")
 		return
+	}
+	// The address list is checked before anything is stored, so a typo in it
+	// does not leave half the dialog saved.
+	if !s.validAgentAddresses(w, body.AgentAddressesOn, body.AgentAddresses) {
+		return
+	}
+	if body.AgentAddresses != nil {
+		s.setSetting(settingAgentAddresses, strings.TrimSpace(*body.AgentAddresses))
+	}
+	if body.AgentAddressesOn != nil {
+		v := ""
+		if *body.AgentAddressesOn {
+			v = "1"
+		}
+		s.setSetting(settingAgentAddressesOn, v)
 	}
 	set := func(key string, v *string) {
 		if v != nil {
@@ -429,7 +454,7 @@ func (s *Server) sendMail(to, subject, body string) error {
 	}
 	host := s.setting("smtp_host", "")
 	if host == "" {
-		return coded("mail_not_configured", "No mail delivery is configured — set up SMTP, or connect Google or Microsoft.")
+		return coded("mail_not_configured", "No mail delivery is configured. Set up SMTP, or connect Google or Microsoft.")
 	}
 	port := s.setting("smtp_port", "587")
 	user := s.setting("smtp_user", "")
@@ -581,11 +606,11 @@ func (s *Server) handleAcceptInvite(w http.ResponseWriter, r *http.Request) {
 		// (deactivating clears the sessions), but this is the one mutating
 		// currentUser site without that check.
 		if cur.Disabled {
-			httpErrorCode(w, http.StatusForbidden, "account_disabled", "This account has been deactivated — talk to an admin.")
+			httpErrorCode(w, http.StatusForbidden, "account_disabled", "This account has been deactivated. Talk to an admin.")
 			return
 		}
 		if email != "" && !strings.EqualFold(email, cur.Email) {
-			httpError(w, 403, "this invite is for a different account — sign out to accept it")
+			httpError(w, 403, "this invite is for a different account. Sign out to accept it")
 			return
 		}
 		s.joinWorkspace(ws, cur.ID, role)
@@ -623,7 +648,7 @@ func (s *Server) handleAcceptInvite(w http.ResponseWriter, r *http.Request) {
 		// not give away whether the address exists. Without this a deactivated account
 		// could get itself a fresh session through an open invitation link.
 		if disabled != 0 {
-			httpErrorCode(w, http.StatusForbidden, "account_disabled", "This account has been deactivated — talk to an admin.")
+			httpErrorCode(w, http.StatusForbidden, "account_disabled", "This account has been deactivated. Talk to an admin.")
 			return
 		}
 		if totpEnabled != 0 {
@@ -632,7 +657,7 @@ func (s *Server) handleAcceptInvite(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			if !verifyTOTP(totpSecret, body.Code) {
-				httpErrorCode(w, http.StatusUnauthorized, "2fa_invalid", "Wrong code — try again.")
+				httpErrorCode(w, http.StatusUnauthorized, "2fa_invalid", "Wrong code. Try again.")
 				return
 			}
 		}
@@ -724,7 +749,7 @@ func (s *Server) handleSelfSignup(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	default:
-		httpError(w, 403, "self-registration is disabled — ask an admin for an invite")
+		httpError(w, 403, "self-registration is disabled. Ask an admin for an invite")
 		return
 	}
 	if msg := validateAccount(body.Name, email, body.Password); msg != "" {
@@ -784,7 +809,7 @@ func (s *Server) handle2FASetup(w http.ResponseWriter, r *http.Request) {
 	var enabled int
 	s.db.QueryRow(`SELECT totp_enabled FROM users WHERE id = ?`, u.ID).Scan(&enabled)
 	if enabled != 0 {
-		httpError(w, 409, "2FA is already enabled — disable it first to set up a new device")
+		httpError(w, 409, "2FA is already enabled. Disable it first to set up a new device")
 		return
 	}
 	secret := newTOTPSecret()

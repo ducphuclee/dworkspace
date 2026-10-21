@@ -305,7 +305,7 @@ func (s *Server) sessionOnly(next http.HandlerFunc) http.HandlerFunc {
 		// ("read" or "write").
 		if requestUser(r).TokenScope != "" {
 			httpErrorCode(w, http.StatusForbidden, "session_required",
-				"This action requires signing in through a browser — an API token is not enough.")
+				"This action requires signing in through a browser. An API token is not enough.")
 			return
 		}
 		next(w, r)
@@ -357,7 +357,7 @@ func (s *Server) handleTransferOwner(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !target.IsAdmin {
-		httpErrorCode(w, 400, "owner_must_be_admin", "Only an account that is already an instance admin can take the instance over — make it one first.")
+		httpErrorCode(w, 400, "owner_must_be_admin", "Only an account that is already an instance admin can take the instance over. Make it one first.")
 		return
 	}
 	orgID := s.defaultOrg()
@@ -423,7 +423,7 @@ func (s *Server) handleBreakGlass(w http.ResponseWriter, r *http.Request) {
 	// between emergency access and a quiet back door.
 	if len([]rune(reason)) < 10 {
 		httpErrorCode(w, 400, "reason_too_short",
-			"Please give a reason somebody can follow (at least 10 characters) — it is logged and shown to the people in charge of this workspace.")
+			"Please give a reason somebody can follow (at least 10 characters). It is logged and shown to the people in charge of this workspace.")
 		return
 	}
 	if len([]rune(reason)) > 500 {
@@ -435,7 +435,7 @@ func (s *Server) handleBreakGlass(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if s.isMember(u.ID, wsID) {
-		httpErrorCode(w, 400, "already_member", "You are already a member of this workspace — emergency access is not needed.")
+		httpErrorCode(w, 400, "already_member", "You are already a member of this workspace. Emergency access is not needed.")
 		return
 	}
 	// A personal space is off limits to emergency access too. Otherwise the
@@ -448,7 +448,7 @@ func (s *Server) handleBreakGlass(w http.ResponseWriter, r *http.Request) {
 	var personal int
 	s.db.QueryRow(`SELECT is_personal FROM workspaces WHERE id = ?`, wsID).Scan(&personal)
 	if personal != 0 {
-		httpErrorCode(w, 403, "personal_no_break_glass", "A personal space cannot be looked into even in an emergency — it belongs to exactly one account.")
+		httpErrorCode(w, 403, "personal_no_break_glass", "A personal space cannot be looked into even in an emergency. It belongs to exactly one account.")
 		return
 	}
 	expires := time.Now().UTC().Add(breakGlassTTL).Format(tsFixed)
@@ -457,7 +457,7 @@ func (s *Server) handleBreakGlass(w http.ResponseWriter, r *http.Request) {
 		httpError(w, 500, err.Error())
 		return
 	}
-	s.audit("human", u.ID, u.Name, "break_glass", "", wsID, wsName+" — "+reason)
+	s.audit("human", u.ID, u.Name, "break_glass", "", wsID, wsName+": "+reason)
 	// Concurrent: sending speaks SMTP once per recipient, or the response would
 	// hang on the timeout of an unreachable mail server.
 	go s.notifyWorkspaceAdmins(wsID, wsName, u.Name, reason)

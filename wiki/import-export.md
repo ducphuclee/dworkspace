@@ -1,8 +1,8 @@
 # Import and export
 
-Getting content into dworkspace and back out again. There are five ways in — a
+Getting content into dworkspace and back out again. There are five ways in (a
 single Markdown file, a ZIP archive of them, a Notion export, a JSON source an
-agent points dworkspace at, and a native workspace archive — and six ways out: a
+agent points dworkspace at, and a native workspace archive) and six ways out: a
 page as Markdown, a page as a self-contained HTML file, a page as print or PDF,
 a workspace as a ZIP of Markdown files, a workspace as a native archive, and an
 iCalendar feed your calendar app subscribes to. This page covers each one: what
@@ -28,7 +28,7 @@ and nothing more.
 | One workspace | out | `.dworkspace.zip` | workspace settings → **Export workspace** |
 | Every date property | out | iCalendar feed | user menu → **Subscribe to calendar** |
 
-**There is no folder import.** The file picker takes one file — `.md`,
+**There is no folder import.** The file picker takes one file: `.md`,
 `.markdown` or `.zip`. A directory of Markdown has to be zipped first.
 
 Two things about where the import lives:
@@ -54,7 +54,7 @@ Two things about this are worth knowing before you use it on twenty files:
   used. The menu is where the item lives; it is not the destination.
 - **The workspace is your default one**, which the server picks out of your
   memberships without asking. It is not necessarily the one currently open in
-  the sidebar, and it is not the one you joined first — move the page afterwards
+  the sidebar, and it is not the one you joined first. Move the page afterwards
   if it landed in the wrong place.
 
 The title comes from the first Markdown heading in the file. A file with no
@@ -65,7 +65,7 @@ that one does take a parent: a script or an agent can put the page exactly where
 it belongs. See [the API](api.md).
 
 **Dragging a `.md` file onto an open page does something different.** A drop
-attaches the file to the page as a download block — it does not import it. Use
+attaches the file to the page as a download block; it does not import it. Use
 the menu item to turn a file into a page.
 
 ### An archive of Markdown files
@@ -73,13 +73,13 @@ the menu item to turn a file into a page.
 The same menu item accepts a `.zip`. The archive is unpacked into a page tree:
 
 - **Every `.md` file becomes a page** under the folder it sat in. Its title
-  comes from the file name without the extension — not from the heading inside
+  comes from the file name without the extension, not from the heading inside
   it, which is what a single-file import uses.
 - **A folder becomes a page when there is a `.md` or a `.csv` somewhere under
   it.** Folders are not imported for their own sake: a folder holding nothing
   but images produces no page at all, and its images count as skipped.
-- A file that pairs with a same-named folder — `Handbook.md` next to
-  `Handbook/` — fills that folder's page instead of creating a second page
+- A file that pairs with a same-named folder (`Handbook.md` next to
+  `Handbook/`) fills that folder's page instead of creating a second page
   beside it.
 - Nested `.zip` files inside the archive are opened and their contents treated
   as if they had been at the top level, up to five levels deep.
@@ -95,7 +95,7 @@ write access to it. The browser never sends the field, which is why the menu
 route always lands at the top level.
 
 **Skipped means not imported.** Anything that is not a `.md` or a `.csv` file is
-counted as skipped and left behind — images, PDFs and every other attachment in
+counted as skipped and left behind: images, PDFs and every other attachment in
 the archive. A Notion export's images do not come along; the pages that
 referenced them keep the text and lose the picture.
 
@@ -120,7 +120,7 @@ paragraph rather than being dropped.
 
 | Markdown | Becomes |
 | --- | --- |
-| `# ` to `###### ` | a heading — levels 4 to 6 collapse to level 3 |
+| `# ` to `###### ` | a heading; levels 4 to 6 collapse to level 3 |
 | `- `, `* `, `+ ` | a bullet item |
 | `1. `, `1) ` | a numbered item |
 | `- [ ] `, `- [x] ` | a checklist item, unticked or ticked |
@@ -139,7 +139,7 @@ paragraph rather than being dropped.
 non-word characters, so `my_var_name` stays literal.
 
 Only one style at a time is recognised. `***both***` is not read as bold and
-italic together, and markup inside a link's label — `[**Handbook**](…)` — is not
+italic together, and markup inside a link's label, `[**Handbook**](…)`, is not
 read at all; in both cases the asterisks arrive as ordinary characters.
 
 There is no divider on import: a line of `---` arrives as a paragraph
@@ -150,15 +150,15 @@ containing three hyphens, even though the export writes a divider that way.
 This is the one rule worth memorising, because it is invisible until it is
 missing.
 
-A link whose target is `/p/<id>` — where `<id>` is the 32-character page id —
+A link whose target is `/p/<id>` (where `<id>` is the 32-character page id)
 becomes a **page link**, not an ordinary link. An absolute URL that ends the
 same way works too, which is the form a share link takes.
 
 | You write | You get |
 | --- | --- |
 | `[Handbook](/p/8f3c…d1)` | a page link: it appears in backlinks and in the graph |
-| `[Handbook](https://dworkspace.example.com/p/8f3c…d1)` | the same |
-| `[Handbook](https://example.com/handbook)` | an ordinary link — navigates, and nothing else |
+| `[Handbook](https://salt.example.com/p/8f3c…d1)` | the same |
+| `[Handbook](https://example.com/handbook)` | an ordinary link: navigates, and nothing else |
 
 The difference matters because the backlink index and the [library
 graph](library.md) read page links and nothing else. A page reached only by
@@ -189,13 +189,13 @@ What it does:
 - **Row bodies are matched by title** to the `.md` files in the paired folder,
   even when Notion truncated or sanitised the filename. A matched file is used
   once and never claimed by a second row.
-- **Notion's repeated preamble is stripped** from each row body — the `# Title`
+- **Notion's repeated preamble is stripped** from each row body: the `# Title`
   heading and the run of `Property: value` lines under it. Those values are the
   row's properties and are shown by the property panel; repeating them as body
   text is duplication. Whatever real content follows is kept.
 
 **Nothing about this is Notion-specific.** Any `.csv` in the archive becomes a
-collection — no id in the name, no paired folder and no `_all` twin needed. That
+collection: no id in the name, no paired folder and no `_all` twin needed. That
 is the short route from a spreadsheet to a database: put the file in a ZIP and
 import it.
 
@@ -208,7 +208,7 @@ import it.
 | at most 12 distinct values, and either some value repeats or there are at most 6 distinct ones | `select` |
 | anything else | `text` |
 
-A comma is read as a decimal point, so `1,5` imports as 1.5 — and `1,234`
+A comma is read as a decimal point, so `1,5` imports as 1.5. And `1,234`
 imports as 1.234, not as one thousand two hundred and thirty-four.
 
 Dates are recognised in these forms, and always stored as a plain calendar day.
@@ -220,7 +220,7 @@ Dates are recognised in these forms, and always stored as a plain calendar day.
 
 The slash form is read as **month/day**, the way Notion writes it, and **both
 parts have to carry their leading zero**: `07/18/2026` is a date, `7/18/2026` is
-text. The dotted form is relaxed about it — `18.7.2026` and `18.07.2026` both
+text. The dotted form is relaxed about it: `18.7.2026` and `18.07.2026` both
 work. A column with one unpadded value in it therefore comes out as text rather
 than as a date, and the whole column with it.
 
@@ -230,7 +230,7 @@ first appear, with colours taken in turn from a fixed palette.
 ### The views you get
 
 The imported collection always gets a **Table** view. If any column was inferred
-as a select, it also gets a **Board** grouped by it — a column literally named
+as a select, it also gets a **Board** grouped by it: a column literally named
 `Status` if there is one, otherwise the first select column found.
 
 **The Board is the view that opens**, because it comes first in the list. A
@@ -255,8 +255,8 @@ are, so real content is never rewritten.
 `import_url` is for agents, and it exists because of a hard limit rather than a
 convenience: writing 654 records through `create_page` means the agent typing
 every character of them, which exhausts its context long before the import
-finishes. Here the agent sends only the address and the mapping — a few hundred
-characters — and dworkspace fetches the data and writes the pages itself. None of
+finishes. Here the agent sends only the address and the mapping (a few hundred
+characters) and dworkspace fetches the data and writes the pages itself. None of
 the content passes through the agent.
 
 | Field | Meaning |
@@ -265,13 +265,13 @@ the content passes through the agent.
 | `title` | the field each record's title comes from. Required. |
 | `items` | path to the array of records, e.g. `cards` or `data.results`. Omit when the response *is* the array. |
 | `markdown` | a field to use as the page body |
-| `properties` | database property name → source path, e.g. `{"Due": "due"}`. Only has an effect with `database_id` — see below. |
+| `properties` | database property name → source path, e.g. `{"Due": "due"}`. Only has an effect with `database_id` (see below). |
 | `resolve` | turn a foreign id into readable text using another array in the same response |
 | `headers` | request headers for this one fetch, e.g. an authorization header. Never stored. |
 | `database_id` | import as rows of this database |
 | `parent_id` | or: as pages under this page |
 | `workspace_id` | or: as top-level pages in this workspace |
-| `limit` | import only the first N records — a trial run before the real thing |
+| `limit` | import only the first N records: a trial run before the real thing |
 
 A path may reach into a list: `labels[].name` picks that field out of every
 element. In a `properties` mapping the result stays a list, which is what a
@@ -291,7 +291,7 @@ a foreign id and the readable name sits in a second list:
 
 **`properties` needs a `database_id`.** Rows are the only target that has a
 schema to map names onto. With `parent_id` or `workspace_id` the records still
-arrive — as pages, with their title and their body — but the mapped values are
+arrive (as pages, with their title and their body), but the mapped values are
 worked out and then dropped, without a message. Create the database first if the
 columns matter.
 
@@ -307,7 +307,7 @@ Four behaviours to rely on:
   colour each, so a board does not come out as one grey column.
 - **Only public addresses can be fetched.** Every resolved address is checked
   and then connected to directly, so an import cannot be used to reach the
-  server's own network — a router, a hypervisor, a cloud metadata service. The
+  server's own network: a router, a hypervisor, a cloud metadata service. The
   refusal names the address. Whoever runs the server can open this up for
   self-hosted sources with `DWORKSPACE_IMPORT_ALLOW_PRIVATE=1`; it is deliberately not
   a setting an agent can change.
@@ -316,18 +316,18 @@ The call returns a `job_id` at once. Poll `get_import_status` with it every few
 seconds until the status reads `done`; the answer carries how many records were
 written, how many could not be created at all, and up to ten error messages. Job
 status lives in memory, the last 20 jobs are kept, and only the account that
-started a job can read it. A restart loses the status — never the pages already
+started a job can read it. A restart loses the status, never the pages already
 created.
 
 **Read the messages even when the failure count is zero.** The count only covers
 records whose page could not be created. A record whose page was written but
-whose properties failed counts as created and appears in the messages only — so
+whose properties failed counts as created and appears in the messages only, so
 a run can report nothing failed and still leave rows with empty columns.
 
 Limits: 64 MB for the fetched source, 20000 records, three minutes for the
 fetch, and at most four redirects followed.
 
-An import of this kind writes directly and fires no [webhooks](webhooks.md) —
+An import of this kind writes directly and fires no [webhooks](webhooks.md):
 two thousand records would otherwise be two thousand outbound calls.
 
 ## Moving a workspace between instances
@@ -337,8 +337,8 @@ workspace: databases lose their schema, views and row properties on the way
 back. For that there is a native archive.
 
 **Export workspace** in the workspace settings downloads
-`<name>.dworkspace.zip`. **Import workspace…** in the same dialog takes one and
-creates a new workspace from it — you become its administrator, and the sidebar
+`<name>.salt.zip`. **Import workspace…** in the same dialog takes one and
+creates a new workspace from it; you become its administrator, and the sidebar
 switches to it when it is done.
 
 **Who may download one:** a member of that workspace, or somebody holding a
@@ -360,7 +360,7 @@ Inside the ZIP: `dworkspace-workspace.json` (a manifest with the format version 
 the counts), `pages.json`, `tags.json`, and a `files/` folder.
 
 On import every page and every file is given a new id, and references inside the
-content are rewritten to match — page links, mentions and relations keep
+content are rewritten to match: page links, mentions and relations keep
 pointing at the right thing. If the name is already taken on this instance, the
 new workspace gets **(Import)** appended. The upload is capped at 100 MB, the
 same ceiling as the Markdown archive import.
@@ -370,8 +370,8 @@ same ceiling as the Markdown archive import.
 | the file is not a ZIP | *not a valid zip archive* |
 | it is a ZIP but not ours | *not a dworkspace workspace archive (dworkspace-workspace.json missing)* |
 | it has a manifest but no readable page list | *pages.json missing or invalid* |
-| written by a newer dworkspace | *archive format 2 is newer than this instance supports (1) — update dworkspace* |
-| the instance does not let you create workspaces | *creating workspaces is disabled on this instance — ask an admin* |
+| written by a newer dworkspace | *archive format 2 is newer than this instance supports (1). Update dworkspace* |
+| the instance does not let you create workspaces | *creating workspaces is disabled on this instance. Ask an admin* |
 
 ### The shelf is an import too
 
@@ -380,7 +380,7 @@ shelf of blueprints that ship inside the binary and are read by exactly the same
 reader as an uploaded archive, with rows and documents left out. What arrives is
 the databases with their columns, options and views, plus the workspace's house
 rules, and no data. The same screen can copy a workspace you already have, under
-*Or like one you already have*, on the same terms — or start from **Empty
+*Or like one you already have*, on the same terms, or start from **Empty
 workspace**. See [Workspaces](workspaces.md).
 
 ## Exporting
@@ -397,7 +397,7 @@ heading level deeper.
 
 In the [library](library.md)'s **Tree · agent view** tab each page has a small
 **md** button that copies the export URL to the clipboard rather than
-downloading — useful for feeding a page to something else. The other library
+downloading, useful for feeding a page to something else. The other library
 tabs do not have it.
 
 ### A database as Markdown
@@ -407,7 +407,7 @@ then one column per property in the order the schema holds them, one line per
 row.
 
 **No view is involved.** The rows come out in the collection's own stored order,
-and a view's sort, filter and hidden columns are not applied — you get the same
+and a view's sort, filter and hidden columns are not applied: you get the same
 file whichever view you happened to be looking at.
 
 Three more limits follow from it being a plain table:
@@ -423,22 +423,20 @@ option's name. A number keeps four decimal places unless it is a whole number.
 
 Over MCP, `get_page` on a database returns this same table, so an agent reads a
 whole database in one call. With `include_children` it does something else
-entirely: it walks the rows as pages — each row's title as a heading, its body
-under it, and each row's sub-pages too — and writes no table, so no property
+entirely: it walks the rows as pages (each row's title as a heading, its body
+under it, and each row's sub-pages too) and writes no table, so no property
 values appear. Use `query_rows` when the values are the point.
 
 ### One page as a web page
 
-**⋯ → Web page (.html)** downloads a complete, self-contained HTML document —
-no stylesheet to fetch, no script, real headings, lists and tables. It is the
-format to hand to something that cannot read Markdown.
+**⋯ → Web page (.html)** downloads a complete, self-contained HTML document:
+no stylesheet to fetch, real headings, lists and tables, and the one small
+script that lays it out in pages (without it the document still reads as one
+flow). It is the format to hand to something that cannot read Markdown.
 
-Block-level addresses are cleaned on the way out: the URL of an image, of a
-file, video or audio block, and of a bookmark becomes `#` unless it is `http`,
-`https` or `mailto`. A link written inside a paragraph is carried over as it
-stands. An exported page is therefore exactly as trustworthy as the page it came
-from — if the content arrived from somewhere you do not control, treat the file
-the same way you would treat the page.
+Every address is cleaned on the way out: the URL of an image, of a file, video
+or audio block, of a bookmark and of a link inside a paragraph becomes `#`
+unless it is `http`, `https`, `mailto` or an address on the instance itself.
 
 The menu item is offered on a database as well, and there it answers with the
 Markdown table instead: the download is a `.md` file. A table is the faithful
@@ -448,7 +446,7 @@ shape of a database's rows, and that is what Markdown gives.
 
 **⋯ → Print / as PDF** opens the same HTML in a new tab, in a print-first layout
 with page margins and no application chrome, and starts the print dialog. A bar
-at the top of that page — hidden when printing — offers **Print / Save as PDF**
+at the top of that page, hidden when printing, offers **Print / Save as PDF**
 and reminds you that on a phone the route is *Share → Print, or "Save to
 Files"*.
 
@@ -464,14 +462,14 @@ same name in the same folder get a `(2)` suffix.
 **A database comes out twice over**: a `.md` file for the database page itself,
 which holds its title and nothing else, and a folder of the same name beside it
 with one `.md` per row, containing the row's title and body. **Row properties are
-not in it** — that is what the dialog means by "Readable anywhere, without the
+not in it**; that is what the dialog means by "Readable anywhere, without the
 databases". Use the native archive when the properties matter.
 
 The archive holds only pages you can read, and nothing from the trash.
 
 **Without a workspace it takes everything.** The button always names one. The
 endpoint behind it, `/api/export`, exports every workspace you can read into the
-same `dworkspace-export.zip` when no workspace is given — worth knowing if you script
+same `salt-export.zip` when no workspace is given, worth knowing if you script
 a backup-shaped export. See [the API](api.md).
 
 ### What each block becomes
@@ -490,10 +488,10 @@ a backup-shaped export. See [the API](api.md).
 | bookmark | the URL as a link | a link with a 🔖 |
 | table | a Markdown table; `\|` in a cell is escaped | `<table>` |
 | columns | flattened, side by side | side-by-side `<div>`s |
-| table of contents | nothing — it is built while reading | nothing |
-| embedded database | `[Datenbank](/p/<id>)` | a link to the database page |
+| table of contents | nothing; it is built while reading | nothing |
+| embedded database | `[Collection](/p/<id>)` | a link to the database page |
 | page link | `[label](/p/<id>)` | a link to `/p/<id>` |
-| underline | `<u>text</u>` — Markdown has none | `<u>` |
+| underline | `<u>text</u>`; Markdown has none | `<u>` |
 
 An embedded database exports as a **link to the database page**, never as a copy
 of its rows: a copy would be stale the moment somebody edited a row.
@@ -509,7 +507,7 @@ Export to Markdown and import the result, and these change:
 - Underlined text arrives as literal `<u>` tags.
 - Database rows arrive as pages, with their properties gone.
 - **Two styles on the same words** come apart. Bold and italic together are
-  written `***text***` and read back as an asterisk, bold *text*, an asterisk —
+  written `***text***` and read back as an asterisk, bold *text*, an asterisk:
   the italic is gone and two asterisks are now body text.
 - **Styling inside a link's label** does the same: `[**Handbook**](…)` returns
   with the asterisks as part of the label.
@@ -532,8 +530,8 @@ scope under *What should the calendar contain?*:
 | a workspace | the same, limited to that workspace |
 | a collection | the dates of that collection's rows |
 
-A collection is only offered once it has a date property — the dialog says
-*"A collection appears here once it has a date property."* — because a feed that
+A collection is only offered once it has a date property (the dialog says
+*"A collection appears here once it has a date property."*) because a feed that
 can never contain anything is worse than no feed.
 
 **Open in calendar** hands the `webcal://` link to your calendar app; **Copy
@@ -547,7 +545,7 @@ What lands in the calendar:
 
 - **One event per date value.** A row with two date properties produces two
   events. The summary is the row's title with the property's name in
-  parentheses — *Kickoff (Due)* — and the description is the collection's name.
+  parentheses, *Kickoff (Due)*, and the description is the collection's name.
 - **A plain date becomes an all-day event.** A value carrying a time becomes a
   timed event written without a time zone, so it shows at that clock time
   wherever it is read.
@@ -555,14 +553,14 @@ What lands in the calendar:
 - The calendar's name in your app is *dworkspace*, or *dworkspace · <name>* for a
   scoped feed, so several subscriptions stay distinguishable.
 
-**The link is the credential.** It needs no sign-in — anyone holding it sees
+**The link is the credential.** It needs no sign-in: anyone holding it sees
 what you see, which is why the dialog says not to share it. There is one token
 behind every scope, so **Reset the link** invalidates *all* your calendar links
 at once; that is what people mean by revoking them, and the button says so.
 
 The feed always reflects the permissions of the account it belongs to. A
 collection that is moved into a private area, or a workspace you are removed
-from, simply stops producing events — the subscription keeps working and goes
+from, simply stops producing events: the subscription keeps working and goes
 quiet, rather than breaking in somebody's calendar app.
 
 ## Backups are a different thing
@@ -570,12 +568,12 @@ quiet, rather than breaking in somebody's calendar app.
 None of the above is a backup. An export holds what one person can read, in a
 format meant for reading elsewhere; a backup holds the database and every
 uploaded file and can be restored onto an empty instance. It is a separate
-button in the instance settings and a separate command on the server — see
+button in the instance settings and a separate command on the server. See
 [Administration](administration.md) and [Self-hosting](self-hosting.md).
 
 ## Related
 
-- [Collections](collections.md) and [Properties](properties.md) — what a CSV
+- [Collections](collections.md) and [Properties](properties.md): what a CSV
   import builds
-- [Agents](agents.md) and [MCP tools](mcp-tools.md) — `import_url` in context
-- [Automation](automation.md) — the map of everything that crosses the boundary
+- [Agents](agents.md) and [MCP tools](mcp-tools.md): `import_url` in context
+- [Automation](automation.md): the map of everything that crosses the boundary

@@ -41,12 +41,25 @@ type pageMeta struct {
 	// A pointer so "no children" and "nobody worked it out" stay distinguishable
 	// — as a plain bool the full-tree scope would claim every page is childless.
 	HasChildren *bool `json:"hasChildren,omitempty"`
+	// Only on a page in the trash: when it went, and — in the page list, where
+	// the trash is drawn — who sent it there, read from the activity log. See
+	// attachTrashers.
+	TrashedAt      string `json:"trashedAt,omitempty"`
+	TrashedBy      string `json:"trashedBy,omitempty"`
+	TrashedByAgent bool   `json:"trashedByAgent,omitempty"`
+	// Whether the page currently carries a live public link (read-share or
+	// form-share, unexpired). Computed per listing from share_links — pages
+	// carry no flag of their own, so there is nothing to keep in sync.
+	Shared bool `json:"shared,omitempty"`
 }
 
 type page struct {
 	pageMeta
 	Content   json.RawMessage `json:"content"`
 	CreatedAt string          `json:"createdAt"`
+	// The generation of this body (docgen.go). An editor seeds a new live
+	// document from Content, so it has to know which document Content was.
+	DocGen int64 `json:"docGen"`
 }
 
 func scanMeta(sc interface{ Scan(...any) error }) (pageMeta, error) {
@@ -56,6 +69,9 @@ func scanMeta(sc interface{ Scan(...any) error }) (pageMeta, error) {
 	var isTemplate int
 	err := sc.Scan(&m.ID, &m.ParentID, &m.Title, &m.Icon, &m.Cover, &m.Position, &m.UpdatedAt, &trashedAt, &m.Type, &props, &m.WorkspaceID, &m.OwnerID, &m.Visibility, &isTemplate, &tags, &m.Description, &m.Snippet, &m.Thumb)
 	m.Trashed = trashedAt.Valid
+	if trashedAt.Valid {
+		m.TrashedAt = trashedAt.String
+	}
 	m.Props = json.RawMessage(props)
 	m.IsTemplate = isTemplate != 0
 	m.Tags = []string{}
@@ -227,7 +243,10 @@ func (s *Server) handleListPages(w http.ResponseWriter, r *http.Request) {
 		}
 		list = append(list, m)
 	}
-	writeJSON(w, s.filterReadable(requestUser(r).ID, list))
+	list = s.filterReadable(requestUser(r).ID, list)
+	s.attachTrashers(list)
+	s.markShared(list)
+	writeJSON(w, list)
 }
 
 // splitIDs parses the ids= list, capped because it arrives from a query string
@@ -281,12 +300,12 @@ func (s *Server) handleListTemplates(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) getPage(id string) (*page, error) {
-	row := s.db.QueryRow(`SELECT `+pageMetaCols+`, content, created_at FROM pages WHERE id = ?`, id)
+	row := s.db.QueryRow(`SELECT `+pageMetaCols+`, content, created_at, doc_gen FROM pages WHERE id = ?`, id)
 	var p page
 	var trashedAt sql.NullString
 	var content, props, tags string
 	var isTemplate int
-	err := row.Scan(&p.ID, &p.ParentID, &p.Title, &p.Icon, &p.Cover, &p.Position, &p.UpdatedAt, &trashedAt, &p.Type, &props, &p.WorkspaceID, &p.OwnerID, &p.Visibility, &isTemplate, &tags, &p.Description, &p.Snippet, &p.Thumb, &content, &p.CreatedAt)
+	err := row.Scan(&p.ID, &p.ParentID, &p.Title, &p.Icon, &p.Cover, &p.Position, &p.UpdatedAt, &trashedAt, &p.Type, &props, &p.WorkspaceID, &p.OwnerID, &p.Visibility, &isTemplate, &tags, &p.Description, &p.Snippet, &p.Thumb, &content, &p.CreatedAt, &p.DocGen)
 	if err != nil {
 		return nil, err
 	}
@@ -320,7 +339,61 @@ func (s *Server) handleGetPage(w http.ResponseWriter, r *http.Request) {
 	}
 	// A database row opened as a page must show the same numbers its card shows.
 	s.fillDerivedForPage(requestUser(r), p)
+	if s.liveShared([]string{p.ID})[p.ID] {
+		p.Shared = true
+	}
 	writeJSON(w, p)
+}
+
+// liveShared reports which of the given pages carry a live public read link.
+// share_links is the only source of truth (pages carry no flag of their own),
+// so this is one extra query per listing, not a column to keep in sync.
+//
+// A form link does not count. It publishes a way to add rows, not the rows,
+// and the marker would invite a click on the globe that publishes them.
+//
+// The ids go in chunks: a listing can hold more pages than SQLite takes
+// parameters in one statement, and a failed query here would only make every
+// marker vanish without a word.
+func (s *Server) liveShared(ids []string) map[string]bool {
+	live := map[string]bool{}
+	for start := 0; start < len(ids); start += 500 {
+		chunk := ids[start:min(start+500, len(ids))]
+		args := make([]any, 0, len(chunk)+1)
+		for _, id := range chunk {
+			args = append(args, id)
+		}
+		args = append(args, now())
+		rows, err := s.db.Query(`SELECT DISTINCT page_id FROM share_links WHERE page_id IN (`+placeholders(len(chunk))+`)
+			AND mode != 'form' AND (expires_at IS NULL OR expires_at = '' OR expires_at > ?)`, args...)
+		if err != nil {
+			return live
+		}
+		for rows.Next() {
+			var id string
+			if rows.Scan(&id) == nil {
+				live[id] = true
+			}
+		}
+		rows.Close()
+	}
+	return live
+}
+
+func (s *Server) markShared(list []pageMeta) {
+	if len(list) == 0 {
+		return
+	}
+	ids := make([]string, len(list))
+	for i, m := range list {
+		ids[i] = m.ID
+	}
+	live := s.liveShared(ids)
+	for i := range list {
+		if live[list[i].ID] {
+			list[i].Shared = true
+		}
+	}
 }
 
 func (s *Server) handleCreatePage(w http.ResponseWriter, r *http.Request) {
@@ -346,10 +419,12 @@ func (s *Server) handleCreatePage(w http.ResponseWriter, r *http.Request) {
 	if len(body.Props) > 0 && json.Valid(body.Props) {
 		props = string(body.Props)
 	}
-	userID := requestUser(r).ID
+	u := requestUser(r)
+	userID := u.ID
 
 	// A child inherits its parent's workspace; a root page uses the requested
-	// (or the user's default) workspace. Membership is enforced either way.
+	// (or the user's default) workspace. Membership is enforced either way, and
+	// so is the credential: its workspaces and the workspace's rule for agents.
 	var workspaceID string
 	if body.ParentID != nil {
 		var pws string
@@ -358,7 +433,7 @@ func (s *Server) handleCreatePage(w http.ResponseWriter, r *http.Request) {
 			httpError(w, 400, "parent page not found")
 			return
 		}
-		if !s.canWrite(userID, *body.ParentID) {
+		if !s.canWriteReq(r, *body.ParentID) {
 			httpError(w, 403, "forbidden")
 			return
 		}
@@ -366,10 +441,14 @@ func (s *Server) handleCreatePage(w http.ResponseWriter, r *http.Request) {
 	} else {
 		workspaceID = body.WorkspaceID
 		if workspaceID == "" {
-			workspaceID = s.userDefaultWorkspace(userID)
+			workspaceID = s.createWorkspaceFor(u)
 		}
-		if !s.isMember(userID, workspaceID) {
+		if !s.isMember(userID, workspaceID) || !s.credentialMayEnter(u, workspaceID) {
 			httpError(w, 403, "not a member of that workspace")
+			return
+		}
+		if s.workspaceRole(userID, workspaceID) == "viewer" {
+			httpErrorCode(w, 403, "workspace_read_only", "You can only read this workspace, so nothing can be created in it.")
 			return
 		}
 	}
@@ -509,6 +588,9 @@ func (s *Server) handleUpdatePage(w http.ResponseWriter, r *http.Request) {
 			"Agents must create a proposed revision; the canonical document remains unchanged until a human publishes it.")
 		return
 	}
+	// The editor writing back its own copy of the live document, as opposed to
+	// a write that replaces it.
+	materialize := r.URL.Query().Get("materialize") == "1"
 
 	// Moving between workspaces: its own path, because the WHOLE subtree has to
 	// come along and the parent link has to go (the parent stays in the old
@@ -609,6 +691,11 @@ func (s *Server) handleUpdatePage(w http.ResponseWriter, r *http.Request) {
 		}
 		sets = append(sets, "content = ?")
 		args = append(args, string(body.Content))
+		// From outside the editor this replaces the document (see docgen.go);
+		// the editor's own autosave is held to the generation it descends from.
+		if !materialize {
+			sets = append(sets, bumpDocGen)
+		}
 	}
 	if len(body.Props) > 0 {
 		if !json.Valid(body.Props) {
@@ -748,12 +835,34 @@ func (s *Server) handleUpdatePage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	args = append(args, id)
-	res, err := tx.Exec("UPDATE pages SET "+strings.Join(sets, ", ")+" WHERE id = ?", args...)
+	where := " WHERE id = ?"
+	guarded := materialize && len(body.Content) > 0
+	if guarded {
+		clause, more, ok := materializeGuard(r)
+		if !ok {
+			httpError(w, 400, "gen must be a number")
+			return
+		}
+		where += clause
+		args = append(args, more...)
+	}
+	res, err := tx.Exec("UPDATE pages SET "+strings.Join(sets, ", ")+where, args...)
 	if err != nil {
 		httpError(w, 500, err.Error())
 		return
 	}
 	if n, _ := res.RowsAffected(); n == 0 {
+		if guarded {
+			// The page exists (checked above): the copy is of a document that
+			// has been replaced since, and writing it would undo the
+			// replacement. What was typed into it goes to the page history
+			// instead; out of the transaction first, there is one connection.
+			tx.Rollback()
+			s.keepRefusedCopy(id, requestUser(r), string(body.Content))
+			httpErrorCode(w, 409, "doc_replaced",
+				"this page was replaced since the editor loaded it, so this copy was kept in its history instead of saved; reload the page")
+			return
+		}
 		httpError(w, 404, "page not found")
 		return
 	}
@@ -775,7 +884,7 @@ func (s *Server) handleUpdatePage(w http.ResponseWriter, r *http.Request) {
 	}
 	// Content writes from outside the editor (API/MCP) invalidate the live
 	// CRDT doc; the editor's own materialization passes ?materialize=1.
-	if len(body.Content) > 0 && r.URL.Query().Get("materialize") != "1" {
+	if len(body.Content) > 0 && !materialize {
 		s.resetYjsDoc(id)
 	}
 	// Snapshot a version-history entry on any content write (throttled inside).
@@ -832,8 +941,13 @@ func (s *Server) handleReindexSiblings(w http.ResponseWriter, r *http.Request) {
 		if wsFilter == "" {
 			wsFilter = s.defaultWorkspaceFor(me)
 		}
-		if !s.isMember(me.ID, wsFilter) || !s.tokenReachesWorkspace(r, wsFilter) {
+		if !s.isMember(me.ID, wsFilter) || !s.credentialMayEnter(me, wsFilter) {
 			httpError(w, 404, "workspace not found")
+			return
+		}
+		// Reordering the top level rewrites every root page's position: a write.
+		if !s.mayCreateIn(me, wsFilter) {
+			httpErrorCode(w, 403, "workspace_read_only", "You can only read this workspace, so its pages cannot be reordered.")
 			return
 		}
 	}
@@ -1296,7 +1410,7 @@ func (s *Server) handleUpload(w http.ResponseWriter, r *http.Request) {
 		// can show a precise message.
 		var tooLarge *http.MaxBytesError
 		if errors.As(err, &tooLarge) || strings.Contains(err.Error(), "too large") {
-			httpError(w, http.StatusRequestEntityTooLarge, fmt.Sprintf("file too large — max %d MB", maxUploadSize>>20))
+			httpError(w, http.StatusRequestEntityTooLarge, fmt.Sprintf("file too large: max %d MB", maxUploadSize>>20))
 		} else {
 			httpError(w, 400, "upload malformed")
 		}

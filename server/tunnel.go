@@ -1,11 +1,9 @@
 package server
 
 import (
-	"archive/tar"
 	"bufio"
-	"compress/gzip"
+	"context"
 	"fmt"
-	"io"
 	"log"
 	"net"
 	"net/http"
@@ -98,77 +96,21 @@ func cloudflaredAsset() (asset string, isTgz bool, err error) {
 			return "cloudflared-windows-amd64.exe", false, nil
 		}
 	}
-	return "", false, fmt.Errorf("no cloudflared build for %s/%s — install cloudflared manually", runtime.GOOS, runtime.GOARCH)
+	return "", false, fmt.Errorf("no cloudflared build for %s/%s. Install cloudflared manually", runtime.GOOS, runtime.GOARCH)
 }
 
-// downloadCloudflared fetches the official release binary into dataDir/bin.
+// downloadCloudflared fetches the newest official release into dataDir/bin,
+// checked against the checksum the release publishes (tunnel_update.go). The
+// first download used to take whatever the "latest" address handed out,
+// unchecked.
 func (s *Server) downloadCloudflared(dest string) error {
-	asset, isTgz, err := cloudflaredAsset()
+	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	defer cancel()
+	rel, err := fetchCloudflaredRelease(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot verify a cloudflared download: %w. Install cloudflared manually", err)
 	}
-	url := "https://github.com/cloudflare/cloudflared/releases/latest/download/" + asset
-	client := &http.Client{Timeout: 3 * time.Minute}
-	resp, err := client.Get(url)
-	if err != nil {
-		return fmt.Errorf("download failed: %w", err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != 200 {
-		return fmt.Errorf("download failed: HTTP %d", resp.StatusCode)
-	}
-	body := io.LimitReader(resp.Body, 200<<20)
-
-	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
-		return err
-	}
-	tmp := dest + ".tmp"
-	defer os.Remove(tmp)
-
-	if isTgz {
-		gz, err := gzip.NewReader(body)
-		if err != nil {
-			return err
-		}
-		tr := tar.NewReader(gz)
-		found := false
-		for {
-			hdr, err := tr.Next()
-			if err == io.EOF {
-				break
-			}
-			if err != nil {
-				return err
-			}
-			if filepath.Base(hdr.Name) == "cloudflared" && hdr.Typeflag == tar.TypeReg {
-				f, err := os.OpenFile(tmp, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o755)
-				if err != nil {
-					return err
-				}
-				if _, err := io.Copy(f, io.LimitReader(tr, 200<<20)); err != nil {
-					f.Close()
-					return err
-				}
-				f.Close()
-				found = true
-				break
-			}
-		}
-		if !found {
-			return fmt.Errorf("cloudflared not found in the archive")
-		}
-	} else {
-		f, err := os.OpenFile(tmp, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o755)
-		if err != nil {
-			return err
-		}
-		if _, err := io.Copy(f, body); err != nil {
-			f.Close()
-			return err
-		}
-		f.Close()
-	}
-	return os.Rename(tmp, dest)
+	return installCloudflared(rel, dest)
 }
 
 // ---- process management ----
@@ -225,13 +167,17 @@ func (s *Server) StartTunnel(mode, token string) error {
 	case "token":
 		// --grace-period: otherwise cloudflared drains for up to 30s after
 		// SIGTERM. A restart must not take that long (systemd gives us 20s
-		// altogether).
-		args = []string{"tunnel", "--no-autoupdate", "--grace-period", "2s", "run", "--token", token}
+		// altogether). The token goes in through the environment: on the
+		// command line every account on the machine could read it with ps.
+		args = []string{"tunnel", "--no-autoupdate", "--grace-period", "2s", "run"}
 	default:
 		return fail(fmt.Errorf("unknown mode"))
 	}
 
 	cmd := exec.Command(bin, args...)
+	if mode == "token" {
+		cmd.Env = append(os.Environ(), "TUNNEL_TOKEN="+token)
+	}
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
 		return fail(err)
@@ -303,7 +249,7 @@ func (s *Server) StartTunnel(mode, token string) error {
 		t.status = "error"
 		if t.lastErr == "" {
 			if err != nil {
-				t.lastErr = "cloudflared beendet: " + err.Error()
+				t.lastErr = "cloudflared exited: " + err.Error()
 			} else {
 				t.lastErr = "cloudflared exited on its own"
 			}
@@ -426,8 +372,10 @@ func (s *Server) waitForOrigin(max time.Duration) bool {
 	return false
 }
 
-// AutostartTunnel resumes a persistent token tunnel after a restart.
+// AutostartTunnel resumes a persistent token tunnel after a restart, and keeps
+// the cloudflared binary current from then on.
 func (s *Server) AutostartTunnel() {
+	go s.cloudflaredUpdateLoop()
 	if !s.boolSetting("tunnel_autostart") || s.setting("tunnel_token", "") == "" {
 		return
 	}
@@ -468,7 +416,7 @@ func (s *Server) handlePublicAccess(w http.ResponseWriter, r *http.Request) {
 	}
 	_, found := s.cloudflaredPath()
 	domain, httpsEnabled := s.PublicHTTPSConfig()
-	writeJSON(w, map[string]any{
+	out := map[string]any{
 		"status":          status,
 		"mode":            mode,
 		"url":             url,
@@ -479,7 +427,11 @@ func (s *Server) handlePublicAccess(w http.ResponseWriter, r *http.Request) {
 		"httpsDomain":     domain,
 		"httpsEnabled":    httpsEnabled,
 		"localUrl":        s.localURL(),
-	})
+	}
+	for k, v := range s.cloudflaredStatus() {
+		out[k] = v
+	}
+	writeJSON(w, out)
 }
 
 func (s *Server) handleTunnelAction(w http.ResponseWriter, r *http.Request) {
@@ -488,8 +440,9 @@ func (s *Server) handleTunnelAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var body struct {
-		Action string `json:"action"` // start-quick | start-token | stop
+		Action string `json:"action"` // start-quick | start-token | stop | update-cloudflared | cloudflared-autoupdate
 		Token  string `json:"token"`
+		On     bool   `json:"on"`
 	}
 	if err := decodeJSON(w, r, &body); err != nil {
 		httpError(w, 400, "invalid JSON")
@@ -508,6 +461,15 @@ func (s *Server) handleTunnelAction(w http.ResponseWriter, r *http.Request) {
 		}
 	case "stop":
 		s.StopTunnel()
+	case "update-cloudflared":
+		// The outcome, a failure included, comes back in the status below.
+		s.checkCloudflared(true)
+	case "cloudflared-autoupdate":
+		v := "0"
+		if body.On {
+			v = "1"
+		}
+		s.setSetting("tunnel_autoupdate", v)
 	default:
 		httpError(w, 400, "unknown action")
 		return

@@ -26,16 +26,27 @@ const (
 // behind Caddy/nginx/Cloudflare) — without a proxy those headers are
 // client-controlled and would let an attacker rotate fake IPs past the login
 // rate limit.
+//
+// Behind a proxy only the LAST entry of X-Forwarded-For can be believed: it is
+// the address the proxy itself saw. Everything before it came from the caller,
+// and a proxy that appends (Cloudflare and the built-in tunnel, nginx with
+// $proxy_add_x_forwarded_for) passes it on untouched. Reading the first entry
+// let anybody name their own address through the tunnel: a fresh one for every
+// password guess, or somebody else's, to use up that address's budget of wrong
+// tokens and lock its agents out.
 func (s *Server) clientIP(r *http.Request) string {
 	if s.boolSetting("trust_proxy") {
-		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-			if i := strings.IndexByte(xff, ','); i >= 0 {
-				return strings.TrimSpace(xff[:i])
+		if xff := r.Header.Values("X-Forwarded-For"); len(xff) > 0 {
+			last := xff[len(xff)-1]
+			if i := strings.LastIndexByte(last, ','); i >= 0 {
+				last = last[i+1:]
 			}
-			return strings.TrimSpace(xff)
+			if ip := proxiedIP(last); ip != "" {
+				return ip
+			}
 		}
-		if rip := r.Header.Get("X-Real-Ip"); rip != "" {
-			return strings.TrimSpace(rip)
+		if ip := proxiedIP(r.Header.Get("X-Real-Ip")); ip != "" {
+			return ip
 		}
 	}
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
@@ -43,6 +54,21 @@ func (s *Server) clientIP(r *http.Request) string {
 		return r.RemoteAddr
 	}
 	return host
+}
+
+// proxiedIP reads one address as a proxy writes it: bare, or with a port, as
+// some do. Anything else is not an address and is not believed.
+func proxiedIP(v string) string {
+	v = strings.TrimSpace(v)
+	if ip := net.ParseIP(v); ip != nil {
+		return ip.String()
+	}
+	if host, _, err := net.SplitHostPort(v); err == nil {
+		if ip := net.ParseIP(host); ip != nil {
+			return ip.String()
+		}
+	}
+	return ""
 }
 
 // evict drops rate-limit buckets that are full (idle), keeping the map from
@@ -156,6 +182,8 @@ func (s *Server) runCleanup() {
 	s.mcpRate.evict()
 	s.loginRate.evict()
 	s.tokenRate.evict()
+	s.formRate.evict()
+	s.sharePwRate.evict()
 	s.sweepOAuth()
 	// Once a day at most, and it returns immediately on the other 47 ticks.
 	// Inline rather than in its own goroutine so it cannot outlive shutdown.

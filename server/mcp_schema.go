@@ -176,6 +176,10 @@ func (s *Server) saveCollection(pageID string, schema []map[string]any, views []
 		return err
 	}
 	s.pagesChanged()
+	// Open views of this collection learn about it the way they learn about a
+	// change from another browser: an agent's new property used to stay
+	// invisible there until a reload.
+	s.rowsChanged(pageID)
 	return nil
 }
 
@@ -384,6 +388,9 @@ type viewSpec struct {
 	DateProp    *string           `json:"date_prop"`
 	EndDateProp *string           `json:"end_date_prop"`
 	Filters     *[]map[string]any `json:"filters"`
+	// Refused, not stored (see applyViewSpec). Kept as a field so an agent
+	// that sends it hears why instead of having it dropped without a word.
+	FilterGroups *[][]map[string]any `json:"filter_groups"`
 	// "propertyId:asc" — deliberately the same spelling query_rows uses, so an
 	// agent learns one form and not two. "" clears the sort.
 	Sort   *string   `json:"sort"`
@@ -392,7 +399,34 @@ type viewSpec struct {
 
 var validFilterOps = map[string]bool{
 	"is": true, "is_not": true, "contains": true,
-	"gt": true, "lt": true, "is_empty": true, "is_not_empty": true,
+	"gt": true, "lt": true, "between": true, "is_empty": true, "is_not_empty": true,
+}
+
+// checkViewFilter validates one filter condition against the schema and
+// returns the stored shape. label names the condition in errors ("filter 2",
+// "group 1, filter 3").
+func checkViewFilter(f map[string]any, label string, has func(string) bool) (map[string]any, error) {
+	prop, _ := f["property"].(string)
+	if prop == "" {
+		return nil, fmt.Errorf("%s needs a property", label)
+	}
+	if !has(prop) {
+		return nil, fmt.Errorf("%s: %q is not a property of this database", label, prop)
+	}
+	op, _ := f["op"].(string)
+	if op == "" {
+		op = "is"
+	}
+	if !validFilterOps[op] {
+		return nil, fmt.Errorf("%s: unknown op %q. Use is, is_not, contains, gt, lt, between, is_empty or is_not_empty", label, op)
+	}
+	entry := map[string]any{"property": prop, "op": op}
+	for _, k := range []string{"value", "values", "value2"} {
+		if v, ok := f[k]; ok {
+			entry[k] = v
+		}
+	}
+	return entry, nil
 }
 
 // applyViewSpec validates a spec against the schema and writes it onto a view
@@ -448,27 +482,20 @@ func applyViewSpec(view map[string]any, spec viewSpec, schema []map[string]any) 
 	if spec.Filters != nil {
 		out := make([]any, 0, len(*spec.Filters))
 		for i, f := range *spec.Filters {
-			prop, _ := f["property"].(string)
-			if prop == "" {
-				return fmt.Errorf("filter %d needs a property", i+1)
-			}
-			if !has(prop) {
-				return fmt.Errorf("filter %d: %q is not a property of this database", i+1, prop)
-			}
-			op, _ := f["op"].(string)
-			if op == "" {
-				op = "is"
-			}
-			if !validFilterOps[op] {
-				return fmt.Errorf("filter %d: unknown op %q — use is, is_not, contains, gt, lt, is_empty or is_not_empty", i+1, op)
-			}
-			entry := map[string]any{"property": prop, "op": op}
-			if v, ok := f["value"]; ok {
-				entry["value"] = v
+			entry, err := checkViewFilter(f, fmt.Sprintf("filter %d", i+1), has)
+			if err != nil {
+				return err
 			}
 			out = append(out, entry)
 		}
 		view["filters"] = out
+		delete(view, "filterGroups")
+	}
+	// A view keeps a flat filter list only. The interface reads nothing else,
+	// so groups stored here would decide what an agent sees in the view while
+	// the people looking at the same view see only the first part of it.
+	if spec.FilterGroups != nil {
+		return fmt.Errorf("filter_groups cannot be saved on a view yet: the interface shows flat filters only. Use filters here; query_rows takes filter_groups")
 	}
 	if spec.Sort != nil {
 		if strings.TrimSpace(*spec.Sort) == "" {

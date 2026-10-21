@@ -138,7 +138,9 @@ const ALLOWED_HOSTS = /^(([a-z0-9-]+\.)*example\.(com|org|net)|localhost|github\
 // 169.254.169.254 is the cloud metadata endpoint — a well-known constant that
 // the webhook page names precisely because deliveries must never reach it. It
 // belongs to nobody.
-const ALLOWED_IPS = /^(127\.0\.0\.1|0\.0\.0\.0|169\.254\.169\.254|192\.0\.2\.\d+|198\.51\.100\.\d+|203\.0\.113\.\d+)$/;
+// 160.79.104.0 is the one real network named on purpose: Anthropic publishes it
+// as where Claude's connectors call from, and the agent address list offers it.
+const ALLOWED_IPS = /^(127\.0\.0\.1|0\.0\.0\.0|169\.254\.169\.254|160\.79\.104\.0|192\.0\.2\.\d+|198\.51\.100\.\d+|203\.0\.113\.\d+)$/;
 
 for (const [file, text] of pages) {
   for (const m of text.matchAll(/\b(\d{1,3}(?:\.\d{1,3}){3})\b/g)) {

@@ -5,6 +5,7 @@ import Portal from './Portal';
 import { PageIcon } from '../pageIcon';
 import { compare } from '../format';
 import { useExclusiveModal } from '../modal';
+import { useShortcut } from '../keys';
 import { tagColorClass } from '../tags';
 import { plural, t } from '../i18n';
 import { LayoutTemplate, Table2, Trash2 } from 'lucide-react';
@@ -46,6 +47,18 @@ export default function TemplateGallery({
   onClose: () => void;
 }) {
   useExclusiveModal(onClose);
+  // Escape closes it, as it closes every other dialog. Through the registry
+  // and in `modal` scope, like the shortcut sheet, so it also works with the
+  // caret in the search box.
+  useShortcut({
+    id: 'templates.close',
+    keys: ['escape'],
+    scope: 'modal',
+    whileTyping: true,
+    label: () => t('Close'),
+    group: () => t('General'),
+    run: () => onClose(),
+  });
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('');
   const [selected, setSelected] = useState<string | null>(templates[0]?.id ?? null);
@@ -180,7 +193,7 @@ export default function TemplateGallery({
             <div className="tpl-preview">
               {!current ? (
                 <div className="dialog-hint">
-                  {t('Save any page as a template from its ⋯ menu — the page itself stays untouched.')}
+                  {t('Save any page as a template from its ⋯ menu. The page itself stays untouched.')}
                 </div>
               ) : (
                 <>

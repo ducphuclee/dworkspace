@@ -60,6 +60,8 @@ export function AdminSettingsModal({ onClose }: { onClose: () => void }) {
     pageNums: true, comments: false, links: true, landscape: false,
   });
   const [allowUserWs, setAllowUserWs] = useState(true);
+  // Agent keys from listed addresses only (server/agent_addresses.go).
+  const [agentAddr, setAgentAddr] = useState({ on: false, list: '', anthropic: '' });
   const [passSet, setPassSet] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [loadErr, setLoadErr] = useState<string | null>(null);
@@ -114,6 +116,7 @@ export function AdminSettingsModal({ onClose }: { onClose: () => void }) {
           comments: v.pdfComments, links: v.pdfLinks, landscape: v.pdfLandscape,
         });
         setAllowUserWs(v.allowUserWorkspaces !== false);
+        setAgentAddr({ on: v.agentAddressesOn, list: v.agentAddresses, anthropic: v.anthropicAddresses });
         setHttpsEnabled(v.httpsEnabled);
         setOauthSet({ google: v.googleSecretSet, ms: v.msSecretSet });
         setMail({ provider: v.mailProvider, address: v.mailAddress });
@@ -125,7 +128,8 @@ export function AdminSettingsModal({ onClose }: { onClose: () => void }) {
 
   // Instance info lazily when the maintenance tab opens.
   useEffect(() => {
-    if (tab === 'maintenance' && !info) void api.adminInfo().then(setInfo).catch(() => {});
+    // The access tab shows the admin's own address beside the agent list.
+    if ((tab === 'maintenance' || tab === 'access') && !info) void api.adminInfo().then(setInfo).catch(() => {});
     if (tab === 'webhooks' && hooks === null) void api.webhooks().then(setHooks).catch(() => setHooks([]));
   }, [tab, info, hooks]);
 
@@ -165,10 +169,10 @@ export function AdminSettingsModal({ onClose }: { onClose: () => void }) {
     }
   };
 
-  const tunnel = async (action: string, token?: string) => {
+  const tunnel = async (action: string, token?: string, on?: boolean) => {
     setTunnelBusy(true);
     try {
-      await api.tunnelAction(action, token);
+      await api.tunnelAction(action, token, on);
       setPa(await api.publicAccess());
       if (action === 'start-token') setTunnelToken('');
     } catch (e) {
@@ -225,6 +229,8 @@ export function AdminSettingsModal({ onClose }: { onClose: () => void }) {
         pdfLinks: pdf.links,
         pdfLandscape: pdf.landscape,
         allowUserWorkspaces: allowUserWs,
+        agentAddressesOn: agentAddr.on,
+        agentAddresses: agentAddr.list,
         maxUploadMb: num('maxUploadMb', 1, 2048),
         trashDays: num('trashDays', 0, 3650),
         auditDays: num('auditDays', 0, 3650),
@@ -370,7 +376,7 @@ ingress:
                     </label>
                     <p className="dialog-hint settings-hint">
                       {t(
-                        'Off: only admins create workspaces. On (default): anyone can create one of their own and becomes its admin — they then manage the members of THEIR workspace only, not the instance.',
+                        'Off: only admins create workspaces. On (default): anyone can create one of their own and becomes its admin. They then manage the members of THEIR workspace only, not the instance.',
                       )}
                     </p>
 
@@ -393,14 +399,14 @@ ingress:
                           {insecure && (
                             <p className="dialog-hint settings-hint pa-warn">
                               {t(
-                                '⚠ Google and Microsoft accept HTTPS redirect URIs only (localhost aside). Start a tunnel (the “Domain & proxy” tab) or enter a public HTTPS base URL under “General” — it then appears here on its own.',
+                                '⚠ Google and Microsoft accept HTTPS redirect URIs only (localhost aside). Start a tunnel (the “Domain & proxy” tab) or enter a public HTTPS base URL under “General”. It then appears here on its own.',
                               )}
                             </p>
                           )}
                           {!s.publicBaseUrl && quickUrl && (
                             <p className="dialog-hint settings-hint pa-warn">
                               {t(
-                                '⚠ This is the URL of the running quick tunnel — it changes on every start. For OAuth that lasts, use a named tunnel or your own domain and enter it as the base URL.',
+                                '⚠ This is the URL of the running quick tunnel. It changes on every start. For OAuth that lasts, use a named tunnel or your own domain and enter it as the base URL.',
                               )}
                             </p>
                           )}
@@ -433,12 +439,58 @@ ingress:
                       <label>{t('Client secret')}</label>
                       <input className="prop-input" type="password" placeholder={oauthSet.ms ? t('•••••• (stored)') : t('secret value')} value={s.msClientSecret} onChange={(e) => set('msClientSecret', e.target.value)} />
                     </div>
+
+                    <h3>{t('Agent keys')}</h3>
+                    <label className="check-label">
+                      <input
+                        type="checkbox"
+                        checked={agentAddr.on}
+                        onChange={(e) => setAgentAddr({ ...agentAddr, on: e.target.checked })}
+                      />
+                      {t('Accept agent keys only from these addresses')}
+                    </label>
+                    <p className="dialog-hint settings-hint">
+                      {t(
+                        'Covers every API token and every connected agent, over MCP and over the REST API. Signing in with a browser, the desktop app, public links, forms and calendar feeds are not affected. One address or network per line; # starts a comment.',
+                      )}
+                    </p>
+                    <textarea
+                      className="prop-input agent-addresses"
+                      rows={4}
+                      spellCheck={false}
+                      value={agentAddr.list}
+                      placeholder={agentAddr.anthropic}
+                      onChange={(e) => setAgentAddr({ ...agentAddr, list: e.target.value })}
+                    />
+                    <div className="agent-addresses-actions">
+                      <button
+                        className="btn-sm"
+                        disabled={agentAddr.list.includes(agentAddr.anthropic)}
+                        onClick={() => {
+                          const line = `${agentAddr.anthropic}  # Anthropic (Claude)`;
+                          const list = agentAddr.list.trimEnd();
+                          setAgentAddr({ ...agentAddr, list: list ? `${list}\n${line}` : line });
+                        }}
+                      >
+                        {t('Add Anthropic (Claude)')}
+                      </button>
+                      {info && (
+                        <span className="dialog-hint">
+                          {t('Your address, as the server sees it:')} <code>{info.yourIp}</code>
+                        </span>
+                      )}
+                    </div>
+                    <p className="dialog-hint settings-hint">
+                      {t(
+                        'Claude in the browser and in the desktop app calls from Anthropic’s addresses. Claude Code and other agents running on your own computer call from your address, so add that too if you use them.',
+                      )}
+                    </p>
                   </>
                 )}
 
                 {tab === 'email' && (
                   <>
-                    <h3>{t('Sending through Google / Microsoft — no SMTP')}</h3>
+                    <h3>{t('Sending through Google / Microsoft (no SMTP)')}</h3>
                     {mail.provider ? (
                       <>
                         <div className="pa-status pa-running">
@@ -467,7 +519,7 @@ ingress:
                       <div className="pa-card">
                         <p className="dialog-hint settings-hint" style={{ margin: 0 }}>
                           {t(
-                            'Uses the OAuth apps from the Access tab: connect once and invitations go out through the chosen mailbox — no SMTP needed. Store and save the client ID and secret there first, then connect here. In the sign-in window you may pick any account at all — including a dedicated sending mailbox such as noreply@example.com; it does not have to be the account you sign in with.',
+                            'Uses the OAuth apps from the Access tab: connect once and invitations go out through the chosen mailbox, no SMTP needed. Store and save the client ID and secret there first, then connect here. In the sign-in window you may pick any account at all, including a dedicated sending mailbox such as noreply@example.com; it does not have to be the account you sign in with.',
                           )}
                         </p>
                         <div className="settings-row">
@@ -513,7 +565,7 @@ ingress:
 
                 {tab === 'proxy' && (
                   <>
-                    <h3>{t('Public access — built in, no proxy of your own')}</h3>
+                    <h3>{t('Public access (built in, no proxy of your own)')}</h3>
                     {pa && (pa.status === 'running' || pa.status === 'starting') && (
                       <div className={'pa-status pa-' + pa.status}>
                         <span className="pa-dot" />
@@ -526,7 +578,7 @@ ingress:
                           </>
                         )}
                         {pa.status === 'running' && pa.mode === 'token' && (
-                          <>{t('Tunnel connected — reachable under the hostname set in the Cloudflare dashboard.')}</>
+                          <>{t('Tunnel connected, reachable under the hostname set in the Cloudflare dashboard.')}</>
                         )}
                         <button className="btn-sm" disabled={tunnelBusy} onClick={() => void tunnel('stop')}>{t('Stop')}</button>
                       </div>
@@ -544,7 +596,7 @@ ingress:
                       <p className="dialog-hint settings-hint">
                         {t('One click, no account: creates a temporary')} <code>trycloudflare.com</code>{' '}
                         {t(
-                          'URL pointing at this instance. The URL changes on every start — ideal for trying things out and sharing quickly.',
+                          'URL pointing at this instance. The URL changes on every start. Ideal for trying things out and sharing quickly.',
                         )}{' '}
                         {!pa?.cloudflaredHere && t('On first start dworkspace downloads the official cloudflared automatically.')}
                       </p>
@@ -589,6 +641,48 @@ ingress:
                       </div>
                     </div>
 
+                    {pa?.cloudflaredHere && (
+                      <div className="pa-card">
+                        <strong>{t('cloudflared')}</strong>
+                        <p className="dialog-hint settings-hint">
+                          {pa.cloudflaredVersion
+                            ? t('Version {version} in use.', { version: pa.cloudflaredVersion })
+                            : t('The version in use could not be read.')}{' '}
+                          {pa.cloudflaredBehind &&
+                            t('{latest} is available.', { latest: pa.cloudflaredLatest })}
+                          {!pa.cloudflaredBehind && pa.cloudflaredLatest && t('That is the newest release.')}
+                          {!pa.cloudflaredManaged &&
+                            ' ' +
+                              t(
+                                'This copy was installed on the system, not by dworkspace, so it is updated by whatever installed it.',
+                              )}
+                        </p>
+                        {pa.cloudflaredCheckError && (
+                          <p className="dialog-hint settings-hint pa-warn">{pa.cloudflaredCheckError}</p>
+                        )}
+                        {pa.cloudflaredManaged && (
+                          <div className="settings-row">
+                            <label className="settings-check">
+                              <input
+                                type="checkbox"
+                                checked={pa.cloudflaredAutoUpdate}
+                                disabled={tunnelBusy}
+                                onChange={(e) => void tunnel('cloudflared-autoupdate', undefined, e.target.checked)}
+                              />
+                              <span>{t('Keep it up to date automatically (checked daily, checksum verified)')}</span>
+                            </label>
+                            <button
+                              className="btn-sm"
+                              disabled={tunnelBusy || pa.cloudflaredUpdating}
+                              onClick={() => void tunnel('update-cloudflared')}
+                            >
+                              {tunnelBusy ? t('Please wait…') : t('Check now')}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     <div className="pa-card">
                       <strong>{t('3 · Straight to HTTPS (no Cloudflare, e.g. a VPS)')}</strong>
                       <p className="dialog-hint settings-hint">
@@ -611,7 +705,7 @@ ingress:
                       </div>
                     </div>
 
-                    <h3>{t('Manual — your own reverse proxy')}</h3>
+                    <h3>{t('Manual (your own reverse proxy)')}</h3>
                     <label className="settings-check">
                       <input type="checkbox" checked={trustProxy} onChange={(e) => setTrustProxy(e.target.checked)} />
                       <span>
@@ -651,7 +745,7 @@ ingress:
                     </p>
                     <p className="dialog-hint settings-hint">
                       {t(
-                        'The message says WHICH page and what happened to it — never the content. So a URL entered by mistake cannot turn into a steady export of what people write.',
+                        'The message says WHICH page and what happened to it, never the content. So a URL entered by mistake cannot turn into a steady export of what people write.',
                       )}
                     </p>
 
@@ -709,7 +803,7 @@ ingress:
 
                     {freshSecret && (
                       <div className="hook-secret">
-                        <strong>{t('Copy this secret now — it is shown only once.')}</strong>
+                        <strong>{t('Copy this secret now. It is shown only once.')}</strong>
                         <p className="dialog-hint">
                           {t(
                             'Your receiver uses it to check that a message really came from us. We send it as a signature in the X-Dworkspace-Signature header.',
@@ -725,7 +819,7 @@ ingress:
                     <h3>{t('Configured')}</h3>
                     {hooks === null && <div className="dialog-hint">{t('Loading…')}</div>}
                     {hooks?.length === 0 && (
-                      <div className="dialog-hint">{t('Nothing yet — nobody is being called.')}</div>
+                      <div className="dialog-hint">{t('Nothing yet. Nobody is being called.')}</div>
                     )}
                     {hooks?.map((h) => (
                       <div key={h.id} className="hook-row">
@@ -901,7 +995,7 @@ export function CalendarSubModal({ onClose }: { onClose: () => void }) {
           <h2>{t('Subscribe to calendar')}</h2>
           <p className="dialog-hint">
             {t(
-              'Subscribe to every date property in your collections from Apple Calendar, Google Calendar or Outlook. The link is private — do not share it.',
+              'Subscribe to every date property in your collections from Apple Calendar, Google Calendar or Outlook. The link is private. Do not share it.',
             )}
           </p>
           {loadErr ? (

@@ -1,7 +1,7 @@
 # Templates and blueprints
 
 Two ways to start from something instead of from nothing. A **template** copies
-one page — with everything filed under it — into a new page. A **blueprint**
+one page, with everything filed under it, into a new page. A **blueprint**
 sets up a whole new workspace: its databases, their columns and views, and its
 house rules. They are separate mechanisms with separate dialogs, and this page
 covers both.
@@ -13,7 +13,7 @@ nothing to do with each other.*
 ## What a template is
 
 A template is an ordinary page carrying a flag. It has a body, an icon, a
-cover, sub-pages, and — if it is a collection — a schema, views and rows.
+cover, sub-pages, and (if it is a collection) a schema, views and rows.
 
 The flag **adds a place rather than moving one**. The page is listed in a
 **Templates** section of its own, and it also stays exactly where it was filed
@@ -34,12 +34,12 @@ the page and flags the *copy*. That asymmetry is the whole design:
 - pages made from the template never change the template either.
 
 Nothing is linked, so nothing can be broken from a distance. The cost is that a
-template does not follow the page it came from — when the real page moves on,
+template does not follow the page it came from: when the real page moves on,
 you save a new template, or open the template and edit it like any other page.
 
 ## Saving a page as a template
 
-1. In the sidebar, hover the page and press **⋯** — or right-click the row. A
+1. In the sidebar, hover the page and press **⋯**, or right-click the row. A
    right-click opens the same menu, on pages, on collections and on database
    rows, so you never have to hunt for a button that only appears on hover.
 2. Choose **Save as template**.
@@ -59,14 +59,14 @@ What travels into the snapshot:
 
 Tags and descriptions are not copied. That matters more than it sounds, because
 the gallery's category buttons are built from a template's tags and the second
-line under each entry is its description — a freshly saved template has neither
+line under each entry is its description; a freshly saved template has neither
 until you open it and add them.
 
 ### Giving a template its tags and description
 
 Both live on the template page itself, not in the gallery:
 
-1. Open the template — click its row in the **Templates** section.
+1. Open the template: click its row in the **Templates** section.
 2. For the description, open the **⋯** menu at the top right of the page and
    choose **Add a description**. A text field appears under the title, with
    the placeholder *Add a description…*. The same menu offers **Remove
@@ -91,7 +91,7 @@ sub-page belonging to someone else is left out, and so is everything under it.
 ### Saving a database row as a template
 
 A database row carries the same **⋯** menu as a page, so **Save as template**
-is offered on one — and what you get is rarely what you wanted:
+is offered on one, and what you get is rarely what you wanted:
 
 - The copy lands as a sibling of the row, which makes it another child of the
   collection. The collection lists every child that is not in the trash, so the
@@ -114,15 +114,16 @@ to a workspace: switch workspaces and you see that workspace's templates.
 
 | Control | What it does |
 | --- | --- |
-| **＋** on the section (**New page from a template**) | opens the template gallery |
-| **＋** on a row (**New page from this template**) | copies that template straight away and opens the copy |
+| **＋** on the section (**New page from a template**), or `T` | opens the template gallery |
+| clicking the row, or its **＋** (**New page from this template**) | copies that template straight away and opens the copy |
+| **⋯** → **Edit the template itself** | opens the template, to change what every later copy starts from |
 | **⋯** → **Remove template flag** | turns it back into an ordinary page: it leaves this list and stays where it already was in the tree |
-| **⋯** → **Move to trash** | throws the snapshot away — recoverable, see [Trash and recovery](trash-and-recovery.md) |
-| clicking the row | opens the template so you can edit it |
+| **⋯** → **Move to trash** | throws the snapshot away (recoverable, see [Trash and recovery](trash-and-recovery.md)) |
 
-Those two entries are the whole menu here — a template row does not offer the
-page menu the tree rows have, and does not answer a right-click. To move a
-template, duplicate it or export it, use its row in the tree instead.
+A right-click on the row opens the same menu, and a click anywhere else closes
+it. Those three entries are the whole menu here: a template row does not offer
+the page menu the tree rows have. To move a template, duplicate it or export
+it, use its row in the tree instead.
 
 If a copy cannot be made you get **The template could not be used**; a failed
 flag change says **Could not be changed**.
@@ -140,7 +141,7 @@ what happens. Open it with the **＋** on the Templates section. Clicking outsid
 the dialog closes it.
 
 **Search templates…** filters by title and description. Below it sit category
-buttons — **All** plus one per tag used on any template in this workspace, in
+buttons: **All** plus one per tag used on any template in this workspace, in
 alphabetical order. Each entry shows its icon, its title, its description and its
 tags as `#chips`. The list is sorted by title, and one template is already
 selected when the dialog opens, so **Use template** works from the first moment.
@@ -148,7 +149,7 @@ selected when the dialog opens, so **Use template** works from the first moment.
 The right-hand pane is the template's **Markdown export**: exactly the text you
 get from **Export Markdown** and from an agent reading the page, rendered as
 plain text rather than as formatted blocks. A collection appears as a table of
-its rows with one column per property — which is precisely what you want to judge
+its rows with one column per property, which is precisely what you want to judge
 before copying one. While it loads you see **Loading…**; if it cannot be
 produced, **No preview available.** A collection also carries a small table icon
 beside the title in the preview heading; its tooltip reads **Collection**.
@@ -160,7 +161,7 @@ The buttons along the bottom, left to right:
 
 | Control | Notes |
 | --- | --- |
-| the count (*3 templates*) | every template in the workspace — it ignores the search box and the chosen category, so filtering the list down to one still reads *3 templates* |
+| the count (*3 templates*) | every template in the workspace; it ignores the search box and the chosen category, so filtering the list down to one still reads *3 templates* |
 | **Remove template flag** | only while a template is selected |
 | **Delete** | only while a template is selected |
 | **Close** | |
@@ -173,8 +174,8 @@ template still in the list.
 
 When the search or the chosen category matches nothing, the list says **No
 templates yet.** and the right-hand side shows *Save any page as a template from
-its ⋯ menu — the page itself stays untouched.* That is also the empty state for
-a workspace with no templates at all — which you will not reach in practice,
+its ⋯ menu. The page itself stays untouched.* That is also the empty state for
+a workspace with no templates at all, which you will not reach in practice,
 because the gallery's only entrance is the **＋** on the Templates section, and
 that section is only there once a template exists.
 
@@ -184,33 +185,33 @@ that section is only there once a template exists.
 2. Pick the template. Check the preview.
 3. Press **Use template**.
 
-You get a new page and are taken to it. It **keeps the template's title** — no
+You get a new page and are taken to it. It **keeps the template's title**: no
 "Copy of" prefix, because a snapshot is meant to be named what it is. It is not
 itself a template, and it belongs to you: you are the owner of the copy even
 when the template was set up by somebody else.
 
 The copy lands as a sibling of the template, so it appears in the tree where the
-template's own parent is — at the top level, if the template is at the top level.
+template's own parent is: at the top level, if the template is at the top level.
 
 To move it afterwards, **drag it in the sidebar**: drop it on the middle of
 another row to file it inside that page, and on the top or bottom edge of a row
 to place it before or after. The **⋯** menu has no general move; it offers
 **Move to top level**, and only when the page has a parent to leave, and a
 **Move to workspace** list, and only when you belong to more than one
-workspace. That last one works on templates too — a template can be moved to
+workspace. That last one works on templates too: a template can be moved to
 another workspace like any page, and it becomes that workspace's template.
 
 ## Templates that are collections
 
 Saving a database as a template snapshots its rows along with its schema and its
-views. That is usually what you want for a small starter set — five example
-rows, a board already grouped, a filter already set — and rarely what you want
+views. That is usually what you want for a small starter set (five example
+rows, a board already grouped, a filter already set) and rarely what you want
 for a full table.
 
 One limit worth knowing: a relation column in a copied database still points at
 the **original** target database, and copied rows still point at the original
 rows. Duplication does not rewrite references. If you want two related databases
-set up cleanly against each other, that is what a blueprint does — see below.
+set up cleanly against each other, that is what a blueprint does. See below.
 Relations and rollups themselves are explained in
 [Relations and rollups](relations-and-rollups.md).
 
@@ -232,13 +233,13 @@ Two differences from the browser are worth knowing. `list` with
 can reach and ignores `workspace_id`; each entry names its own workspace instead.
 And an agent needs only *read* access to a template to build a page from it,
 while **Use template** in the browser goes through
-`/api/pages/{id}/duplicate` and asks for write access — so a template in a
+`/api/pages/{id}/duplicate` and asks for write access, so a template in a
 workspace where you are a viewer can be used by an agent connected as you but
 not by you in the interface.
 
 ## Blueprints: a whole workspace at once
 
-A template copies a page. A blueprint sets up a workspace — which is a different
+A template copies a page. A blueprint sets up a workspace, which is a different
 question, because everything that makes a workspace usable is invisible: the
 rules, the option ids behind a select, the backrelations, the rollups, the view
 filters. Rebuilt by hand it comes out almost-but-not-quite the same.
@@ -249,18 +250,18 @@ Open the workspace switcher at the top of the sidebar and choose **New
 workspace**.
 
 The entry is only there if you may create one. Instance admins always may.
-Everybody else may while the instance allows it — and when it is switched off
+Everybody else may while the instance allows it, and when it is switched off
 the entry is simply **absent**, with no explanation anywhere in the browser. An
 agent or a direct API call gets the sentence instead: *creating workspaces is
-disabled on this instance — ask an admin*. See
+disabled on this instance. Ask an admin*. See
 [Administration](administration.md).
 
 The dialog is headed **Start with a ready-made workspace**, with the line *Each
-one brings its databases, views and house rules — and no data. You fill it.*
+one brings its databases, views and house rules, and no data. You fill it.*
 
 The shelf holds:
 
-- **Empty workspace** — *Start from nothing and build it yourself.*
+- **Empty workspace**: *Start from nothing and build it yourself.*
 - the three built-in blueprints below;
 - under **Or like one you already have**, each of your non-personal workspaces,
   offering *Its databases and rules, without the content.* Personal workspaces
@@ -268,7 +269,7 @@ The shelf holds:
 
 **Cancel** at the bottom closes the dialog, and so does a click outside it.
 
-Each ready-made card carries a facts line — so many databases, so many columns,
+Each ready-made card carries a facts line: so many databases, so many columns,
 so many views, plus *house rules* when it has any. Those numbers are read out of
 the blueprint itself rather than typed beside it, so the shelf cannot advertise
 something the blueprint does not contain.
@@ -280,7 +281,7 @@ and no account. None of them contains a single row. The view names below are the
 chips you see on the card's detail view; what each one is grouped or dated by is
 in brackets.
 
-**Software team** 🛠️ — *What we run, and what still has to be done to it.*
+**Software team** 🛠️: *What we run, and what still has to be done to it.*
 
 | Collection | Columns | Views |
 | --- | --- | --- |
@@ -291,7 +292,7 @@ in brackets.
 that are. Both are rollups over the backrelation, which is what makes "how much
 of this system's work is finished" a column rather than a count you do by eye.
 
-**Sales pipeline** 🤝 — *Companies on one side, deals on the other, and a board
+**Sales pipeline** 🤝: *Companies on one side, deals on the other, and a board
 you can drag.*
 
 | Collection | Columns | Views |
@@ -302,9 +303,9 @@ you can drag.*
 *Open deals* counts the deals whose stage is not *Won*. *Pipeline* carries no
 condition at all: it sums the Value of **every** deal on the company, won and
 lost included. If you want only the open money there, add a condition to the
-rollup — see [Relations and rollups](relations-and-rollups.md).
+rollup. See [Relations and rollups](relations-and-rollups.md).
 
-**Content calendar** 🗓️ — *Every channel, every piece, and the date it goes out.*
+**Content calendar** 🗓️: *Every channel, every piece, and the date it goes out.*
 
 | Collection | Columns | Views |
 | --- | --- | --- |
@@ -314,7 +315,7 @@ rollup — see [Relations and rollups](relations-and-rollups.md).
 *Not out yet* counts the pieces whose status is not *Published*; *Published* is
 the percentage that are.
 
-Every one of them carries **house rules** — a written page about how the
+Every one of them carries **house rules**: a written page about how the
 workspace is meant to be used, which agents connected to the workspace are told
 to follow. See [Workspaces](workspaces.md).
 
@@ -324,25 +325,25 @@ to follow. See [Workspaces](workspaces.md).
    line, then each database: its icon, its name, its view chips, its own
    one-line description, and its columns with the real colours of their select
    options. Under those, **House rules** shows the opening **paragraph** of the
-   rules document as plain text — the heading is skipped, and bold, italic,
+   rules document as plain text: the heading is skipped, and bold, italic,
    code and link markup are stripped rather than rendered. Choosing your own
    workspace instead shows *Copies the databases with their columns, options and
    views, plus the workspace rules. Rows and documents stay where they are.*;
-   the empty card shows *No databases, no rules — a blank workspace.*
+   the empty card shows *No databases, no rules: a blank workspace.*
 2. Fill in **Name** (placeholder *e.g. Team*). A ready-made blueprint pre-fills
-   its own title — change it to what the workspace is actually for. Two ways
+   its own title; change it to what the workspace is actually for. Two ways
    back to the shelf: the **Back** button beside the create button, and the
    arrow at the left of the heading.
 3. Press **Create workspace**, or press Enter in the name field. You are
    switched into the new workspace, as its admin.
 
 Creating from one of the three ready-made blueprints is written to the
-[audit log](history-and-audit.md) — that path is its own route,
+[audit log](history-and-audit.md): that path is its own route,
 `/api/library/{id}`. An **Empty workspace** and a copy of one of your own are
 not: both go through `/api/workspaces`, which records nothing.
 
 **If a workspace of that name already exists on the instance**, the new one is
-created as *Name (Import)* — including when the existing one belongs to somebody
+created as *Name (Import)*, including when the existing one belongs to somebody
 else and you cannot see it. That rename applies to the ready-made blueprints and
 to imported archives, not to copying a workspace of your own.
 
@@ -365,7 +366,7 @@ at the top level of the new workspace, in the order they had.
 Two repairs happen on the way, and both are visible in the result:
 
 - **Relations are re-pointed at the copied databases.** A relation whose target
-  was *not* part of the copy loses its target instead of keeping it — the column
+  was *not* part of the copy loses its target instead of keeping it: the column
   shows as unconfigured. Left alone it would quietly read rows out of the old
   workspace, which looks like it works until somebody notices the numbers belong
   to another project.
@@ -373,10 +374,10 @@ Two repairs happen on the way, and both are visible in the result:
   a filter could only match nothing; without it the view simply shows everything.
 
 A workspace with no databases cannot be used this way: *workspace "…" has no
-databases to copy — nothing to use as a blueprint*.
+databases to copy: nothing to use as a blueprint*.
 
 If you want the content too, that is an export and import rather than a
-blueprint — see [Import and export](import-export.md).
+blueprint. See [Import and export](import-export.md).
 
 ### Blueprints for agents
 
@@ -384,7 +385,7 @@ An agent creates a workspace from an existing one with the `workspace` tool and
 `from_workspace`: the same structure copy, the same repairs, no rows and no
 documents. The built-in shelf has no MCP tool; it is a browser dialog that reads
 `/api/library` and creates through `/api/library/{id}`. A connection limited to
-particular workspaces cannot create new ones at all — it would not be able to
+particular workspaces cannot create new ones at all: it would not be able to
 open them. See [Agents](agents.md).
 
 ## Which one do I want?
@@ -392,7 +393,7 @@ open them. See [Agents](agents.md).
 | | Template | Blueprint |
 | --- | --- | --- |
 | Copies | one page and everything under it | a whole workspace's structure |
-| Includes content | yes — sub-pages, and a collection's rows | no |
+| Includes content | yes: sub-pages, and a collection's rows | no |
 | Includes workspace rules | no | yes |
 | Where it comes from | a page you saved | the built-in shelf, or a workspace of yours |
 | Lands | beside the template | in a brand-new workspace |
@@ -409,14 +410,14 @@ open them. See [Agents](agents.md).
   stay empty until you tag the template page itself.
 - **Templates are still pages.** They are found by [search](search.md), counted
   on the shelves in the [library](library.md), and they sit in the tree where
-  they were filed. The one place the flag takes them out of is the **graph** —
+  they were filed. The one place the flag takes them out of is the **graph**:
   a template is not drawn there and neither are its connections.
 - **A row's template is a trap.** Saved from a database row, it becomes another
   row of that collection and never appears in the Templates section.
 - **Duplication does not rewrite references.** A copied database keeps its
   relation columns pointed at the original target.
 - **Creating workspaces can be switched off** instance-wide, which removes the
-  **New workspace** entry and with it the blueprint shelf — for everybody
+  **New workspace** entry and with it the blueprint shelf, for everybody
   except instance admins, and with no message to say why.
 
 Related: [Pages](pages.md) for the ⋯ menu the template is saved from,

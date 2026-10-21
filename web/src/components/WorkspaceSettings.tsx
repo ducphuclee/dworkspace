@@ -165,7 +165,7 @@ export default function WorkspaceSettings({
               </label>
             )}
 
-            {isOwner && row(<ShieldAlert size={16} />, t('Emergency access log'), t('Who looked in as the instance owner — and why'), onOpenBreakGlass)}
+            {isOwner && row(<ShieldAlert size={16} />, t('Emergency access log'), t('Who looked in as the instance owner, and why'), onOpenBreakGlass)}
 
             <h3 className="ws-section">{t('Layout')}</h3>
             {/* The answer to "in a documentation workspace the databases belong
@@ -185,13 +185,13 @@ export default function WorkspaceSettings({
               t('Workspace rules'),
               ws.rulesProposal
                 ? t('A rules proposal is waiting for review')
-                : t('Conventions everyone — especially agents — follows in this workspace'),
+                : t('Conventions everyone (especially agents) follows in this workspace'),
               onOpenRules,
             )}
 
             <h3 className="ws-section">{t('Data')}</h3>
             {row(<FileText size={16} />, t('Files'), t('Every uploaded file in this workspace, with the page carrying it'), onOpenFiles)}
-            {row(<Download size={16} />, t('Export workspace'), t('Native archive — importable one to one'), () => api.download(`/api/workspaces/${ws.id}/export`))}
+            {row(<Download size={16} />, t('Export workspace'), t('Native archive, importable one to one'), () => api.download(`/api/workspaces/${ws.id}/export`))}
             {row(<FileText size={16} />, t('Export as Markdown'), t('Readable anywhere, without the databases'), () => api.download(`/api/export?workspace=${ws.id}`))}
             {row(<Upload size={16} />, t('Import workspace…'), t('A native archive from another instance'), onImport)}
             {row(<Trash2 size={16} />, t('Delete workspace'), t('Takes every page in it along'), onDelete, true)}

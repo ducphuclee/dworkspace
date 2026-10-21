@@ -31,7 +31,7 @@ back by itself after a crash, and your shell is free. Running it again later
 replaces the binary and restarts the service, so the same command is also the
 upgrade. `DWORKSPACE_NO_SERVICE=1` opts out.
 
-Anywhere else — a Mac, a machine without systemd, or without root — it runs in
+Anywhere else (a Mac, a machine without systemd, or without root) it runs in
 the foreground, which is what you want when you are only trying it out.
 
 On a machine with `wget` and no `curl`, which is common on minimal server
@@ -43,8 +43,8 @@ neither is installed:
 wget -qO- https://raw.githubusercontent.com/saltmd/salt.md/main/install.sh | sh
 ```
 
-The script reads `uname` and picks the matching prebuilt binary — Linux and
-macOS, x86-64 and arm64. It installs to `/usr/local/bin/dworkspace` when that
+The script reads `uname` and picks the matching prebuilt binary: Linux and
+macOS, x86-64 and arm64. It installs to `/usr/local/bin/salt` when that
 directory is writable, uses `sudo` when it is not, and falls back to
 `~/.local/bin` when there is no `sudo` either. It then prints how to run the
 binary, and warns you when the directory it chose is not on your `PATH`.
@@ -56,7 +56,7 @@ Two variables change what it does:
 | `BIN_DIR=/path` | install there instead of the automatic choice |
 | `DWORKSPACE_VERSION=v1.6.13` | download that release tag instead of `latest` |
 
-The tag needs its leading `v` — it goes into the download URL unchanged.
+The tag needs its leading `v`: it goes into the download URL unchanged.
 
 The installer does **not** verify a checksum. If that matters to you, take the
 manual route under [Updating](#updating), which does.
@@ -77,8 +77,47 @@ unprivileged user, sets `DWORKSPACE_ADDR=:8420` and `DWORKSPACE_DATA=/data`, dec
 `/data` as a volume and exposes 8420.
 
 **Set `--memory`.** A container with no limit cannot tell how much of the host
-it is meant to get, so dworkspace assumes a small machine — see
+it is meant to get, so dworkspace assumes a small machine. See
 [Memory](#memory-and-what-it-changes) for what that costs you.
+
+### Podman (rootless)
+
+Use the same image with rootless Podman, as your ordinary user without `sudo`.
+The memory limit requires cgroup v2.
+
+```sh
+podman run -d --name salt \
+  -p 127.0.0.1:8420:8420 -v salt-data:/data --memory=4g \
+  ghcr.io/saltmd/salt.md:latest
+```
+
+Open `http://127.0.0.1:8420` on the host. For a remote server, use an SSH tunnel
+or [reverse proxy](domain.md). The named volume keeps the database and uploads
+when the container is removed. See [Memory](#memory-and-what-it-changes) for
+why the limit matters.
+
+#### With systemd (Quadlet)
+
+For startup and crash recovery, use the supplied `deploy/salt.container`.
+This requires a Podman installation with Quadlet. If the quick-start container
+is running, stop and remove it first (`podman stop --time 20 salt`, then
+`podman rm salt`); the service reuses its `salt-data` volume.
+
+From a checkout, without overwriting an existing `salt.container`:
+
+```sh
+mkdir -p ~/.config/containers/systemd
+cp -i deploy/salt.container ~/.config/containers/systemd/salt.container
+systemctl --user daemon-reload
+systemctl --user start salt.service
+```
+
+Quadlet generates the service and its startup link; do not enable the generated
+unit manually. It starts with your user manager. To run at boot and after logout,
+an administrator can run `loginctl enable-linger USERNAME`.
+Read logs with `journalctl --user -u salt.service`. To update, pull
+`ghcr.io/saltmd/salt.md:latest` with Podman, then run
+`systemctl --user restart salt.service`.
 
 ### Docker Compose
 
@@ -93,8 +132,8 @@ To use the published image instead, uncomment the `image:` line and comment out
 `build:`. The rest of the file sets `mem_limit: 4g`, the named volume
 `dworkspace-data` mounted at `/data`, `DWORKSPACE_ADDR` and `DWORKSPACE_DATA`, and
 `restart: unless-stopped`. Two entries are commented out and waiting for you:
-`DWORKSPACE_MEMORY_MB`, and the pair `DWORKSPACE_TLS_CERT` / `DWORKSPACE_TLS_KEY` for serving
-HTTPS directly — you supply the mount for the certificate files yourself.
+`SALT_MEMORY_MB`, and the pair `SALT_TLS_CERT` / `SALT_TLS_KEY` for serving
+HTTPS directly; you supply the mount for the certificate files yourself.
 
 ### From source
 
@@ -154,13 +193,13 @@ shorter and you can interrupt that.
 ## First run
 
 Open the address the server printed and you get the setup screen:
-**"Create the first (admin) account for this workspace."** — *Your name*,
-*Email*, *Password (min. 8 characters)*, then **Create workspace**.
+**"Create the first (admin) account for this workspace."** (*Your name*,
+*Email*, *Password (min. 8 characters)*, then **Create workspace**).
 
 Whoever completes that becomes the **instance owner**, gets a workspace, and is
 its admin. The screen is available exactly once: with an account already in the
 database, setup answers "setup already completed". A fresh data directory also
-gets one seeded page, *Welcome to dworkspace* — deleted, it does not come back on
+gets one seeded page, *Welcome to dworkspace*. Deleted, it does not come back on
 the next start.
 
 From there, [Administration](administration.md) covers who may sign up,
@@ -182,11 +221,10 @@ The binary takes a handful of subcommands before it decides to be a server:
 
 Three things about this list are easy to get wrong.
 
-**Only those five words are subcommands.** Anything else — including
-`dworkspace --version` — is not recognised, and the process goes on to **start a
-server**. On a machine where the service is already running that means a second
-instance on the same port, and a command that never returns. Read the version
-from the log, from `dworkspace version`, or from `/api/health`.
+**Only those four words are subcommands.** Anything else, including
+`salt --version`, prints an error and usage to stderr and exits with status 2,
+without starting the server or opening the database. Use `salt version`, the
+startup log, or `/api/health` to read the version.
 
 **The subcommands read `DWORKSPACE_DATA` too.** `dworkspace backup` run from cron without
 the same `DWORKSPACE_DATA` as the service looks in `./data`, finds nothing, and stops
@@ -207,15 +245,15 @@ Every variable carries the `DWORKSPACE_` prefix. The prefix is not optional: a b
 
 | Variable | Default | What it does |
 | --- | --- | --- |
-| `DWORKSPACE_ADDR` | `:8420` | listen address |
-| `DWORKSPACE_DATA` | `./data` | data directory — database and uploads |
-| `DWORKSPACE_MEMORY_MB` | detected | how much memory to assume (below) |
-| `DWORKSPACE_TRASH_DAYS` | `30` | days before trashed pages are purged; `0` disables |
-| `DWORKSPACE_TLS_CERT` | empty | certificate file — serves HTTPS directly |
-| `DWORKSPACE_TLS_KEY` | empty | matching key file |
-| `DWORKSPACE_RESTORE_FORCE` | empty | any value lets `dworkspace restore` overwrite an existing database |
-| `DWORKSPACE_IMPORT_ALLOW_PRIVATE` | empty | must be exactly `1`; lets the URL importer reach private addresses |
-| `DWORKSPACE_UPDATE_CHECK` | empty | set to `0` to stop the daily check for a newer release |
+| `SALT_ADDR` | `:8420` | listen address |
+| `SALT_DATA` | `./data` | data directory: database and uploads |
+| `SALT_MEMORY_MB` | detected | how much memory to assume (below) |
+| `SALT_TRASH_DAYS` | `30` | days before trashed pages are purged; `0` disables |
+| `SALT_TLS_CERT` | empty | certificate file; serves HTTPS directly |
+| `SALT_TLS_KEY` | empty | matching key file |
+| `SALT_RESTORE_FORCE` | empty | any value lets `salt restore` overwrite an existing database |
+| `SALT_IMPORT_ALLOW_PRIVATE` | empty | must be exactly `1`; lets the URL importer reach private addresses |
+| `SALT_UPDATE_CHECK` | empty | set to `0` to stop the daily check for a newer release |
 
 Notes worth having before you hit them:
 
@@ -226,7 +264,7 @@ Notes worth having before you hit them:
 - **`DWORKSPACE_TRASH_DAYS` loses to the admin setting.** The retention is read from
   the setting first, the variable second, and 30 last. The Instance settings
   dialog shows the effective number in *Empty the trash automatically after
-  (days, 0 = never)* and writes it as a setting when you press **Save** — after
+  (days, 0 = never)* and writes it as a setting when you press **Save**, after
   which the variable no longer has any effect.
 - **`DWORKSPACE_IMPORT_ALLOW_PRIVATE` opens a door that is shut on purpose.**
   Importing a page from a URL refuses every address that is not publicly
@@ -244,75 +282,32 @@ Notes worth having before you hit them:
 
 ## Where things live
 
-Everything is under `DWORKSPACE_DATA`. The admin dialog shows the **configured** path
-as *Data directory* under Instance settings → **Maintenance** — as given, not
+Everything is under `SALT_DATA`. The admin dialog shows the **configured** path
+as *Data directory* under Instance settings → **Maintenance**, as given, not
 resolved, so an instance started with the default shows `./data` there rather
 than an absolute path.
 
 | Path | What it is |
 | --- | --- |
-| `dworkspace.db` | the database — pages, workspaces, accounts, the search index |
-| `dworkspace.db-wal`, `dworkspace.db-shm` | SQLite's write-ahead log and its shared index |
+| `salt.db` | the database: pages, workspaces, accounts, the search index |
+| `salt.db-wal`, `salt.db-shm` | SQLite's write-ahead log and its shared index |
 | `files/` | every upload, one file each under a generated id, served under `/files/` |
 | `bin/` | `cloudflared`, downloaded on demand when you start a tunnel |
 | `certs/` | Let's Encrypt cache, only when the built-in HTTPS is active |
 
 Uploads are **not** deduplicated: each upload gets a fresh random name, so the
 same bytes uploaded twice are two files on disk. The name a person gave the file
-lives in the database, not on disk — see [Files](files.md).
+lives in the database, not on disk. See [Files](files.md).
 
 The database runs in WAL mode on a **single connection**. That is why
-`fix-notion-rows`, `compact` and `restore` want the server stopped while `backup`
-can run beside it, and why a recent change may be sitting in `dworkspace.db-wal` rather than
-in `dworkspace.db` — see [Backing up](#backing-up).
-
-## How big the database gets
-
-Larger than the text in it, and the gap is wider than most people expect. An
-instance with 22 people and 2,482 live pages held 43 MB of written text in a
-564 MB file. That ratio is normal, and almost none of it is waste you can point
-at from the outside — it is deleted pages still inside the retention window,
-version history, and a search index.
-
-`dworkspace compact` prints the breakdown rather than making you guess:
-
-```
-$ DWORKSPACE_DATA=/srv/dworkspace ./dworkspace compact
-
-Before — 271.2 MB on disk
-  live pages          2482   42.7 MB   ← what people wrote
-  in the trash        1307   80.4 MB
-  revisions           3795   13.6 MB
-  search passages            15.7 MB
-  pending CRDT log           40.5 MB
-```
-
-Then it runs `VACUUM`. SQLite never shrinks a file on its own: deleted rows free
-pages for **reuse**, which is why the file stops growing but does not get
-smaller. Most of the time that is the right behaviour and `compact` has nothing
-to give back. After a large import went wrong, or a bulk delete, it does.
-
-`--empty-trash` is the one part that destroys something. It permanently deletes
-everything in the trash **now**, rather than waiting out `DWORKSPACE_TRASH_DAYS`
-— including pages somebody could still restore this afternoon. It is a separate
-flag because there is no sensible default for that decision.
-
-Three things keep the file small without anyone doing anything:
-
-- **The trash empties itself** after 30 days (`DWORKSPACE_TRASH_DAYS`).
-- **Version history is stored compressed.** BlockNote JSON compresses about
-  7:1; the 50 revisions kept per page cost a seventh of what they look like.
-- **The search index keeps no copy of the text.** It reads the words back out
-  of the passage table when it needs them for a snippet.
-
-What does *not* shrink on its own is `pages` itself, and it should not: that is
-the documents. If the number bothers you, the honest place to look is the
-`live pages` line — everything else is mechanics.
+`fix-notion-rows` and `restore` want the server stopped while `backup` can run
+beside it, and why a recent change may be sitting in `salt.db-wal` rather than
+in `salt.db`. See [Backing up](#backing-up).
 
 ## Memory, and what it changes
 
-dworkspace sizes its most expensive work — extracting text out of PDFs so it is
-searchable — to the memory it believes it has. It looks in this order:
+dworkspace sizes its most expensive work (extracting text out of PDFs so it is
+searchable) to the memory it believes it has. It looks in this order:
 
 1. `DWORKSPACE_MEMORY_MB`, if it is a positive number.
 2. The container's cgroup limit (`memory.max` on cgroup v2,
@@ -329,7 +324,7 @@ What the number actually decides:
 
 | Available memory | Largest PDF whose text is indexed | Extractions at once |
 | --- | --- | --- |
-| unknown (no `/proc/meminfo` — e.g. macOS) | 10 MB | 1 |
+| unknown (no `/proc/meminfo`, e.g. macOS) | 10 MB | 1 |
 | under 4 GiB | 1 % of it, never below 5 MB | 1 |
 | 4 GiB to under 12 GiB | 1 % of it, never above 50 MB | 2 |
 | 12 GiB and up | 50 MB | 3 |
@@ -340,13 +335,13 @@ machine all end up at exactly 50 MB. More memory buys you extraction slots after
 that, not a bigger file.
 
 Two further caps do not scale at all. **Only the first 500 KB of a PDF's
-extracted text is indexed**, on every machine — full-text search over a whole
+extracted text is indexed**, on every machine: full-text search over a whole
 book is not worth the database weight, so a long document is searchable by its
 opening rather than throughout. And the upload limit is a setting
 (*Max. file size per upload (MB)*), not a function of memory.
 
-dworkspace also tells Go's garbage collector where the ceiling is — 80 % of the
-figure — so the heap does not grow past a container limit and get the process
+dworkspace also tells Go's garbage collector where the ceiling is (80 % of the
+figure), so the heap does not grow past a container limit and get the process
 killed.
 
 **Getting this wrong never breaks an upload.** A PDF over the limit is stored,
@@ -364,14 +359,14 @@ enforced.
 
 A healthy start is **one to four lines**, depending on what changed. On an
 unchanged Linux instance you get two: the memory line and the listening line.
-The index lines appear only when an upgrade moved an index version — their
+The index lines appear only when an upgrade moved an index version; their
 absence is the good case. A machine with no `/proc/meminfo` (macOS) drops the
 memory line too, leaving one.
 
 They are printed in this order.
 
 **`search index: rebuilt (version 3, 736 pages)`**
-The full-text index was rebuilt because its version changed — normally after an
+The full-text index was rebuilt because its version changed, normally after an
 upgrade that touched the tokenizer. **The absence of this line is meaningful**:
 it means the running binary recognised the index it found, which is exactly what
 you want to see after a restore. A companion line, `search index: N of M pages
@@ -379,15 +374,15 @@ could not be indexed`, appears just before it when some pages failed.
 
 **`file index: built (version 2, 626 files on 248 pages, 0 unreferenced)`**
 Same idea for the file list. "Unreferenced" counts files on disk that no page
-mentions — workspace logos and profile pictures are always in that number, since
+mentions; workspace logos and profile pictures are always in that number, since
 they hang off a workspace or an account rather than a page. See
 [Files](files.md).
 
 **`memory: 16000 MB available, soft limit 12800 MB, PDF indexing up to 50 MB, 3 extraction(s) at a time`**
 The conclusion of the section above. If a PDF is not searchable, this line says
-why. It is **missing entirely when the memory figure cannot be read** — on
-macOS, for instance — and in that case the conservative defaults apply: 10 MB
-per PDF, one extraction at a time. Setting `DWORKSPACE_MEMORY_MB` brings the line
+why. It is **missing entirely when the memory figure cannot be read** (on
+macOS, for instance), and in that case the conservative defaults apply: 10 MB
+per PDF, one extraction at a time. Setting `SALT_MEMORY_MB` brings the line
 back.
 
 **`memory: no container limit is set, so this assumes a small instance. Run with --memory=<size> …`**
@@ -397,13 +392,13 @@ Printed only when the process is in a container, has no cgroup limit and no
 **`memory: DWORKSPACE_MEMORY_MB="…" is not a positive number of megabytes — ignoring it`**
 A typo in the variable. Detection continues as if it were unset. This one is
 written whenever the figure is worked out, which happens before anything else at
-startup — so it appears above every other line here, and again later whenever a
+startup, so it appears above every other line here, and again later whenever a
 PDF is sized up.
 
 **`dworkspace 1.6.16 listening on :8420 (data: /opt/dworkspace/data)`**
 The server is up. Two variants: `(TLS, data: …)` when you supplied a certificate
 pair, and `(auto-HTTPS for notes.example.com, data: …)` when the built-in
-Let's Encrypt path is active — that one listens on `:443` and answers the ACME
+Let's Encrypt path is active. That one listens on `:443` and answers the ACME
 challenge on `:80`.
 
 **`tunnel: autostart (stored token)`, then `tunnel: connected (token)`**
@@ -412,10 +407,10 @@ get `tunnel: cloudflared exited (…)` followed by `tunnel: retrying in 5s`.
 
 During operation, two lines are worth recognising:
 
-- `auth: rejected password from 192.0.2.9` — one per rejected credential. See
+- `auth: rejected password from 192.0.2.9`: one per rejected credential. See
   [Keeping guessers out](#keeping-guessers-out).
 - `pdf extract 9f3c1e…f7.pdf: skipped for indexing, N bytes is over the M byte
-  limit (the file itself is stored and listed as usual)` — not an error, and the
+  limit (the file itself is stored and listed as usual)`: not an error, and the
   parenthesis is the point. The name in that line is the **stored** name, a
   generated id plus the extension, not the name the file was uploaded under.
   Grepping the log for `contract.pdf` finds nothing; look the id up in the file
@@ -443,7 +438,7 @@ stamped without the leading `v` (`1.6.16`). Same release, two spellings.
 Instance settings → **Maintenance** shows the same facts in the browser:
 *Version* (with the Go version and the OS/arch it was built for), *Uptime*,
 *Users / workspaces*, *Pages (trashed)*, *Database* and *Uploads* as sizes on
-disk, *Data directory*, and *Your IP (as the server sees it)* — the last one is
+disk, *Data directory*, and *Your IP (as the server sees it)*. The last one is
 how you check whether a reverse proxy's headers are arriving, since it shows
 `proxy headers active` when that setting is on.
 
@@ -466,7 +461,7 @@ token bucket:
 | sign-in attempts (login, and accepting an invitation into an existing account) | 30 a minute | 10 |
 | rejected API tokens | 60 a minute | 20 |
 | public form submissions | 20 a minute | 8 |
-| MCP tool calls — per account, not per address | 240 a minute | 60 |
+| MCP tool calls (per account, not per address) | 240 a minute | 60 |
 
 Sign-in over budget answers `429` with "too many login attempts, please wait".
 The token bucket is fed **only by rejected tokens**, and once an address has
@@ -483,7 +478,7 @@ auth: rejected token from 192.0.2.9
 
 The address is there because that is what gets banned. The email and the token
 deliberately are not: this line ends up in the journal, in log shipping and in
-backups, and "who did what" belongs in the audit log behind a login — see
+backups, and "who did what" belongs in the audit log behind a login. See
 [History and audit](history-and-audit.md).
 
 That format is a parsing contract, and `docs/fail2ban/` in the repository is
@@ -502,7 +497,7 @@ Two conditions decide whether any of this sees the truth:
 - **Behind Cloudflare, ban at Cloudflare.** A local firewall rule cannot help:
   the connection comes from `cloudflared` on the same machine.
 
-Verify the filter against a real journal before trusting it — a jail that
+Verify the filter against a real journal before trusting it: a jail that
 matches nothing looks exactly like a jail with nothing to do.
 
 ## Backing up
@@ -518,7 +513,7 @@ included) and adds every upload, into one gzip'd tar:
 DWORKSPACE_DATA=/opt/dworkspace/data dworkspace backup /var/backups/dworkspace-$(date +%F).tar.gz
 ```
 
-This is **safe against a running instance** — it opens its own read connection,
+This is **safe against a running instance**: it opens its own read connection,
 which WAL mode allows. That makes it a cron job rather than an outage. The admin
 dialog says the same: *"For automatic backups, run `./dworkspace backup` from cron."*
 
@@ -529,14 +524,14 @@ archive. The temporary file is removed either way.
 
 **Or download one from the browser.** Instance settings → Maintenance →
 **Download backup (.tar.gz)**. The file is named
-`dworkspace-backup-<date>-<time>.tar.gz`. This is **owner-only**, not admin-only:
-"Only the owner can download an instance backup — it contains every workspace."
+`salt-backup-<date>-<time>.tar.gz`. This is **owner-only**, not admin-only:
+"Only the owner can download an instance backup. It contains every workspace."
 An admin who manages accounts does not get everybody's content by pressing a
 button.
 
 If the wrong person holds that right, the role can move: as owner, open the
 users dialog, select an active admin and press **Hand over the instance**. It is
-one-way — afterwards you are an ordinary admin and only the new owner could hand
+one-way: afterwards you are an ordinary admin and only the new owner could hand
 it back. See [Administration](administration.md).
 
 **The browser can download a backup but never upload one.** Restoring is a
@@ -549,8 +544,8 @@ recent changes are still in `dworkspace.db-wal`. Copy `dworkspace.db`, `dworkspa
 `dworkspace.db-shm` together, or conclude nothing from what you got. This is the
 single most common way a "backup" turns out to be worthless.
 
-A backup is a clone of the instance. To move *content* somewhere else — a page,
-a workspace, everything you can see, as Markdown — use the export routes
+A backup is a clone of the instance. To move *content* somewhere else (a page,
+a workspace, everything you can see, as Markdown), use the export routes
 instead: `/api/export/{id}` for one page, `/api/workspaces/{id}/export` for a
 whole workspace, `/api/export` for everything. [Import and
 export](import-export.md) covers them.
@@ -565,7 +560,7 @@ systemctl start dworkspace
 
 The server must be stopped: it holds `dworkspace.db` open and would keep writing to
 the very file the archive replaces. (The restore itself never opens the
-database — it only unpacks the archive.)
+database; it only unpacks the archive.)
 
 It **refuses to overwrite**: with a `dworkspace.db` already in the directory you get
 "…/dworkspace.db already exists; set DWORKSPACE_RESTORE_FORCE=1 to overwrite". That guard is
@@ -578,7 +573,7 @@ rejects an archive containing a path that points outside the directory.
 
 It does **not** empty the directory, though: files that the archive does not
 contain stay where they are. For a clean restore, restore into an empty
-directory. Uploads that no page references any more are harmless — they show up
+directory. Uploads that no page references any more are harmless: they show up
 in the count of unreferenced files and nowhere else.
 
 ## Updating
@@ -614,7 +609,7 @@ so without it the command looks in `/tmp/dworkspace-1.6.16/data` and stops with
 "no database at …".
 
 Download into a **fresh, empty directory**. `wget` without `-O` does not
-overwrite an existing file — it writes `dworkspace-linux-amd64.1` beside it — and a
+overwrite an existing file (it writes `salt-linux-amd64.1` beside it), and a
 checksum check then happily verifies the old file against the old sums file and
 reports success. Keeping the previous binary next to the new one is the whole
 rollback plan, and it takes one line to use.
@@ -628,8 +623,8 @@ both in one go.
 tables are created if missing; nothing of yours is dropped or rewritten in
 place. The derived indexes are the exception, and deliberately so: when the
 search-index or file-index version moves, that index is dropped and rebuilt from
-your pages and your files directory. Nothing is lost — both are derived from
-content that stays put — but the first start after such an upgrade does real
+your pages and your files directory. Nothing is lost (both are derived from
+content that stays put), but the first start after such an upgrade does real
 work before it listens. Skipping versions is fine; an instance can migrate
 across several releases in one start.
 
@@ -661,15 +656,15 @@ incoming connections, and dworkspace restarts the tunnel by itself after a reboo
 listens on 80 and 443. Needs the DNS A record pointing at the machine and both
 ports reachable.
 
-**4 · Your own reverse proxy.** Below the three cards, *Manual — your own
-reverse proxy*:
+**4 · Your own reverse proxy.** Below the three cards, *Manual (your own
+reverse proxy)*:
 
 - The checkbox **Run behind a reverse proxy (trust `X-Forwarded-For`)**. Switch
-  it on only when a proxy really is in front — the instance then sees real
+  it on only when a proxy really is in front; the instance then sees real
   client addresses in the audit log, the sign-in throttle and the *Your IP* row.
   With it on and no proxy, a visitor can forge their address and walk past both
   the throttle and any fail2ban jail.
-- The field **Internal address of the instance (upstream)** — where the proxy
+- The field **Internal address of the instance (upstream)**: where the proxy
   should send traffic. It starts as the address you are looking at the dialog
   from.
 - Ready-made configuration blocks generated from those two values plus your

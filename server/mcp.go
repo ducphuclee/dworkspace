@@ -14,6 +14,17 @@ import (
 	"strings"
 )
 
+// filterConditionSchema is one filter condition as agents are shown it, in
+// query_rows' filter and filter_groups and in set_view's filters alike.
+func filterConditionSchema() map[string]any {
+	return map[string]any{"type": "object", "properties": map[string]any{
+		"property": map[string]any{"type": "string", "description": "Property id from get_collection"},
+		"op":       map[string]any{"type": "string", "description": "is (default) | is_not | contains | gt | lt | between | is_empty | is_not_empty"},
+		"value":    map[string]any{"type": "string", "description": "Compared value; ignored for is_empty/is_not_empty. For between, the LOWER bound."},
+		"values":   map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": "Several values for is/is_not: \"status is any of open, waiting\" as ONE condition. Use instead of value, not beside it."},
+		"value2":   map[string]any{"type": "string", "description": "Upper bound of between, inclusive. A date range is value..value2."}}}
+}
+
 func bytesTrimSpace(b []byte) []byte { return bytes.TrimSpace(b) }
 
 // jsonScalarString reads a JSON value that may have been sent as a string or as
@@ -214,13 +225,10 @@ var mcpTools = []map[string]any{
 		"inputSchema": map[string]any{"type": "object",
 			"properties": map[string]any{
 				"page_id": map[string]any{"type": "string", "description": "The database (collection) page id"},
-				"filter": map[string]any{"type": "array", "description": "Filters, ANDed together. Each needs a property id from get_collection — note that the row TITLE is not a property; filter titles with the search tool instead.",
-					"items": map[string]any{"type": "object", "properties": map[string]any{
-						"property": map[string]any{"type": "string", "description": "Property id from get_collection"},
-						"op":       map[string]any{"type": "string", "description": "is (default) | is_not | contains | gt | lt | between | is_empty | is_not_empty"},
-						"value":    map[string]any{"type": "string", "description": "Compared value; ignored for is_empty/is_not_empty. For between, the LOWER bound."},
-						"values":   map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": "Several values for is/is_not — \"status is any of open, waiting\" as ONE condition. Use instead of value, not beside it."},
-						"value2":   map[string]any{"type": "string", "description": "Upper bound of between, inclusive. A date range is value..value2."}}}},
+				"filter": map[string]any{"type": "array", "description": "Filters, ANDed together, and ANDed with filter_groups when both are given: \"this AND (that OR those)\". Each needs a property id from get_collection. The row TITLE is not a property; filter titles with the search tool instead.",
+					"items": filterConditionSchema()},
+				"filter_groups": map[string]any{"type": "array", "description": "OR groups: each group is an array of conditions shaped like the items of filter, ANDed inside a group and ORed between groups. A group without one complete condition is ignored.",
+					"items": map[string]any{"type": "array", "items": filterConditionSchema()}},
 				"sort":   map[string]any{"type": "string", "description": "propertyId:asc or propertyId:desc"},
 				"limit":  map[string]any{"type": "integer", "description": "Max rows (default 50, max 500)"},
 				"offset": map[string]any{"type": "integer"},
@@ -263,7 +271,7 @@ var mcpTools = []map[string]any{
 		"inputSchema": map[string]any{"type": "object",
 			"properties": map[string]any{
 				"page_id": map[string]any{"type": "string"},
-				"properties": map[string]any{"type": "array", "description": "Each: {id? (to change), name, type, options?, formula?, numberDisplay?, numberMax?, relationCollection?, backrelationCollection?, backrelationProp?, rollupRelation?, rollupTarget?, rollupAgg?, rollupWhereProp?, rollupWhereOp?, rollupWhereValue?, rollupWhereValues?}. Types: " + propTypeList() + ". A relation links to rows in another database (relationCollection). A BACKRELATION is its reverse and stores nothing: it asks which rows point HERE (backrelationCollection = the database over there, backrelationProp = its relation property), and a rollup can aggregate over it. A rollup may carry a condition (rollupWhereProp/rollupWhereOp/rollupWhereValue, ops is|is_not|is_empty|is_not_empty|contains) — that is the difference between how many tasks there are and how many are done. rollupAgg may be sum, count, avg, min, max or percent — percent is the share of related rows meeting the condition, which is what a progress bar wants (numberDisplay \"bar\") without a formula that could divide by zero. For SEVERAL values use rollupWhereValues (a list) instead of rollupWhereValue: \"open\" usually means is_not [done, discarded], and one comparison cannot say that. A checklist value is a list of sub-tasks [{\"text\":\"…\",\"done\":false}] and shows its own progress bar — do not add a second percentage column beside it. OPTIONS may be plain strings [\"To do\",\"Done\"] or objects with a colour: [{\"name\":\"Done\",\"color\":\"#2f9e44\"}] — the colour shows in board columns and chips.",
+				"properties": map[string]any{"type": "array", "description": "Each: {id? (to change), name, type, options?, formula?, numberDisplay?, numberMax?, relationCollection?, backrelationCollection?, backrelationProp?, rollupRelation?, rollupTarget?, rollupAgg?, rollupWhereProp?, rollupWhereOp?, rollupWhereValue?, rollupWhereValues?}. Types: " + propTypeList() + ". A relation links to rows in another database (relationCollection). A BACKRELATION is its reverse and stores nothing: it asks which rows point HERE (backrelationCollection = the database over there, backrelationProp = its relation property), and a rollup can aggregate over it. A rollup may carry a condition (rollupWhereProp/rollupWhereOp/rollupWhereValue, ops is|is_not|is_empty|is_not_empty|contains) — that is the difference between how many tasks there are and how many are done. rollupAgg may be sum, count, avg, min, max or percent — percent is the share of related rows meeting the condition, which is what a progress bar wants (numberDisplay \"bar\") without a formula that could divide by zero. For SEVERAL values use rollupWhereValues (a list) instead of rollupWhereValue: \"open\" usually means is_not [done, discarded], and one comparison cannot say that. A checklist value is a list of sub-tasks [{\"text\":\"…\",\"done\":false}] and shows its own progress bar — do not add a second percentage column beside it. A person property may carry personMultiple: true (its value is then a LIST of member ids) and personPool: [member ids] — who may be picked; empty means every member. OPTIONS may be plain strings [\"To do\",\"Done\"] or objects with a colour: [{\"name\":\"Done\",\"color\":\"#2f9e44\"}] — the colour shows in board columns and chips.",
 					"items": map[string]any{"type": "object"}},
 				"remove_properties": map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": "Property ids to remove"},
 			},
@@ -430,7 +438,7 @@ var mcpTools = []map[string]any{
 				"group_by":      map[string]any{"type": "string", "description": "board: the property to group columns by. Pass \"\" to clear."},
 				"date_prop":     map[string]any{"type": "string", "description": "calendar/timeline: the date property"},
 				"end_date_prop": map[string]any{"type": "string", "description": "timeline: optional end date, otherwise one-day bars"},
-				"filters":       map[string]any{"type": "array", "items": map[string]any{"type": "object"}, "description": "Each {property, op?, value?}, ANDed together. op: is (default) | is_not | contains | gt | lt | is_empty | is_not_empty. A board people actually work in usually needs one — without \"status is_not done\" the finished column grows forever and pushes the work aside. Pass [] to clear."},
+				"filters":       map[string]any{"type": "array", "items": filterConditionSchema(), "description": "Conditions ANDed together, shaped like query_rows' filter. A board people actually work in usually needs one: without \"status is_not done\" the finished column grows forever and pushes the work aside. Pass [] to clear. A view keeps flat filters only, because that is all the interface shows; OR groups work in query_rows."},
 				"sort":          map[string]any{"type": "string", "description": "\"propertyId:asc\" or \"propertyId:desc\", the same spelling query_rows uses. Pass \"\" to clear."},
 				"hidden":        map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": "Property ids to hide in this view. Pass [] to show all."},
 			},
@@ -630,6 +638,10 @@ func (s *Server) handleMCP(w http.ResponseWriter, r *http.Request) {
 		r.Header.Set("Authorization", "Bearer "+tok)
 	}
 	u := s.currentUser(r)
+	if u == nil && hasBearer(r) && !s.agentAddressAllowed(r) {
+		s.refuseAgentAddress(w, r)
+		return
+	}
 	if u == nil {
 		// The pointer that makes signing in DISCOVERABLE. Without it a client has
 		// no way to learn this server has an authorization server at all, and
@@ -661,7 +673,7 @@ func (s *Server) handleMCP(w http.ResponseWriter, r *http.Request) {
 	maxBody := s.maxUploadBytes()/3*4 + 1<<20
 	if r.ContentLength > maxBody {
 		rpcError(w, nil, -32600, fmt.Sprintf(
-			"request is %d MB — the limit is %d MB; for a file this size use the HTTP upload at /api/upload",
+			"request is %d MB. The limit is %d MB; for a file this size use the HTTP upload at /api/upload",
 			r.ContentLength>>20, maxBody>>20))
 		return
 	}
@@ -766,7 +778,7 @@ func (s *Server) handleMCP(w http.ResponseWriter, r *http.Request) {
 		}
 		// Stop a runaway agent from hammering the sync layer.
 		if !s.mcpRate.allow(u.ID) {
-			rpcResult(w, req.ID, textResult("rate limit exceeded — too many requests, slow down", true))
+			rpcResult(w, req.ID, textResult("rate limit exceeded: too many requests, slow down", true))
 			return
 		}
 		result, err := s.mcpCall(u, params.Name, params.Arguments, s.publicShareBase(r))
@@ -821,6 +833,11 @@ func (s *Server) mcpCall(u *user, name string, rawArgs json.RawMessage, publicBa
 			Values              []string `json:"values"`
 			Value2              string   `json:"value2"`
 		} `json:"filter"`
+		FilterGroups [][]struct {
+			Property, Op, Value string
+			Values              []string `json:"values"`
+			Value2              string   `json:"value2"`
+		} `json:"filter_groups"`
 		Sort       *string         `json:"sort"`
 		Limit      int             `json:"limit"`
 		Offset     int             `json:"offset"`
@@ -1021,10 +1038,13 @@ func (s *Server) mcpCall(u *user, name string, rawArgs json.RawMessage, publicBa
 		parentID = *args.ParentID
 	}
 
-	// The credential and workspace policies both apply to every tool that names a
-	// page or a parent, including a move's destination (checked against the
-	// parent workspace). This must also run for unrestricted tokens: strict and
-	// closed workspaces can reject an agent based on the workspace policy alone.
+	// The credential narrows access further: a workspace-scoped token sees no
+	// page outside its scope, and a workspace whose rule keeps agents out (or
+	// admits only signed-in ones) is closed to it even when the person could
+	// read every page there. This covers every tool that names a page or a
+	// parent, including a move's destination (checked against the parent
+	// workspace). It used to run for scoped tokens only, so an unrestricted
+	// token read and wrote pages in a workspace closed to agents.
 	if args.PageID != "" && !s.credentialMayEnter(u, s.pageWorkspace(args.PageID)) {
 		return "", fmt.Errorf("page %q not found", args.PageID)
 	}
@@ -1067,7 +1087,7 @@ func (s *Server) mcpCall(u *user, name string, rawArgs json.RawMessage, publicBa
 				return "", err
 			}
 			if p.Type == "collection" {
-				md, err := s.collectionMarkdown(p)
+				md, err := s.collectionMarkdown(p, userID)
 				if err != nil {
 					return "", err
 				}
@@ -1310,7 +1330,7 @@ func (s *Server) mcpCall(u *user, name string, rawArgs json.RawMessage, publicBa
 			// away. Same reasoning as the Content-Length check above, one
 			// layer further in.
 			if size := int64(len(args.DataBase64)) / 4 * 3; size > s.maxUploadBytes() {
-				return "", fmt.Errorf("file is %d MB — the limit is %d MB; upload it through the browser (/api/upload) or raise max_upload_mb in the settings",
+				return "", fmt.Errorf("file is %d MB. The limit is %d MB; upload it through the browser (/api/upload) or raise max_upload_mb in the settings",
 					size>>20, s.maxUploadBytes()>>20)
 			}
 			data, err := base64.StdEncoding.DecodeString(args.DataBase64)
@@ -1362,11 +1382,24 @@ func (s *Server) mcpCall(u *user, name string, rawArgs json.RawMessage, publicBa
 			for _, f := range args.Filter {
 				filters = append(filters, rowFilter{Prop: f.Property, Op: f.Op, Value: f.Value, Values: f.Values, Value2: f.Value2})
 			}
+			parsed := make([][]rowFilter, 0, len(args.FilterGroups))
+			for _, g := range args.FilterGroups {
+				group := make([]rowFilter, 0, len(g))
+				for _, f := range g {
+					if f.Property == "" {
+						continue
+					}
+					group = append(group, rowFilter{Prop: f.Property, Op: f.Op, Value: f.Value, Values: f.Values, Value2: f.Value2})
+				}
+				if len(group) > 0 {
+					parsed = append(parsed, group)
+				}
+			}
 			sort := ""
 			if args.Sort != nil {
 				sort = *args.Sort
 			}
-			return s.mcpQueryRows(u, args.PageID, filters, sort, args.Limit, args.Offset)
+			return s.mcpQueryRows(u, args.PageID, filters, parsed, sort, args.Limit, args.Offset)
 		case "set_properties":
 			// One row or many. With updates the central page check does not bite,
 			// so the permissions of EVERY row are checked inside the function.
@@ -1730,7 +1763,7 @@ func (s *Server) appendBlockJSON(pageID, blockJSON string) error {
 	if err != nil {
 		return err
 	}
-	if _, err := tx.Exec(`UPDATE pages SET content = ?, updated_at = ? WHERE id = ?`, string(merged), now(), pageID); err != nil {
+	if _, err := tx.Exec(`UPDATE pages SET content = ?, updated_at = ?, `+bumpDocGen+` WHERE id = ?`, string(merged), now(), pageID); err != nil {
 		return err
 	}
 	if err := tx.Commit(); err != nil {

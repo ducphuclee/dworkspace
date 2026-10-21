@@ -299,7 +299,7 @@ func (s *Server) handleSetUserDisabled(w http.ResponseWriter, r *http.Request) {
 	// The same guard as for deletion: without an owner the instance is left with
 	// nobody in charge, and the role cannot be handed out again from the app.
 	if body.Disabled && s.isOwner(id) {
-		httpErrorCode(w, 400, "owner_cannot_be_disabled", "The owner cannot be deactivated — hand the owner role on first.")
+		httpErrorCode(w, 400, "owner_cannot_be_disabled", "The owner cannot be deactivated. Hand the owner role on first.")
 		return
 	}
 	v := 0
@@ -533,11 +533,11 @@ func (s *Server) handleAdoptWorkspace(w http.ResponseWriter, r *http.Request) {
 	s.db.QueryRow(`SELECT COUNT(*) FROM workspace_members WHERE workspace_id = ?`, wsID).Scan(&members)
 	s.db.QueryRow(`SELECT is_personal FROM workspaces WHERE id = ?`, wsID).Scan(&personal)
 	if members > 0 {
-		httpErrorCode(w, 400, "workspace_has_members", "This workspace still has members. If nobody is in charge, appoint one of them in user management — for a look inside there is emergency access.")
+		httpErrorCode(w, 400, "workspace_has_members", "This workspace still has members. If nobody is in charge, appoint one of them in user management. For a look inside there is emergency access.")
 		return
 	}
 	if personal != 0 {
-		httpErrorCode(w, 400, "personal_not_adoptable", "A personal space is not adopted — it belongs to an account.")
+		httpErrorCode(w, 400, "personal_not_adoptable", "A personal space is not adopted. It belongs to an account.")
 		return
 	}
 	if _, err := s.db.Exec(`INSERT INTO workspace_members (workspace_id, user_id, role) VALUES (?, ?, 'admin')
@@ -567,7 +567,7 @@ func (s *Server) handleDeleteStrandedWorkspace(w http.ResponseWriter, r *http.Re
 	var members int
 	s.db.QueryRow(`SELECT COUNT(*) FROM workspace_members WHERE workspace_id = ?`, wsID).Scan(&members)
 	if members > 0 {
-		httpErrorCode(w, 400, "workspace_delete_from_inside", "This workspace still has members — it can only be deleted from the inside.")
+		httpErrorCode(w, 400, "workspace_delete_from_inside", "This workspace still has members. It can only be deleted from the inside.")
 		return
 	}
 	if strings.TrimSpace(body.Confirm) != name {

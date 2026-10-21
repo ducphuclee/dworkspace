@@ -111,7 +111,7 @@ export function LanguageTimeModal({ onClose }: { onClose: () => void }) {
           <h2>{t('Language and time')}</h2>
           <p className="dialog-hint">
             {t(
-              'Automatic follows this browser and is right most of the time. Set a value yourself when it is not — a laptop on the wrong continent, or a language you read but do not want your dates in.',
+              'Automatic follows this browser and is right most of the time. Set a value yourself when it is not: a laptop on the wrong continent, or a language you read but do not want your dates in.',
             )}
           </p>
 
@@ -150,7 +150,7 @@ export function LanguageTimeModal({ onClose }: { onClose: () => void }) {
             </option>
             {REGIONS.map((tag) => (
               <option key={tag} value={tag}>
-                {regionLabel(tag)} — {tag}
+                {regionLabel(tag)} · {tag}
               </option>
             ))}
           </select>

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Download } from 'lucide-react';
 import type { GraphEdge, PageMeta } from '../types';
 import { t, plural } from '../i18n';
+import { openPage } from '../pageOpen';
 
 // The graph: every page as a dot, every connection as a line, settling into
 // shape by itself.
@@ -132,6 +133,7 @@ export default function GraphView({
   onNavigate,
   focusId,
   compact = false,
+  onOpenInNewTab,
 }: {
   pages: PageMeta[];
   edges: GraphEdge[];
@@ -153,6 +155,7 @@ export default function GraphView({
   // 60fps loop beside it is a battery bill for decoration nobody is looking at.
   // Here it settles, stops, and wakes on touch.
   compact?: boolean;
+  onOpenInNewTab?: (id: string) => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [hoverTitle, setHoverTitle] = useState<string | null>(null);
@@ -739,7 +742,7 @@ export default function GraphView({
           if (wasDrag) return; // that was a drag, not a click
           const { x, y } = toWorld(e);
           const hit = pick(x, y);
-          if (hit !== null) onNavigate(state.current.nodes[hit].id);
+          if (hit !== null) openPage(e, state.current.nodes[hit].id, { onNavigate, onOpenInNewTab });
         }}
         onWheel={(e) => {
           const s = state.current;

@@ -262,14 +262,14 @@ func (s *Server) createSkill(u *user, workspaceID string, in skillDraftInput) (s
 	if err := recordSkillAuditTx(tx, skillAuditEntry{
 		WorkspaceID: sk.WorkspaceID, SkillID: sk.ID, SkillVersionID: v.ID, VersionNumber: v.Version,
 		DeliveryMode: v.DeliveryMode, Action: skillActionCreated, ContentHash: v.ContentHash,
-		ActorUserID: u.ID, ActorName: u.Name, ActorType: "human",
+		ActorUserID: u.ID, ActorName: u.Name, ActorType: skillActorType(u),
 	}); err != nil {
 		return skill{}, skillVersion{}, err
 	}
 	if err := tx.Commit(); err != nil {
 		return skill{}, skillVersion{}, err
 	}
-	s.audit("human", u.ID, u.Name, "skill_created", "", sk.WorkspaceID, sk.Name)
+	s.audit(skillActorType(u), u.ID, u.Name, "skill_created", "", sk.WorkspaceID, sk.Name)
 	return sk, v, nil
 }
 
@@ -397,7 +397,7 @@ func (s *Server) updateDraftVersion(u *user, sk skill, v skillVersion, in skillD
 	if err := recordSkillAuditTx(tx, skillAuditEntry{
 		WorkspaceID: sk.WorkspaceID, SkillID: sk.ID, SkillVersionID: next.ID, VersionNumber: next.Version,
 		DeliveryMode: next.DeliveryMode, Action: skillActionUpdated, ContentHash: next.ContentHash,
-		ActorUserID: u.ID, ActorName: u.Name, ActorType: "human",
+		ActorUserID: u.ID, ActorName: u.Name, ActorType: skillActorType(u),
 	}); err != nil {
 		return skillVersion{}, err
 	}
@@ -464,7 +464,7 @@ func (s *Server) newDraftVersion(u *user, sk skill, from skillVersion) (skillVer
 		WorkspaceID: sk.WorkspaceID, SkillID: sk.ID, SkillVersionID: next.ID, VersionNumber: next.Version,
 		DeliveryMode: next.DeliveryMode, Action: skillActionCreated, ContentHash: next.ContentHash,
 		ResolutionReason: fmt.Sprintf("cloned from version %d", from.Version),
-		ActorUserID:      u.ID, ActorName: u.Name, ActorType: "human",
+		ActorUserID:      u.ID, ActorName: u.Name, ActorType: skillActorType(u),
 	}); err != nil {
 		return skillVersion{}, err
 	}
@@ -513,7 +513,7 @@ func (s *Server) submitForReview(u *user, sk skill, v skillVersion) (skillVersio
 	if err := recordSkillAuditTx(tx, skillAuditEntry{
 		WorkspaceID: sk.WorkspaceID, SkillID: sk.ID, SkillVersionID: v.ID, VersionNumber: v.Version,
 		DeliveryMode: v.DeliveryMode, Action: skillActionSubmitted, ContentHash: v.ContentHash,
-		ActorUserID: u.ID, ActorName: u.Name, ActorType: "human",
+		ActorUserID: u.ID, ActorName: u.Name, ActorType: skillActorType(u),
 	}); err != nil {
 		return skillVersion{}, err
 	}
@@ -521,7 +521,7 @@ func (s *Server) submitForReview(u *user, sk skill, v skillVersion) (skillVersio
 		return skillVersion{}, err
 	}
 	v.Status, v.SubmittedAt, v.UpdatedAt, v.ReviewNote = skillStatusPending, ts, ts, ""
-	s.audit("human", u.ID, u.Name, "skill_submitted", "", sk.WorkspaceID,
+	s.audit(skillActorType(u), u.ID, u.Name, "skill_submitted", "", sk.WorkspaceID,
 		fmt.Sprintf("%s v%d", sk.Name, v.Version))
 	return v, nil
 }
@@ -567,7 +567,7 @@ func (s *Server) requestChanges(u *user, sk skill, v skillVersion, note string) 
 	if err := recordSkillAuditTx(tx, skillAuditEntry{
 		WorkspaceID: sk.WorkspaceID, SkillID: sk.ID, SkillVersionID: v.ID, VersionNumber: v.Version,
 		DeliveryMode: v.DeliveryMode, Action: skillActionChangesRequested, ContentHash: v.ContentHash,
-		ResolutionReason: note, ActorUserID: u.ID, ActorName: u.Name, ActorType: "human",
+		ResolutionReason: note, ActorUserID: u.ID, ActorName: u.Name, ActorType: skillActorType(u),
 	}); err != nil {
 		return skillVersion{}, err
 	}
@@ -575,7 +575,7 @@ func (s *Server) requestChanges(u *user, sk skill, v skillVersion, note string) 
 		return skillVersion{}, err
 	}
 	v.Status, v.ReviewNote, v.UpdatedAt, v.SubmittedAt = skillStatusDraft, note, ts, ""
-	s.audit("human", u.ID, u.Name, "skill_changes_requested", "", sk.WorkspaceID,
+	s.audit(skillActorType(u), u.ID, u.Name, "skill_changes_requested", "", sk.WorkspaceID,
 		fmt.Sprintf("%s v%d", sk.Name, v.Version))
 	return v, nil
 }
@@ -624,7 +624,7 @@ func (s *Server) approveVersion(u *user, sk skill, v skillVersion) (skill, skill
 	if err := recordSkillAuditTx(tx, skillAuditEntry{
 		WorkspaceID: sk.WorkspaceID, SkillID: sk.ID, SkillVersionID: v.ID, VersionNumber: v.Version,
 		DeliveryMode: v.DeliveryMode, Action: skillActionApproved, ContentHash: v.ContentHash,
-		ActorUserID: u.ID, ActorName: u.Name, ActorType: "human",
+		ActorUserID: u.ID, ActorName: u.Name, ActorType: skillActorType(u),
 	}); err != nil {
 		return skill{}, skillVersion{}, err
 	}
@@ -635,7 +635,7 @@ func (s *Server) approveVersion(u *user, sk skill, v skillVersion) (skill, skill
 	v.Published = true
 	sk.CurrentVersionID, sk.CurrentVersionNumber = v.ID, v.Version
 	sk.LifecycleStatus, sk.Description, sk.UpdatedAt = skillStatusApproved, v.Description, ts
-	s.audit("human", u.ID, u.Name, "skill_published", "", sk.WorkspaceID,
+	s.audit(skillActorType(u), u.ID, u.Name, "skill_published", "", sk.WorkspaceID,
 		fmt.Sprintf("%s v%d", sk.Name, v.Version))
 	return sk, v, nil
 }
@@ -681,7 +681,7 @@ func (s *Server) deprecateVersion(u *user, sk skill, v skillVersion, note string
 	if err := recordSkillAuditTx(tx, skillAuditEntry{
 		WorkspaceID: sk.WorkspaceID, SkillID: sk.ID, SkillVersionID: v.ID, VersionNumber: v.Version,
 		DeliveryMode: v.DeliveryMode, Action: skillActionDeprecated, ContentHash: v.ContentHash,
-		ResolutionReason: strings.TrimSpace(note), ActorUserID: u.ID, ActorName: u.Name, ActorType: "human",
+		ResolutionReason: strings.TrimSpace(note), ActorUserID: u.ID, ActorName: u.Name, ActorType: skillActorType(u),
 	}); err != nil {
 		return skill{}, skillVersion{}, err
 	}
@@ -690,7 +690,7 @@ func (s *Server) deprecateVersion(u *user, sk skill, v skillVersion, note string
 	}
 	v.Status, v.DeprecatedAt, v.UpdatedAt, v.Published = skillStatusDeprecated, ts, ts, false
 	sk.UpdatedAt = ts
-	s.audit("human", u.ID, u.Name, "skill_deprecated", "", sk.WorkspaceID,
+	s.audit(skillActorType(u), u.ID, u.Name, "skill_deprecated", "", sk.WorkspaceID,
 		fmt.Sprintf("%s v%d", sk.Name, v.Version))
 	return sk, v, nil
 }

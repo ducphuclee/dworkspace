@@ -554,7 +554,7 @@ var mcpTools = []map[string]any{
 	},
 	// ---- the skill control plane (see mcp_skills.go) ----
 	//
-	// Four tools in a deliberate order: metadata, then which one applies, then
+	// Four read tools in a deliberate order: metadata, then which one applies, then
 	// the exact text of that one. What is NOT here is any way to hand in a page
 	// id and get its body back as instructions — pages stay untrusted, and the
 	// only text that reaches skill_get is a skill version a workspace admin
@@ -622,6 +622,36 @@ var mcpTools = []map[string]any{
 				"version":  map[string]any{"type": "string", "description": "The exact approved version number. Required."},
 			},
 			"required": []string{"version"}},
+	},
+	{
+		"name": "skill_push",
+		"description": "Push a skill from your machine to this workspace so the team can review it. Send the skill's SKILL.md in skill_md (front matter name/description are read, the rest becomes the instructions) or the fields one by one; add package for scripts and assets. " +
+			"It only ever writes a DRAFT: a new skill gets version 1, an existing slug gets a new draft version (or updates the open draft), and nothing is executable or visible in skill_catalog until a workspace admin approves it in the browser. Pushing the same content again changes nothing, so it is safe to run on every sync. " +
+			"submit=true also sends the draft to the review queue; a version already waiting for review is frozen and is refused with that reason. Defaults to a Client skill (something installed on a machine); pass delivery_mode=remote for instructions-only behaviour. It cannot approve, deprecate or delete anything.",
+		"inputSchema": map[string]any{"type": "object",
+			"properties": map[string]any{
+				"workspace_id":  map[string]any{"type": "string", "description": "Required when you can write to more than one workspace."},
+				"slug":          map[string]any{"type": "string", "description": "The skill's identity in the workspace, e.g. \"architecture-review\". Defaults to the SKILL.md front-matter name, then to a slug made from name."},
+				"name":          map[string]any{"type": "string", "description": "Display name. Defaults to the front-matter name."},
+				"description":   map[string]any{"type": "string", "description": "What it is for, up to 500 characters. Defaults to the front-matter description."},
+				"skill_md":      map[string]any{"type": "string", "description": "The whole SKILL.md, front matter included."},
+				"instructions":  map[string]any{"type": "string", "description": "The instructions body, when not sending skill_md."},
+				"delivery_mode": map[string]any{"type": "string", "enum": []string{"client", "remote"}, "description": "client (default for a new skill): installed on a machine. remote: instructions handed to a session on request."},
+				"triggers":      map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": "Phrases that should make this skill match a task."},
+				"references": map[string]any{"type": "array", "description": "Pointers, never inlined: [{\"kind\":\"url\",\"target\":\"https://…\",\"label\":\"…\"}]. kind is page, url or note.",
+					"items": map[string]any{"type": "object", "properties": map[string]any{
+						"kind": map[string]any{"type": "string"}, "target": map[string]any{"type": "string"}, "label": map[string]any{"type": "string"},
+					}, "required": []string{"kind", "target"}}},
+				"dependencies": map[string]any{"type": "array", "description": "What the skill needs: [{\"type\":\"capability\",\"id\":\"browser\",\"required\":true,\"fallback\":\"…\"}]. type is client_skill, capability, tool or connector.",
+					"items": map[string]any{"type": "object", "properties": map[string]any{
+						"type": map[string]any{"type": "string"}, "id": map[string]any{"type": "string"},
+						"versionConstraint": map[string]any{"type": "string"}, "required": map[string]any{"type": "boolean"}, "fallback": map[string]any{"type": "string"},
+					}, "required": []string{"type", "id"}}},
+				"scope":           map[string]any{"type": "object", "description": "Where it may be selected; empty lists mean anywhere: projectIds, repositoryPatterns, roles, taskTypes, agentTypes."},
+				"package":         map[string]any{"type": "object", "description": "For a Client skill: {\"entrypoint\":\"scripts/run.sh\",\"scripts\":[{\"name\":\"scripts/run.sh\",\"content\":\"…\"}],\"assets\":[{\"name\":\"…\",\"content\":\"…\"}]}. At most 40 files of 256 KB."},
+				"submit":          map[string]any{"type": "boolean", "description": "Also send the draft for review. Default false: the author finishes it in the browser first."},
+				"idempotency_key": map[string]any{"type": "string"},
+			}},
 	},
 }
 
@@ -937,6 +967,16 @@ func (s *Server) mcpCall(u *user, name string, rawArgs json.RawMessage, publicBa
 		TaskType              string                 `json:"task_type"`
 		Capabilities          []string               `json:"capabilities"`
 		InstalledClientSkills []installedClientSkill `json:"installed_client_skills"`
+		// skill_push. Pointers, so a field left out is not a field cleared.
+		SkillMD      string                `json:"skill_md"`
+		Instructions *string               `json:"instructions"`
+		Triggers     *[]string             `json:"triggers"`
+		DeliveryMode *string               `json:"delivery_mode"`
+		References   *[]skillReference     `json:"references"`
+		Dependencies *[]skillDependency    `json:"dependencies"`
+		Scope        *skillScope           `json:"scope"`
+		Package      *skillPackageMetadata `json:"package"`
+		Submit       bool                  `json:"submit"`
 	}
 	if len(rawArgs) > 0 {
 		if err := json.Unmarshal(rawArgs, &args); err != nil {
@@ -960,7 +1000,9 @@ func (s *Server) mcpCall(u *user, name string, rawArgs json.RawMessage, publicBa
 		name == "embed_database" || name == "import_url" ||
 		name == "working_on" || name == "note" ||
 		// Workspace rules (W123): a proposal is inert, but it IS a write.
-		name == "propose_workspace_rules"
+		name == "propose_workspace_rules" ||
+		// skill_push only ever writes a DRAFT, but a draft is a write.
+		name == "skill_push"
 	switch name {
 	case "revisions":
 		// Reading the history is a read; putting a page back is not.
@@ -1465,6 +1507,16 @@ func (s *Server) mcpCall(u *user, name string, rawArgs json.RawMessage, publicBa
 			return s.mcpSkillGet(u, args.SkillID, args.Slug, jsonScalarString(args.Version))
 		case "skill_client_package":
 			return s.mcpSkillClientPackage(u, args.SkillID, args.Slug, jsonScalarString(args.Version), publicBase)
+		case "skill_push":
+			return s.mcpSkillPush(u, skillPushInput{
+				WorkspaceID: args.WorkspaceID, Slug: args.Slug, Name: args.Name,
+				Description: args.Description, SkillMD: args.SkillMD, Submit: args.Submit,
+				Draft: skillDraftInput{
+					Instructions: args.Instructions, Triggers: args.Triggers, DeliveryMode: args.DeliveryMode,
+					References: args.References, Dependencies: args.Dependencies, Scope: args.Scope,
+					Package: args.Package,
+				},
+			})
 		default:
 			return "", fmt.Errorf("unknown tool %q", name)
 		}
@@ -1487,7 +1539,7 @@ func (s *Server) mcpCall(u *user, name string, rawArgs json.RawMessage, publicBa
 		// property — the generic one here has no way to know what changed, and
 		// two entries for one call would make the log lie about how much
 		// happened.
-		if name != "working_on" && name != "note" && name != "set_properties" && name != "proposals" && name != "create_page" && !(name == "write_content" && args.Mode == "replace") {
+		if name != "working_on" && name != "note" && name != "set_properties" && name != "proposals" && name != "skill_push" && name != "create_page" && !(name == "write_content" && args.Mode == "replace") {
 			ws := s.pageWorkspace(args.PageID)
 			if ws == "" { // create_page has no page_id arg — attribute to the actor's workspace
 				ws = s.userDefaultWorkspace(userID)

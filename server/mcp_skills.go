@@ -1,13 +1,16 @@
 package server
 
 import (
+	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 )
 
 // The MCP surface of the skill control plane.
 //
-// Four tools, and the shape of them is the security design:
+// Four read tools, and the shape of them is the security design (a fifth,
+// skill_push, writes — see below):
 //
 //	skill_catalog        metadata only — no instruction body can come out of it
 //	skill_resolve        which exact version applies here, and why
@@ -209,4 +212,259 @@ func (s *Server) mcpSkillClientPackage(u *user, skillID, slug, version, publicBa
 			"own credential. Nothing is installed for you — ask the person you are working with " +
 			"before writing files into their environment.",
 	}), nil
+}
+
+// ---- skill_push ----
+
+// skillPushInput is one skill as somebody holds it locally.
+type skillPushInput struct {
+	WorkspaceID string
+	Slug        string
+	Name        string
+	Description string
+	SkillMD     string
+	Submit      bool
+	Draft       skillDraftInput
+}
+
+// mcpSkillPush is the way a skill leaves somebody's machine and reaches the
+// workspace — and it is a one-way door into the DRAFT room only.
+//
+// The security design above says no text reaches an agent as instructions
+// unless a workspace admin approved it in a browser. That does not change: this
+// tool can create a skill, write or replace the open draft, or start a new
+// draft version of a published skill, and can optionally put the draft in the
+// review queue. It cannot approve, deprecate, or touch a version that is
+// pending (frozen so a reviewer sees what they approve) or approved
+// (immutable). A pushed skill is therefore inert until a person has read it —
+// which is also why it is safe to let any member's agent call it.
+//
+// It is built for repetition. A sync tool will push every local skill on every
+// run, so pushing content the workspace already holds changes nothing and says
+// so, rather than minting a new version per run.
+//
+// Every rule — who may author, what a valid draft is, what is frozen — is the
+// service's own, the same code the browser reaches. Nothing is re-implemented.
+func (s *Server) mcpSkillPush(u *user, in skillPushInput) (string, error) {
+	slug := strings.TrimSpace(in.Slug)
+	name := strings.TrimSpace(in.Name)
+	desc := strings.TrimSpace(in.Description)
+	d := in.Draft
+
+	if strings.TrimSpace(in.SkillMD) != "" {
+		md := parseSkillMarkdown(in.SkillMD)
+		if slug == "" {
+			slug = md.Name
+		}
+		if name == "" {
+			name = md.Name
+		}
+		if desc == "" {
+			desc = md.Description
+		}
+		if d.Instructions == nil {
+			body := md.Body
+			d.Instructions = &body
+		}
+	}
+	if slug == "" {
+		slug = name
+	}
+	slug = slugify(slug)
+	if slug == "" {
+		return "", fmt.Errorf("a slug is required: pass slug, or a skill_md whose front matter has a name")
+	}
+	if name == "" {
+		name = slug
+	}
+	if desc != "" {
+		d.Description = &desc
+	}
+
+	ws, err := s.mcpPlacementWorkspace(u, in.WorkspaceID, "", "")
+	if err != nil {
+		return "", err
+	}
+
+	sk, err := s.skillBySlug(ws, slug)
+	if errors.Is(err, sql.ErrNoRows) {
+		// A skill on somebody's machine is something they installed, which is a
+		// Client skill; a Remote one is a deliberate choice.
+		if d.DeliveryMode == nil {
+			client := skillDeliveryClient
+			d.DeliveryMode = &client
+		}
+		d.Name, d.Slug = &name, &slug
+		sk, v, err := s.createSkill(u, ws, d)
+		if err != nil {
+			return "", err
+		}
+		return s.finishSkillPush(u, sk, v, "created", in.Submit)
+	}
+	if err != nil {
+		return "", err
+	}
+	if !s.skillCanAuthor(u, sk.WorkspaceID) {
+		return "", errSkillForbidden
+	}
+
+	versions, err := s.skillVersions(sk.ID) // newest first
+	if err != nil {
+		return "", err
+	}
+	if len(versions) == 0 {
+		return "", fmt.Errorf("skill %q has no versions", slug)
+	}
+	latest := versions[0]
+	if latest.Status == skillStatusPending {
+		return "", coded("skill_pending_exists", fmt.Sprintf(
+			"version %d of %q is waiting for review and is frozen, so it cannot be changed. "+
+				"A workspace admin can approve it or ask for changes at /skills/review; push again after that.",
+			latest.Version, slug))
+	}
+
+	if name != "" && name != sk.Name && in.Name != "" {
+		if sk, err = s.updateSkillMeta(u, sk, &name, nil, nil); err != nil {
+			return "", err
+		}
+	}
+
+	// Would this push change anything? The hash covers the version number, so
+	// the candidate is hashed AS the version it would replace or follow.
+	candidate := d.applyTo(latest, sk.WorkspaceID)
+	if err := validateVersionDraft(candidate); err != nil {
+		return "", err
+	}
+	if skillContentHash(sk.Slug, candidate) == latest.ContentHash {
+		if latest.Status == skillStatusDraft && in.Submit {
+			return s.finishSkillPush(u, sk, latest, "unchanged", true)
+		}
+		return s.finishSkillPush(u, sk, latest, "unchanged", false)
+	}
+
+	status := "updated"
+	target := latest
+	if latest.Status != skillStatusDraft {
+		// Approved or deprecated: immutable, so the change is a new version.
+		if target, err = s.newDraftVersion(u, sk, latest); err != nil {
+			return "", err
+		}
+		status = "new_version"
+	}
+	updated, err := s.updateDraftVersion(u, sk, target, d, "")
+	if err != nil {
+		return "", err
+	}
+	return s.finishSkillPush(u, sk, updated, status, in.Submit)
+}
+
+// finishSkillPush optionally submits the draft, then reports what happened and
+// what has NOT: the answer an agent relays to the person is "waiting for a
+// reviewer", and it should not have to work that out.
+func (s *Server) finishSkillPush(u *user, sk skill, v skillVersion, result string, submit bool) (string, error) {
+	if submit && v.Status == skillStatusDraft {
+		pending, err := s.submitForReview(u, sk, v)
+		if err != nil {
+			return "", fmt.Errorf("the draft was saved as version %d but could not be submitted: %w", v.Version, err)
+		}
+		v = pending
+	}
+	next := "It is a draft: finish it and submit it for review in the browser at /skills/" + sk.ID + "/edit/" + v.ID + "."
+	switch {
+	case v.Status == skillStatusPending:
+		next = "It is waiting in the review queue (/skills/review). Nothing is executable until a workspace admin approves it."
+	case v.Status == skillStatusApproved && result == "unchanged":
+		next = "The workspace already holds exactly this content as the approved version; nothing was pushed."
+	case v.Status == skillStatusDeprecated && result == "unchanged":
+		next = "The workspace already holds exactly this content (version deprecated); nothing was pushed."
+	}
+	return skillJSON(map[string]any{
+		"result":         result,
+		"skill_id":       sk.ID,
+		"slug":           sk.Slug,
+		"name":           sk.Name,
+		"version":        v.Version,
+		"version_status": v.Status,
+		"delivery_mode":  v.DeliveryMode,
+		"content_hash":   v.ContentHash,
+		"next":           next,
+	}), nil
+}
+
+// skillMarkdown is a SKILL.md taken apart.
+type skillMarkdown struct {
+	Name, Description, Body string
+}
+
+// parseSkillMarkdown reads the front matter Claude Code and compatible runtimes
+// use (name, description) and returns the rest as the body.
+//
+// A SKILL.md that THIS server rendered (it carries content_hash) has a title,
+// the description repeated and a dependencies section added around the author's
+// instructions. Pulling a package and pushing it back would add those again on
+// every round trip, so for those the added parts are taken off first.
+func parseSkillMarkdown(src string) skillMarkdown {
+	src = strings.ReplaceAll(src, "\r\n", "\n")
+	out := skillMarkdown{Body: src}
+	if !strings.HasPrefix(src, "---\n") {
+		return out
+	}
+	rest := src[len("---\n"):]
+	end := strings.Index(rest, "\n---")
+	if end < 0 {
+		return out
+	}
+	front, body := rest[:end], rest[end+len("\n---"):]
+	body = strings.TrimPrefix(body, "\n")
+	generated := false
+	lines := strings.Split(front, "\n")
+	for i := 0; i < len(lines); i++ {
+		key, val, ok := strings.Cut(lines[i], ":")
+		if !ok || strings.HasPrefix(lines[i], " ") || strings.HasPrefix(lines[i], "\t") {
+			continue
+		}
+		key, val = strings.TrimSpace(key), strings.TrimSpace(val)
+		if key == "content_hash" {
+			generated = true
+		}
+		// A folded or literal block (">", "|") or an empty value continues on the
+		// indented lines below it.
+		if val == "" || val == ">" || val == "|" || val == ">-" || val == "|-" {
+			var parts []string
+			for i+1 < len(lines) && (strings.HasPrefix(lines[i+1], " ") || strings.HasPrefix(lines[i+1], "\t")) {
+				i++
+				parts = append(parts, strings.TrimSpace(lines[i]))
+			}
+			val = strings.Join(parts, " ")
+		}
+		val = strings.Trim(val, `"'`)
+		switch key {
+		case "name":
+			out.Name = val
+		case "description":
+			out.Description = val
+		}
+	}
+	body = strings.TrimLeft(body, "\n")
+	if generated {
+		body = stripRenderedSkillMarkdown(body, out.Description)
+	}
+	out.Body = body
+	return out
+}
+
+// stripRenderedSkillMarkdown undoes clientSkillMarkdown's additions.
+func stripRenderedSkillMarkdown(body, description string) string {
+	if strings.HasPrefix(body, "# ") {
+		if _, after, ok := strings.Cut(body, "\n"); ok {
+			body = strings.TrimLeft(after, "\n")
+		}
+	}
+	if description != "" && strings.HasPrefix(body, description+"\n") {
+		body = strings.TrimLeft(strings.TrimPrefix(body, description+"\n"), "\n")
+	}
+	if i := strings.Index(body, "\n## What this skill needs\n"); i >= 0 {
+		body = body[:i]
+	}
+	return strings.TrimRight(body, "\n") + "\n"
 }

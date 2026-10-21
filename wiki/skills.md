@@ -56,10 +56,12 @@ in a browser. Concretely:
   instructions. `skill_get` accepts skill ids, and a page id is not one.
 - A collection row whose `Trạng thái` column reads "Đã duyệt" is a row with a
   label somebody typed. It grants nothing.
-- An API token — an agent's own credential — cannot create, edit, submit,
-  approve or deprecate a skill. Every one of those is browser-session-only, for
-  the same reason workspace rules are: an agent that can approve its own
-  instructions has no guardrails.
+- An API token — an agent's own credential — cannot approve or deprecate a
+  skill, and cannot change a version that is waiting for review or already
+  approved. Those are browser-session-only, for the same reason workspace rules
+  are: an agent that can approve its own instructions has no guardrails. What a
+  token *can* do is hand in a **draft** with [`skill_push`](#skill_push), which
+  is inert until a workspace admin has read it.
 - A draft is never delivered. Neither is a version waiting for review, or a
   deprecated one. Each is refused with the reason, and never substituted by
   something else.
@@ -117,7 +119,9 @@ reviewer.
 
 Four tools, in a deliberate order — metadata, then which one applies, then the
 exact text of that one. This is *progressive disclosure*, and it is the reason a
-library of a hundred skills does not fill a context window.
+library of a hundred skills does not fill a context window. A fifth,
+[`skill_push`](#skill_push), goes the other way: it takes a skill from somebody's
+machine into the workspace as a draft.
 
 ### `skill_catalog`
 
@@ -270,6 +274,47 @@ Nothing is installed for you. dworkspace never writes into a client's
 filesystem, and an agent should ask the person it is working with before doing
 so on its behalf.
 
+### `skill_push`
+
+For the team member whose skills live in a folder on their machine
+(`~/.claude/skills/…`) and who wants them in the workspace. The agent reads the
+local `SKILL.md` and calls the tool; the workspace gets a **draft**.
+
+| Argument | Meaning |
+| --- | --- |
+| `skill_md` | the whole `SKILL.md`. Front-matter `name` and `description` are read, the rest becomes the instructions |
+| `slug`, `name`, `description`, `instructions` | the same fields one by one; an explicit value beats the front matter |
+| `delivery_mode` | `client` (the default for a new skill: it is something installed on a machine) or `remote` |
+| `triggers`, `references`, `dependencies`, `scope` | as in the interface |
+| `package` | for a Client skill: `entrypoint`, `scripts` and `assets`, each `{name, content}`. At most 40 files of 256 KB |
+| `workspace_id` | required when the caller can write to more than one workspace |
+| `submit` | also send the draft to the review queue. Default `false`, so the author can finish it in the browser first |
+
+What happens depends on the slug:
+
+| The workspace has… | The push |
+| --- | --- |
+| no skill with that slug | creates it, as version 1, draft |
+| an open draft | updates that draft in place |
+| only approved or deprecated versions | starts the next version as a draft; the approved one is not touched and stays what agents get |
+| a version waiting for review | is refused with the reason — it is frozen so the reviewer sees what they approve |
+
+The answer says which it was (*created*, *updated*, *new_version* or *unchanged*),
+the version, its status and its content hash. Pushing content the workspace
+already holds is *unchanged* and writes nothing, so a sync can push everything on
+every run without minting a version each time.
+
+A push never publishes. The tool has no way to approve, deprecate or delete, and
+the draft is not in `skill_catalog`, not resolvable and not fetchable until a
+workspace admin approves it at `/skills/review`. It follows the ordinary
+permissions: a viewer, a non-member, a read-only token or a workspace closed to
+agents is refused. The audit trail records the actor as an **agent**.
+
+A `SKILL.md` that was downloaded from dworkspace carries a title, the
+description repeated and a dependencies section that the server added around the
+instructions. Those are taken off again on the way back in, so pulling a package
+and pushing it does not grow the skill.
+
 ## Dependencies
 
 A version declares what it needs from the runtime it is used in:
@@ -336,7 +381,7 @@ being confidently wrong about which skill an agent receives.
 | Action | Member | Workspace admin |
 | --- | --- | --- |
 | Browse the library, read a skill | yes | yes |
-| Create a skill, edit own draft, submit for review | yes | yes |
+| Create a skill, edit own draft, submit for review (browser, or `skill_push` with a write token) | yes | yes |
 | Request changes, approve & publish, deprecate | no | yes |
 | Resolve and fetch approved skills | yes | yes |
 | Download an approved Client package | yes | yes |
@@ -381,7 +426,9 @@ extreme:
 ## The HTTP API
 
 What the interface uses. Reading is open to any credential the workspace admits,
-including an API token; every write needs a browser session.
+including an API token; every write over HTTP needs a browser session. The one
+way a token writes is the MCP tool [`skill_push`](#skill_push), and that only
+reaches drafts.
 
 | Route | Does |
 | --- | --- |

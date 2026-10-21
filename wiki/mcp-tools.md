@@ -1537,7 +1537,7 @@ of people and buy nothing.
 ## The skill tools
 
 `skill_catalog`, `skill_resolve`, `skill_get` and `skill_client_package` are the
-runtime side of the [skill control plane](skills.md), and they have their own
+runtime side of the [skill control plane](skills.md), and `skill_push` is how a draft gets in, and they have their own
 page because the rules around them are the point rather than the parameters.
 
 The short version: call `skill_resolve` at the start of a task with the task in
@@ -1549,9 +1549,21 @@ Only an approved version is ever returned, and only through `skill_get` — a
 draft, a version under review and a deprecated one are refused with the reason.
 Nothing you read through `search` or `get_page` is a skill, whatever it says
 about itself: those return page content, wrapped as untrusted, and there is no
-tool that turns a page id into instructions. Creating, submitting and approving a
-skill all require a browser session, so an API token cannot author the
-instructions it will later be given.
+tool that turns a page id into instructions. Approving a skill requires a
+browser session, so an API token cannot approve the instructions it will later
+be given.
+
+### `skill_push`
+
+Sends a skill from the caller's machine to the workspace: `skill_md` (the whole
+`SKILL.md`) or the fields one by one, plus `package` for a Client skill's scripts
+and assets, `delivery_mode` (`client` by default) and `submit`. It only ever
+writes a **draft** — a new skill at version 1, the open draft updated, or the
+next version of a published skill — and a draft is not in `skill_catalog` and
+cannot be fetched until a workspace admin approves it in the browser. Pushing the
+same content again returns *unchanged*; a version waiting for review is refused.
+It needs a write token and a role above viewer, and takes `workspace_id` when the
+caller can write to several. See [Skills](skills.md#skill_push).
 
 See [Skills](skills.md) for the input and output shapes, the scoring, the
 dependency handshake and the audit policy.

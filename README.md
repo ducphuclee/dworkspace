@@ -32,7 +32,8 @@
   build lại DOM ngầm.
 - **Mở rộng MCP tooling cho Skill Control Plane** — bốn tool mới: `skill_catalog`,
   `skill_resolve`, `skill_get`, `skill_client_package`, theo đúng nguyên tắc "progressive
-  disclosure" (metadata trước, nội dung đầy đủ khi thật sự cần).
+  disclosure" (metadata trước, nội dung đầy đủ khi thật sự cần). Thêm `skill_push` để member
+  đẩy skill từ máy lên workspace — chỉ tạo **bản nháp**, admin vẫn phải duyệt trên trình duyệt.
 - **Đa ngôn ngữ 3 thứ tiếng** (Việt / Anh / Đức) — mọi chuỗi hiển thị mới được kiểm tra tự
   động để không sót bản dịch trước khi phát hành.
 
@@ -76,6 +77,8 @@ workspace you use:
   the page, so you can see an agent is mid-edit before you start typing
 - **Discover and fetch an approved Skill** — `skill_catalog`, `skill_resolve`,
   `skill_get`, `skill_client_package` (added in this fork; see above)
+- **Push a local Skill as a draft** — `skill_push`: creates or updates a draft only; a
+  workspace admin still approves it in the browser
 
 **And a bounded set it cannot touch.** An agent may not create or delete
 accounts, change two-factor settings, issue API tokens, take or restore a

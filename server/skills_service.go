@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
 )
 
@@ -194,7 +195,12 @@ func (s *Server) createSkill(u *user, workspaceID string, in skillDraftInput) (s
 	if in.Slug != nil {
 		slug = slugify(*in.Slug)
 	}
-	if slug == "" {
+	// A slug somebody typed is theirs, and taken means taken. One we derive from
+	// the name is not a choice anybody made, so it is numbered until it is free:
+	// the "New skill" button always sends the same name, and the second click
+	// used to be refused over a slug the person never saw.
+	derived := slug == ""
+	if derived {
 		slug = slugify(name)
 	}
 	if slug == "" {
@@ -203,6 +209,9 @@ func (s *Server) createSkill(u *user, workspaceID string, in skillDraftInput) (s
 	}
 	if len(slug) > maxSkillSlugLen {
 		slug = slug[:maxSkillSlugLen]
+	}
+	if derived {
+		slug = s.freeSkillSlug(workspaceID, slug)
 	}
 
 	v := skillVersion{
@@ -262,6 +271,31 @@ func (s *Server) createSkill(u *user, workspaceID string, in skillDraftInput) (s
 	}
 	s.audit("human", u.ID, u.Name, "skill_created", "", sk.WorkspaceID, sk.Name)
 	return sk, v, nil
+}
+
+// freeSkillSlug returns base, or base-2, base-3 ... — the first one no skill in
+// the workspace uses. The unique index stays the arbiter: a race between two
+// creates still ends in skill_slug_taken rather than a duplicate.
+func (s *Server) freeSkillSlug(workspaceID, base string) string {
+	taken := func(slug string) bool {
+		var n int
+		s.db.QueryRow(`SELECT COUNT(*) FROM skills WHERE workspace_id = ? AND slug = ?`, workspaceID, slug).Scan(&n)
+		return n > 0
+	}
+	if !taken(base) {
+		return base
+	}
+	for n := 2; n < 10000; n++ {
+		suffix := "-" + strconv.Itoa(n)
+		stem := base
+		if len(stem)+len(suffix) > maxSkillSlugLen {
+			stem = strings.TrimRight(stem[:maxSkillSlugLen-len(suffix)], "-")
+		}
+		if cand := stem + suffix; !taken(cand) {
+			return cand
+		}
+	}
+	return base
 }
 
 func isUniqueViolation(err error) bool {

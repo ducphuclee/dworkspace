@@ -485,8 +485,20 @@ func TestSlugIsUniquePerWorkspaceAndLockedAfterPublish(t *testing.T) {
 
 	name, description, delivery, instructions := "Duplicate me", "d", skillDeliveryRemote, "x"
 	scope := skillScope{WorkspaceID: f.ws}
-	if _, _, err := f.s.createSkill(f.userOf(t, f.memberID), f.ws, skillDraftInput{
+	// Same NAME, no slug given: the derived slug is numbered, so the two never
+	// share one.
+	dup, _, err := f.s.createSkill(f.userOf(t, f.memberID), f.ws, skillDraftInput{
 		Name: &name, Description: &description, DeliveryMode: &delivery, Instructions: &instructions, Scope: &scope,
+	})
+	if err != nil {
+		t.Fatalf("a second skill with the same name should get a numbered slug: %v", err)
+	}
+	if dup.Slug == sk.Slug {
+		t.Fatal("two skills with the same slug exist in one workspace — an agent naming the slug would get either")
+	}
+	// The slug somebody typed is theirs: taken means refused.
+	if _, _, err := f.s.createSkill(f.userOf(t, f.memberID), f.ws, skillDraftInput{
+		Name: &name, Slug: &sk.Slug, Description: &description, DeliveryMode: &delivery, Instructions: &instructions, Scope: &scope,
 	}); err == nil {
 		t.Fatal("two skills with the same slug exist in one workspace — an agent naming the slug would get either")
 	}
@@ -580,5 +592,27 @@ func TestAVersionCannotBeFetchedThroughTheWrongSkill(t *testing.T) {
 	}
 	if _, err := f.s.skillVersionRef(skA.ID, vA.ID); err != nil {
 		t.Fatalf("the version could not be fetched through its own skill: %v", err)
+	}
+}
+
+// "New skill" always sends the same name. The second click has to produce a
+// second skill, not an error about a slug nobody typed; a slug somebody DID
+// type, and that is taken, is still refused.
+func TestNewSkillWithTheSameNameGetsANumberedSlug(t *testing.T) {
+	f := newSkillFixture(t)
+	first, _ := f.makeSkill(t, f.memberID, "Untitled skill", skillDeliveryRemote, "x", nil)
+	second, _ := f.makeSkill(t, f.memberID, "Untitled skill", skillDeliveryRemote, "x", nil)
+	third, _ := f.makeSkill(t, f.memberID, "Untitled skill", skillDeliveryRemote, "x", nil)
+	if first.Slug != "untitled-skill" || second.Slug != "untitled-skill-2" || third.Slug != "untitled-skill-3" {
+		t.Fatalf("slugs = %q, %q, %q", first.Slug, second.Slug, third.Slug)
+	}
+
+	name, explicit, delivery, instr := "Another", "untitled-skill", skillDeliveryRemote, "x"
+	scope := skillScope{WorkspaceID: f.ws}
+	_, _, err := f.s.createSkill(f.userOf(t, f.memberID), f.ws, skillDraftInput{
+		Name: &name, Slug: &explicit, DeliveryMode: &delivery, Instructions: &instr, Scope: &scope,
+	})
+	if err == nil || !strings.Contains(err.Error(), "already exists") {
+		t.Fatalf("an explicit slug that is taken should be refused, got %v", err)
 	}
 }

@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
+
+	"golang.org/x/text/unicode/norm"
 )
 
 // The VUS Skill Control Plane — the domain model.
@@ -217,10 +219,31 @@ type skillAuditEntry struct {
 
 // slugify turns a name into a stable, URL-safe identifier. Lossy on purpose:
 // the slug is a handle, the name is what people read.
+// foldDiacritics turns "Đây là skill mới" into "Day la skill moi": decompose,
+// drop the combining marks, and map đ (which has no decomposition) to d. Without
+// it a name written in Vietnamese lost every accented letter and often produced
+// no slug at all.
+func foldDiacritics(s string) string {
+	var b strings.Builder
+	for _, r := range norm.NFD.String(s) {
+		switch {
+		case unicode.Is(unicode.Mn, r):
+			continue
+		case r == 'đ':
+			b.WriteByte('d')
+		case r == 'Đ':
+			b.WriteByte('D')
+		default:
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
 func slugify(s string) string {
 	var b strings.Builder
 	lastDash := true
-	for _, r := range strings.ToLower(strings.TrimSpace(s)) {
+	for _, r := range foldDiacritics(strings.ToLower(strings.TrimSpace(s))) {
 		switch {
 		case r >= 'a' && r <= 'z', r >= '0' && r <= '9':
 			b.WriteRune(r)

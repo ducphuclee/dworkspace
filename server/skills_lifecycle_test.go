@@ -616,3 +616,17 @@ func TestNewSkillWithTheSameNameGetsANumberedSlug(t *testing.T) {
 		t.Fatalf("an explicit slug that is taken should be refused, got %v", err)
 	}
 }
+
+func TestSlugifyFoldsVietnameseDiacritics(t *testing.T) {
+	for in, want := range map[string]string{
+		"Đây là skill mới":        "day-la-skill-moi",
+		"Quy trình duyệt":         "quy-trinh-duyet",
+		"ĐƯỜNG DẪN  _ Tiếng-Việt": "duong-dan-tieng-viet",
+		"Untitled skill":          "untitled-skill",
+		"日本語":                     "",
+	} {
+		if got := slugify(in); got != want {
+			t.Errorf("slugify(%q) = %q, want %q", in, got, want)
+		}
+	}
+}

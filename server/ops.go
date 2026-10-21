@@ -74,6 +74,9 @@ func proxiedIP(v string) string {
 // evict drops rate-limit buckets that are full (idle), keeping the map from
 // growing without bound over the process lifetime.
 func (rl *rateLimiter) evict() {
+	if rl == nil {
+		return
+	}
 	rl.mu.Lock()
 	defer rl.mu.Unlock()
 	now := time.Now()

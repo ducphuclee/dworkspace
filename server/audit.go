@@ -237,7 +237,11 @@ func newRateLimiter(perMinute float64, burst float64) *rateLimiter {
 }
 
 // allow reports whether a request for key may proceed, consuming one token.
+// A nil limiter is "no limit": every request proceeds.
 func (rl *rateLimiter) allow(key string) bool {
+	if rl == nil {
+		return true
+	}
 	rl.mu.Lock()
 	defer rl.mu.Unlock()
 	b := rl.buckets[key]

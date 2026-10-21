@@ -209,9 +209,10 @@ credential may reach, and what is deliberately closed to agents. See
 
 ### "rate limit exceeded: too many requests, slow down"
 
-240 tool calls a minute per account, with a burst of 60. It comes back as a tool
-error rather than a transport failure, so a well-behaved agent can simply wait
-and retry.
+Only seen when the operator has turned the MCP limit on with
+`DWORKSPACE_MCP_RATE_PER_MINUTE` (it is off by default); the limit is per
+account. It comes back as a tool error rather than a transport failure, so a
+well-behaved agent can simply wait and retry.
 
 ### "request is … MB. The limit is … MB"
 

@@ -1562,6 +1562,8 @@ writes a **draft** — a new skill at version 1, the open draft updated, or the
 next version of a published skill — and a draft is not in `skill_catalog` and
 cannot be fetched until a workspace admin approves it in the browser. Pushing the
 same content again returns *unchanged*; a version waiting for review is refused.
+`skills` sends up to 50 at once, each independent — a failure is reported per skill
+and the rest still go through — and review is the same for every one.
 It needs a write token and a role above viewer, and takes `workspace_id` when the
 caller can write to several. See [Skills](skills.md#skill_push).
 

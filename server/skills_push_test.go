@@ -198,3 +198,112 @@ func countSkills(f *skillFixture) int {
 	f.s.db.QueryRow(`SELECT COUNT(*) FROM skills`).Scan(&n)
 	return n
 }
+
+type batchAnswer struct {
+	Summary map[string]int `json:"summary"`
+	Results []struct {
+		Index         int    `json:"index"`
+		Slug          string `json:"slug"`
+		Result        string `json:"result"`
+		Version       int    `json:"version"`
+		VersionStatus string `json:"version_status"`
+		Error         string `json:"error"`
+	} `json:"results"`
+}
+
+func pushBatch(t *testing.T, f *skillFixture, u *user, args string) batchAnswer {
+	t.Helper()
+	out, err := mcpSkillCall(t, f, u, "skill_push", args)
+	if err != nil {
+		t.Fatalf("skill_push batch: %v", err)
+	}
+	var a batchAnswer
+	if err := json.Unmarshal([]byte(out), &a); err != nil {
+		t.Fatalf("batch answered %q: %v", out, err)
+	}
+	return a
+}
+
+func TestPushBatchIsIndependentPerSkillAndStillOnlyDrafts(t *testing.T) {
+	f := newSkillFixture(t)
+	agent := f.agentUser(t, f.memberID)
+	args := `{"workspace_id":"` + f.ws + `","skills":[
+		{"skill_md":` + jsonString(pushMD) + `},
+		{"slug":"broken","instructions":"x","dependencies":[{"type":"banana","id":"y"}]},
+		{"slug":"remote-one","delivery_mode":"remote","instructions":"Plain behaviour."}]}`
+	a := pushBatch(t, f, agent, args)
+	if len(a.Results) != 3 || a.Summary["created"] != 2 || a.Summary["failed"] != 1 {
+		t.Fatalf("batch outcome: %+v", a)
+	}
+	if a.Results[1].Result != "failed" || !strings.Contains(a.Results[1].Error, "banana") {
+		t.Errorf("the bad item should say why: %+v", a.Results[1])
+	}
+	if a.Results[0].Slug != "key-rotation" || a.Results[0].VersionStatus != skillStatusDraft ||
+		a.Results[2].VersionStatus != skillStatusDraft {
+		t.Errorf("pushed items must be drafts: %+v", a.Results)
+	}
+	if _, err := f.s.skillBySlug(f.ws, "broken"); err == nil {
+		t.Error("the failed item left a skill behind")
+	}
+	remote, _ := f.s.skillBySlug(f.ws, "remote-one")
+	if vs, _ := f.s.skillVersions(remote.ID); vs[0].DeliveryMode != skillDeliveryRemote {
+		t.Errorf("per-item delivery_mode ignored: %q", vs[0].DeliveryMode)
+	}
+	// Nothing is published by any of it.
+	var published int
+	f.s.db.QueryRow(`SELECT COUNT(*) FROM skills WHERE current_version_id IS NOT NULL AND current_version_id != ''`).Scan(&published)
+	if published != 0 {
+		t.Errorf("%d skills were published by a push", published)
+	}
+	// A sync runs again: the two good ones are unchanged, the bad one still fails.
+	again := pushBatch(t, f, agent, args)
+	if again.Summary["unchanged"] != 2 || again.Summary["failed"] != 1 {
+		t.Errorf("second run: %+v", again.Summary)
+	}
+}
+
+func TestPushBatchDefaultsAndLimits(t *testing.T) {
+	f := newSkillFixture(t)
+	agent := f.agentUser(t, f.memberID)
+	// Top-level submit and delivery_mode are defaults; an item can override.
+	a := pushBatch(t, f, agent, `{"workspace_id":"`+f.ws+`","submit":true,"delivery_mode":"remote","skills":[
+		{"slug":"one","description":"d","instructions":"a"},
+		{"slug":"two","description":"d","instructions":"b","submit":false}]}`)
+	if a.Results[0].VersionStatus != skillStatusPending || a.Results[1].VersionStatus != skillStatusDraft {
+		t.Errorf("submit defaults: %+v", a.Results)
+	}
+	one, _ := f.s.skillBySlug(f.ws, "one")
+	if vs, _ := f.s.skillVersions(one.ID); vs[0].DeliveryMode != skillDeliveryRemote {
+		t.Errorf("top-level delivery_mode not applied: %q", vs[0].DeliveryMode)
+	}
+
+	items := make([]string, maxSkillPushBatch+1)
+	for i := range items {
+		items[i] = `{"slug":"s` + strings.Repeat("x", i%3) + `","instructions":"a"}`
+	}
+	if _, err := mcpSkillCall(t, f, agent, "skill_push",
+		`{"workspace_id":"`+f.ws+`","skills":[`+strings.Join(items, ",")+`]}`); err == nil || !strings.Contains(err.Error(), "at most") {
+		t.Errorf("an oversized batch was accepted (err=%v)", err)
+	}
+	if _, err := mcpSkillCall(t, f, agent, "skill_push",
+		`{"workspace_id":"`+f.ws+`","slug":"solo","skills":[{"slug":"a","instructions":"x"}]}`); err == nil {
+		t.Error("a single skill and skills[] in one call were accepted")
+	}
+}
+
+func TestPushBatchRefusedWholesaleForAViewerAndReadOnlyToken(t *testing.T) {
+	f := newSkillFixture(t)
+	readOnly := f.agentUser(t, f.memberID)
+	readOnly.TokenScope = "read"
+	body := `{"workspace_id":"` + f.ws + `","skills":[{"slug":"a","instructions":"x"},{"slug":"b","instructions":"y"}]}`
+	if _, err := mcpSkillCall(t, f, readOnly, "skill_push", body); err == nil {
+		t.Error("a read-only token pushed a batch")
+	}
+	f.s.db.Exec(`UPDATE workspace_members SET role = 'viewer' WHERE workspace_id = ? AND user_id = ?`, f.ws, f.memberID)
+	if _, err := mcpSkillCall(t, f, f.agentUser(t, f.memberID), "skill_push", body); err == nil {
+		t.Error("a viewer pushed a batch")
+	}
+	if n := countSkills(f); n != 0 {
+		t.Errorf("%d skills exist after refused batches", n)
+	}
+}

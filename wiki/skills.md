@@ -288,7 +288,8 @@ local `SKILL.md` and calls the tool; the workspace gets a **draft**.
 | `triggers`, `references`, `dependencies`, `scope` | as in the interface |
 | `package` | for a Client skill: `entrypoint`, `scripts` and `assets`, each `{name, content}`. At most 40 files of 256 KB |
 | `workspace_id` | required when the caller can write to more than one workspace |
-| `submit` | also send the draft to the review queue. Default `false`, so the author can finish it in the browser first |
+| `submit` | also send the draft to the review queue. Default `false`, so the author can finish it in the browser first. Submitting needs a description |
+| `skills` | several skills in one call, up to 50 — see below |
 
 What happens depends on the slug:
 
@@ -309,6 +310,23 @@ the draft is not in `skill_catalog`, not resolvable and not fetchable until a
 workspace admin approves it at `/skills/review`. It follows the ordinary
 permissions: a viewer, a non-member, a read-only token or a workspace closed to
 agents is refused. The audit trail records the actor as an **agent**.
+
+### Pushing many at once
+
+`skills` takes a list; each item has the fields above (`skill_md`, `slug`,
+`instructions`, `package`, `delivery_mode`, `submit` …). `workspace_id`, `submit`
+and `delivery_mode` at the top level are the defaults for every item, and an item
+may override them. Send either one skill or `skills`, not both.
+
+The items are independent. One with a bad dependency type is reported with its
+reason and the others still go through, because a sync of thirty local skills
+should not lose twenty-nine over the thirtieth. The answer is a summary
+(how many were created, updated, new versions, unchanged, failed) and one row
+per skill, in the order sent. Run it again after fixing the failed one: the rest
+come back unchanged.
+
+Batch changes nothing about review. Every item is a draft, or waiting in the
+queue if submitted, and a workspace admin still approves each one in the browser.
 
 A `SKILL.md` that was downloaded from dworkspace carries a title, the
 description repeated and a dependencies section that the server added around the

@@ -2,6 +2,7 @@ package server
 
 import (
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -467,4 +468,89 @@ func stripRenderedSkillMarkdown(body, description string) string {
 		body = body[:i]
 	}
 	return strings.TrimRight(body, "\n") + "\n"
+}
+
+// maxSkillPushBatch bounds one call. Each skill is its own small transaction, so
+// the limit is about the size of the request and of the answer, not the database.
+const maxSkillPushBatch = 50
+
+// skillPushItem is one skill of a batch: the fields of a single skill_push.
+type skillPushItem struct {
+	Slug         string                `json:"slug"`
+	Name         string                `json:"name"`
+	Description  string                `json:"description"`
+	SkillMD      string                `json:"skill_md"`
+	Instructions *string               `json:"instructions"`
+	DeliveryMode *string               `json:"delivery_mode"`
+	Triggers     *[]string             `json:"triggers"`
+	References   *[]skillReference     `json:"references"`
+	Dependencies *[]skillDependency    `json:"dependencies"`
+	Scope        *skillScope           `json:"scope"`
+	Package      *skillPackageMetadata `json:"package"`
+	Submit       *bool                 `json:"submit"`
+}
+
+// mcpSkillPushBatch pushes several skills, each exactly as a single skill_push
+// would — the same rules, the same draft-only reach. They are independent on
+// purpose: a sync of thirty local skills should not lose twenty-nine because the
+// thirtieth has a bad dependency type, and the answer says which one it was.
+// The top-level workspace_id, submit and delivery_mode are defaults an item may
+// override.
+func (s *Server) mcpSkillPushBatch(u *user, workspaceID string, submit bool, delivery *string, items []skillPushItem, mixed bool) (string, error) {
+	if mixed {
+		return "", fmt.Errorf("send either one skill (slug, skill_md, instructions …) or skills[], not both")
+	}
+	if len(items) > maxSkillPushBatch {
+		return "", fmt.Errorf("at most %d skills per call, got %d — push the rest in another call", maxSkillPushBatch, len(items))
+	}
+	// A workspace that cannot be decided is the same answer for every item, so
+	// ask once instead of failing fifty times with the same sentence.
+	ws, err := s.mcpPlacementWorkspace(u, workspaceID, "", "")
+	if err != nil {
+		return "", err
+	}
+	counts := map[string]int{}
+	results := make([]map[string]any, 0, len(items))
+	for i, it := range items {
+		doSubmit := submit
+		if it.Submit != nil {
+			doSubmit = *it.Submit
+		}
+		d := skillDraftInput{
+			Instructions: it.Instructions, Triggers: it.Triggers, DeliveryMode: it.DeliveryMode,
+			References: it.References, Dependencies: it.Dependencies, Scope: it.Scope, Package: it.Package,
+		}
+		if d.DeliveryMode == nil {
+			d.DeliveryMode = delivery
+		}
+		out, err := s.mcpSkillPush(u, skillPushInput{
+			WorkspaceID: ws, Slug: it.Slug, Name: it.Name, Description: it.Description,
+			SkillMD: it.SkillMD, Submit: doSubmit, Draft: d,
+		})
+		row := map[string]any{"index": i}
+		if err != nil {
+			label := it.Slug
+			if label == "" {
+				label = it.Name
+			}
+			row["slug"], row["result"], row["error"] = label, "failed", err.Error()
+			counts["failed"]++
+		} else {
+			var one map[string]any
+			_ = json.Unmarshal([]byte(out), &one)
+			for _, k := range []string{"slug", "result", "version", "version_status", "content_hash"} {
+				row[k] = one[k]
+			}
+			if r, _ := one["result"].(string); r != "" {
+				counts[r]++
+			}
+		}
+		results = append(results, row)
+	}
+	return skillJSON(map[string]any{
+		"summary": counts,
+		"results": results,
+		"next": "Everything pushed is a draft (or waiting in /skills/review if submitted). " +
+			"Nothing is executable until a workspace admin approves it in the browser.",
+	}), nil
 }

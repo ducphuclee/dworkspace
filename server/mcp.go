@@ -625,7 +625,7 @@ var mcpTools = []map[string]any{
 	},
 	{
 		"name": "skill_push",
-		"description": "Push a skill from your machine to this workspace so the team can review it. Send the skill's SKILL.md in skill_md (front matter name/description are read, the rest becomes the instructions) or the fields one by one; add package for scripts and assets. " +
+		"description": "Push skills from your machine to this workspace so the team can review them. Send one skill (skill_md or the fields) or many at once in skills[], up to 50, each with the same fields; workspace_id, submit and delivery_mode at the top level are the defaults for every item. Send the skill's SKILL.md in skill_md (front matter name/description are read, the rest becomes the instructions) or the fields one by one; add package for scripts and assets. " +
 			"It only ever writes a DRAFT: a new skill gets version 1, an existing slug gets a new draft version (or updates the open draft), and nothing is executable or visible in skill_catalog until a workspace admin approves it in the browser. Pushing the same content again changes nothing, so it is safe to run on every sync. " +
 			"submit=true also sends the draft to the review queue; a version already waiting for review is frozen and is refused with that reason. Defaults to a Client skill (something installed on a machine); pass delivery_mode=remote for instructions-only behaviour. It cannot approve, deprecate or delete anything.",
 		"inputSchema": map[string]any{"type": "object",
@@ -647,8 +647,10 @@ var mcpTools = []map[string]any{
 						"type": map[string]any{"type": "string"}, "id": map[string]any{"type": "string"},
 						"versionConstraint": map[string]any{"type": "string"}, "required": map[string]any{"type": "boolean"}, "fallback": map[string]any{"type": "string"},
 					}, "required": []string{"type", "id"}}},
-				"scope":           map[string]any{"type": "object", "description": "Where it may be selected; empty lists mean anywhere: projectIds, repositoryPatterns, roles, taskTypes, agentTypes."},
-				"package":         map[string]any{"type": "object", "description": "For a Client skill: {\"entrypoint\":\"scripts/run.sh\",\"scripts\":[{\"name\":\"scripts/run.sh\",\"content\":\"…\"}],\"assets\":[{\"name\":\"…\",\"content\":\"…\"}]}. At most 40 files of 256 KB."},
+				"scope":   map[string]any{"type": "object", "description": "Where it may be selected; empty lists mean anywhere: projectIds, repositoryPatterns, roles, taskTypes, agentTypes."},
+				"package": map[string]any{"type": "object", "description": "For a Client skill: {\"entrypoint\":\"scripts/run.sh\",\"scripts\":[{\"name\":\"scripts/run.sh\",\"content\":\"…\"}],\"assets\":[{\"name\":\"…\",\"content\":\"…\"}]}. At most 40 files of 256 KB."},
+				"skills": map[string]any{"type": "array", "maxItems": maxSkillPushBatch, "description": "Several skills in one call. Each item takes slug, name, description, skill_md, instructions, delivery_mode, triggers, references, dependencies, scope, package and submit, as above. They are independent: one that fails is reported and the rest still go through.",
+					"items": map[string]any{"type": "object"}},
 				"submit":          map[string]any{"type": "boolean", "description": "Also send the draft for review. Default false: the author finishes it in the browser first."},
 				"idempotency_key": map[string]any{"type": "string"},
 			}},
@@ -977,6 +979,7 @@ func (s *Server) mcpCall(u *user, name string, rawArgs json.RawMessage, publicBa
 		Scope        *skillScope           `json:"scope"`
 		Package      *skillPackageMetadata `json:"package"`
 		Submit       bool                  `json:"submit"`
+		Skills       []skillPushItem       `json:"skills"`
 	}
 	if len(rawArgs) > 0 {
 		if err := json.Unmarshal(rawArgs, &args); err != nil {
@@ -1508,6 +1511,10 @@ func (s *Server) mcpCall(u *user, name string, rawArgs json.RawMessage, publicBa
 		case "skill_client_package":
 			return s.mcpSkillClientPackage(u, args.SkillID, args.Slug, jsonScalarString(args.Version), publicBase)
 		case "skill_push":
+			if len(args.Skills) > 0 {
+				return s.mcpSkillPushBatch(u, args.WorkspaceID, args.Submit, args.DeliveryMode, args.Skills,
+					args.Slug != "" || args.SkillMD != "" || args.Instructions != nil)
+			}
 			return s.mcpSkillPush(u, skillPushInput{
 				WorkspaceID: args.WorkspaceID, Slug: args.Slug, Name: args.Name,
 				Description: args.Description, SkillMD: args.SkillMD, Submit: args.Submit,

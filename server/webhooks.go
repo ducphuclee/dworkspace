@@ -213,6 +213,71 @@ func (s *Server) fireWebhook(event, pageID string) {
 	}
 }
 
+// fireMCPWebhooks reports the writes an agent makes through the MCP tools.
+//
+// The browser paths and create_page already call fireWebhook; the agent paths
+// listed here wrote silently, so a receiver that was told "something changed"
+// by every human edit never heard about the same edit made by an agent. For an
+// integration that follows tasks this is the larger half of the traffic.
+// write_content in mode replace fires from its own path and is left out so one
+// call does not produce two messages. A receiver is still expected to treat
+// the event as "look at this page again" and to be safe to run twice.
+func (s *Server) fireMCPWebhooks(tool, action string, pageID string, trashed *bool, updates json.RawMessage, result string) {
+	switch tool {
+	case "update_page", "set_properties", "update_schema", "set_view", "delete_view", "embed_database", "set_sharing":
+		if tool == "set_properties" && pageID == "" && len(updates) > 0 {
+			var list []struct {
+				PageID string `json:"page_id"`
+			}
+			if json.Unmarshal(updates, &list) == nil {
+				seen := map[string]bool{}
+				for _, u := range list {
+					if u.PageID != "" && !seen[u.PageID] {
+						seen[u.PageID] = true
+						s.fireWebhook("page.updated", u.PageID)
+					}
+				}
+			}
+			return
+		}
+		if pageID != "" {
+			s.fireWebhook("page.updated", pageID)
+		}
+	case "write_content":
+		if pageID != "" && action != "replace" {
+			s.fireWebhook("page.updated", pageID)
+		}
+	case "set_trashed":
+		if pageID == "" || trashed == nil {
+			return
+		}
+		if *trashed {
+			s.fireWebhook("page.trashed", pageID)
+		} else {
+			s.fireWebhook("page.updated", pageID)
+		}
+	case "comments":
+		if pageID != "" && (action == "add" || action == "resolve" || action == "reopen") {
+			s.fireWebhook("page.updated", pageID)
+		}
+	case "create_rows":
+		var out struct {
+			IDs []string `json:"ids"`
+		}
+		if json.Unmarshal([]byte(result), &out) == nil {
+			for _, id := range out.IDs {
+				s.fireWebhook("page.created", id)
+			}
+		}
+	case "duplicate_page":
+		if i := strings.LastIndex(result, "new id "); i >= 0 {
+			if id := strings.TrimSpace(result[i+len("new id "):]); id != "" {
+				s.fireWebhook("page.created", id)
+			}
+		}
+	}
+}
+
 func (s *Server) deliverWebhook(id, target, secret string, payload []byte) {
 	defer func() {
 		// A panic in a background goroutine takes the whole server with it, and

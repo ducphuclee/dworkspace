@@ -1556,6 +1556,7 @@ func (s *Server) mcpCall(u *user, name string, rawArgs json.RawMessage, publicBa
 		// Idempotency applies to every mutating tool, including these two: a
 		// retried call must not append a second trail entry.
 		s.storeIdempotent(idemKey, result)
+		s.fireMCPWebhooks(name, args.Action, args.PageID, args.Trashed, args.Updates, result)
 	}
 	return result, err
 }

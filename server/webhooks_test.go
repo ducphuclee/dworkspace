@@ -246,3 +246,59 @@ func TestWebhookGuardIsInTheDeliveryPath(t *testing.T) {
 		t.Errorf("last_status is %q — a refused delivery has to be visible to an admin", status)
 	}
 }
+
+// An edit made by an agent through MCP has to reach a webhook the way the same
+// edit made in the browser does. Before fireMCPWebhooks these tools wrote in
+// silence, so an integration that followed tasks heard the humans and never the
+// agents.
+func TestWebhookFiresForAgentWritesThroughMCP(t *testing.T) {
+	var mu sync.Mutex
+	got := map[string]int{}
+	recv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		buf := make([]byte, 4096)
+		n, _ := r.Body.Read(buf)
+		var body struct {
+			Event string `json:"event"`
+			Page  struct {
+				ID string `json:"id"`
+			} `json:"page"`
+		}
+		_ = json.Unmarshal(buf[:n], &body)
+		mu.Lock()
+		got[body.Event+" "+body.Page.ID]++
+		mu.Unlock()
+	}))
+	defer recv.Close()
+
+	s := testServer(t)
+	uid, _ := signedIn(t, s, "mcp-hooks@example.test")
+	u := &user{ID: uid, Name: "Test"}
+	ws := s.firstWorkspaceOf(t, uid)
+	page := s.makePage(t, ws, uid, "", "Task", `{}`)
+	s.webhookTransport = http.DefaultTransport
+	s.db.Exec(`INSERT INTO webhooks (id, url, secret, events, active, created_at)
+		VALUES (?, ?, 's', 'page.created,page.updated,page.trashed', 1, ?)`, newID(), recv.URL, now())
+
+	for _, call := range []struct{ tool, args string }{
+		{"write_content", `{"page_id":"` + page + `","markdown":"appended","mode":"append"}`},
+		{"comments", `{"page_id":"` + page + `","action":"add","body":"hello"}`},
+		{"set_trashed", `{"page_id":"` + page + `","trashed":true}`},
+	} {
+		if _, err := callTool(t, s, u, call.tool, call.args); err != nil {
+			t.Fatalf("%s: %v", call.tool, err)
+		}
+	}
+	deadline := time.Now().Add(3 * time.Second)
+	for {
+		mu.Lock()
+		updated, trashed := got["page.updated "+page], got["page.trashed "+page]
+		mu.Unlock()
+		if updated >= 2 && trashed >= 1 {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("agent writes did not reach the webhook: updated=%d trashed=%d (want >=2 and >=1): %v", updated, trashed, got)
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+}

@@ -94,6 +94,11 @@ the coverage is not complete. This is what fires today:
 | Dragging a page up or down in the sidebar (a position is a detail like any other) | `page.updated` |
 | Marking a page as a template, or removing that flag | `page.updated` |
 | An agent replacing a body with `write_content` in mode `replace` | `page.updated` |
+| An agent appending or prepending text with `write_content` | `page.updated` |
+| An agent changing details with `update_page`, `set_properties`, `update_schema`, `set_view`, `delete_view`, `embed_database` or `set_sharing` | `page.updated` |
+| An agent adding, resolving or reopening a comment with `comments` | `page.updated` on the page |
+| Rows added by an agent with `create_rows`, or a page with `duplicate_page` | `page.created` |
+| An agent trashing a page with `set_trashed` | `page.trashed`; restoring it sends `page.updated` |
 | Moving a page to the trash | `page.trashed`, one per page in the subtree |
 | Deleting a page for good from the trash | `page.trashed`, one per page in the subtree |
 
@@ -108,18 +113,12 @@ before you build on it:
   created in the browser does fire `page.created`; the two paths differ.
 - A database placed into a document with `embed_database`. That changes the
   document's body, and no `page.updated` follows it.
-- Rows added with `create_rows`.
 - Pages created by a [form](forms.md) submission from outside.
 - Anything created by an [import](import-export.md): Markdown, a ZIP archive,
   a CSV, or `import_url`. A new workspace made from the
   [blueprint library](library.md) is silent for the same reason: both write many
   pages at once, and a two-thousand-page import would otherwise become two
   thousand outbound calls.
-- An agent appending or prepending text: `write_content` in its default mode
-  (`append`) and in mode `prepend` are silent. Only `replace` reports.
-- An agent changing details with `update_page`, `set_properties`,
-  `update_schema` or `set_view`.
-- An agent trashing or restoring a page with `set_trashed`.
 - Restoring a page from the [trash](trash-and-recovery.md), and restoring an
   older version with `revisions`.
 - Turning a page's public share link on or off. A `visibility` change fires

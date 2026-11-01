@@ -160,12 +160,14 @@ A `POST` with a JSON body. The body names the page and does not carry it:
     "id": "9f2c4ab1d0e34f7a8b5c6d7e8f901234",
     "title": "Q3 planning",
     "workspaceId": "1a4b7c9e2f5d8a3b6c0e4f7a1b2c3d4e",
+    "parentId": "",
     "path": "/p/9f2c4ab1d0e34f7a8b5c6d7e8f901234"
   }
 }
 ```
 
 - `at` is UTC, RFC 3339, with fractional seconds.
+- `parentId` is the id of the page the page sits under (for a row of a collection, the collection); empty for a top-level page.
 - `path` is relative. Put your instance's own address in front of it to build a
   link a person can click.
 - The headers are `Content-Type: application/json`, a `User-Agent` of

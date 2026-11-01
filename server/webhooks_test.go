@@ -142,6 +142,11 @@ func TestWebhookDeliversASignedPayload(t *testing.T) {
 	if page["title"] != "Secret plans" {
 		t.Errorf("title is %v", page["title"])
 	}
+	// The parent names where a row lives (which database), so a receiver can tell
+	// a task row from a page of prose without reading the page.
+	if _, ok := page["parentId"]; !ok {
+		t.Errorf("the payload has no parentId: %v", page)
+	}
 	// The line that matters: a webhook names a page, it does not export it.
 	if strings.Contains(string(gotBody), "paragraph") {
 		t.Errorf("the payload carries page content:\n%s", gotBody)

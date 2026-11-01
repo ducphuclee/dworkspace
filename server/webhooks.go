@@ -191,8 +191,8 @@ func (s *Server) fireWebhook(event, pageID string) {
 		return
 	}
 
-	var title, wsID string
-	s.db.QueryRow(`SELECT title, workspace_id FROM pages WHERE id = ?`, pageID).Scan(&title, &wsID)
+	var title, wsID, parentID string
+	s.db.QueryRow(`SELECT title, workspace_id, COALESCE(parent_id, '') FROM pages WHERE id = ?`, pageID).Scan(&title, &wsID, &parentID)
 
 	payload, err := json.Marshal(map[string]any{
 		"event": event,
@@ -201,6 +201,7 @@ func (s *Server) fireWebhook(event, pageID string) {
 			"id":          pageID,
 			"title":       title,
 			"workspaceId": wsID,
+			"parentId":    parentID,
 			"path":        "/p/" + pageID,
 		},
 	})

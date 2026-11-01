@@ -325,14 +325,42 @@ func (s *Server) deliverWebhook(id, target, secret string, payload []byte) {
 			return fmt.Errorf("a webhook endpoint must not redirect")
 		},
 	}
-	resp, err := client.Do(req)
-	if err != nil {
-		s.recordWebhookResult(id, "failed: "+truncate(err.Error(), 120))
-		return
+	// A receiver that is restarting, or a network that blinks, must not turn
+	// into a lost event: transport errors, 429 and 5xx are retried a few times
+	// with the same body and signature. The payload carries its own timestamp, so
+	// a receiver that did see the first attempt recognises the repeat. The retries
+	// live in memory only: a restart of this server forgets the ones in flight,
+	// which is why a receiver that cannot afford a gap still reads on a schedule.
+	var status string
+	for attempt := 0; ; attempt++ {
+		retryable := false
+		body := bytes.NewReader(payload)
+		again, rerr := http.NewRequest("POST", target, body)
+		if rerr != nil {
+			status = "bad request: " + rerr.Error()
+			break
+		}
+		again.Header = req.Header.Clone()
+		resp, err := client.Do(again)
+		if err != nil {
+			status = "failed: " + truncate(err.Error(), 120)
+			retryable = true
+		} else {
+			status = fmt.Sprintf("HTTP %d", resp.StatusCode)
+			retryable = resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode >= 500
+			resp.Body.Close()
+		}
+		if !retryable || attempt >= len(webhookRetryDelays) {
+			break
+		}
+		s.recordWebhookResult(id, fmt.Sprintf("%s, retrying (%d/%d)", status, attempt+1, len(webhookRetryDelays)))
+		time.Sleep(webhookRetryDelays[attempt])
 	}
-	defer resp.Body.Close()
-	s.recordWebhookResult(id, fmt.Sprintf("HTTP %d", resp.StatusCode))
+	s.recordWebhookResult(id, status)
 }
+
+// webhookRetryDelays is the wait before each retry; a variable so tests can shorten it.
+var webhookRetryDelays = []time.Duration{2 * time.Second, 10 * time.Second, 30 * time.Second, 2 * time.Minute}
 
 func (s *Server) recordWebhookResult(id, status string) {
 	s.db.Exec(`UPDATE webhooks SET last_status = ?, last_at = ? WHERE id = ?`, status, now(), id)

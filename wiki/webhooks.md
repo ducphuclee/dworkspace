@@ -148,6 +148,10 @@ A ten-minute editing session produces many messages, not one. Treat the event as
 "this page changed, look at it again", not as a change list, and make your
 receiver safe to run twice on the same page.
 
+## When the receiver is down
+
+A delivery that fails with a network error, `429` or a `5xx` is tried again after 2 seconds, 10 seconds, 30 seconds and 2 minutes, with the same body and signature (the `at` field is the same, so a receiver that saw the first attempt can tell). The retries are kept in memory: restarting dworkspace forgets the ones in flight. A receiver that cannot afford a gap reads the page list on a schedule as well.
+
 ## What arrives
 
 A `POST` with a JSON body. The body names the page and does not carry it:

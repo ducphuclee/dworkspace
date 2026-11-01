@@ -307,3 +307,55 @@ func TestWebhookFiresForAgentWritesThroughMCP(t *testing.T) {
 		time.Sleep(50 * time.Millisecond)
 	}
 }
+
+// A receiver that is down for a moment must not cost an event: the delivery is
+// retried with the same body, and the receiver sees one signed payload twice.
+func TestWebhookRetriesATransientFailure(t *testing.T) {
+	old := webhookRetryDelays
+	webhookRetryDelays = []time.Duration{20 * time.Millisecond, 20 * time.Millisecond}
+	defer func() { webhookRetryDelays = old }()
+
+	var mu sync.Mutex
+	var bodies []string
+	recv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		buf := make([]byte, 4096)
+		n, _ := r.Body.Read(buf)
+		mu.Lock()
+		bodies = append(bodies, string(buf[:n]))
+		count := len(bodies)
+		mu.Unlock()
+		if count < 3 {
+			w.WriteHeader(503)
+			return
+		}
+		w.WriteHeader(200)
+	}))
+	defer recv.Close()
+
+	s := testServer(t)
+	uid, _ := signedIn(t, s, "retry@example.test")
+	ws := s.firstWorkspaceOf(t, uid)
+	pid := s.makePage(t, ws, uid, "", "P", `{}`)
+	s.webhookTransport = http.DefaultTransport
+	s.db.Exec(`INSERT INTO webhooks (id, url, secret, events, active, created_at) VALUES (?, ?, 's', 'page.updated', 1, ?)`, newID(), recv.URL, now())
+	s.fireWebhook("page.updated", pid)
+
+	deadline := time.Now().Add(3 * time.Second)
+	for {
+		mu.Lock()
+		n := len(bodies)
+		mu.Unlock()
+		if n >= 3 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("only %d attempts, want 3", n)
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if bodies[0] != bodies[1] || bodies[1] != bodies[2] {
+		t.Errorf("a retry must carry the same body, so the receiver can recognise it:\n%v", bodies)
+	}
+}

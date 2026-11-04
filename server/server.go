@@ -435,6 +435,7 @@ func New(dataDir string, dist fs.FS) (*Server, error) {
 		filesInner.ServeHTTP(w, r)
 	}))
 
+	s.registerPublicPages(m)
 	m.Handle("/", spaHandler(dist))
 	s.handler = compress(m)
 	return s, nil

@@ -53,11 +53,12 @@ workspaces can carry rules, and it should read them.
 
 ### What a tool returns
 
-Every tool returns one block of text. Some return prose, most return JSON as
-text. A tool that **refuses** does not produce a JSON-RPC error: it comes back
-as a normal result with `isError` set and the message as its text. So anything a
-tool itself rejects (a wrong id, a missing permission, a bad argument, the rate
-limit) arrives as a readable sentence.
+Most tools return one block of text: some return prose, most return JSON as
+text. `get_asset` returns an MCP image content block so an image-capable agent
+can inspect the pixels. A tool that **refuses** does not produce a JSON-RPC
+error: it comes back as a normal result with `isError` set and the message as
+its text. So anything a tool itself rejects (a wrong id, a missing permission,
+a bad argument, the rate limit) arrives as a readable sentence.
 
 Failures that happen **before** a tool runs are ordinary JSON-RPC errors with a
 numeric code and no tool result:
@@ -256,7 +257,7 @@ to it.
 | Area | Tools |
 | --- | --- |
 | Orientation | `list`, `search`, `get_page`, `get_links`, `whoami`, `get_workspace`, `get_permissions` |
-| Pages | `create_page`, `update_page`, `write_content`, `duplicate_page`, `set_trashed`, `save_as_template`, `upload_file`, `embed_database` |
+| Pages | `create_page`, `update_page`, `write_content`, `duplicate_page`, `set_trashed`, `save_as_template`, `upload_file`, `upload_asset`, `insert_blocks`, `get_asset`, `embed_database` |
 | Databases | `create_database`, `get_collection`, `update_schema`, `query_rows`, `create_rows`, `set_properties`, `set_view`, `delete_view` |
 | History and talk | `revisions`, `proposals`, `comments`, `delete_comment`, `note` |
 | Sharing | `set_sharing` |
@@ -362,6 +363,7 @@ Read one page as Markdown.
 | `outline` | boolean | no, default false |
 | `section` | string | no |
 | `include_children` | boolean | no, default false |
+| `multimodal` | boolean | no, default false |
 
 A document comes back as `# Icon Title` followed by the body. A **database**
 comes back as a Markdown table of its rows: a Title column plus one column per
@@ -456,6 +458,11 @@ followed by one `---` section per row. Ask for the table, or ask for the
 sub-tree; you cannot have both in one call.
 
 Errors: `page "…" not found`.
+
+Set `multimodal: true` to return the stored BlockNote JSON in its original
+order, including image blocks, captions, alt text and asset URLs. Call
+`get_asset` for the actual image pixels; it returns an MCP image content block
+and requires the page id as well as the asset id.
 
 ### get_links
 
@@ -777,6 +784,29 @@ Errors: `file is N MB — the limit is M MB; upload it through the browser
 (/api/upload) or raise max_upload_mb in the settings`; `data_base64 is not valid
 base64`. For anything large, `/api/upload` is the better road (see
 [Files](files.md)).
+
+### upload_asset
+
+Upload an image without adding a block to a page. Its result contains an
+`assetId` and internal `/files/…` URL. Pass that URL in an image block to
+`insert_blocks` when the surrounding text and image blocks are ready. An
+optional `page_id` associates the asset with a page; without one, the asset is
+associated when an image block referencing it is inserted.
+
+### insert_blocks
+
+Insert an array of native BlockNote blocks into a writable page. Use
+`before_block_id` or `after_block_id` to place them relative to an existing
+top-level block; omit both to append. Image blocks can carry the URL returned by
+`upload_asset` plus the image properties supported by the editor, including
+`name`, `caption`, preview dimensions and alignment.
+
+### get_asset
+
+Read one image used by a page. Required parameters are `page_id` and `asset_id`
+(the stored name returned as `assetId` by `upload_asset`). The caller must be
+able to read that page, and the page must reference the asset. The result is an
+MCP `image` content block, so an image-capable agent can inspect the pixels.
 
 ### embed_database
 

@@ -8,6 +8,81 @@ import (
 	"unicode/utf8"
 )
 
+// mcpInsertBlocks stores native BlockNote blocks at a stable sibling position.
+func (s *Server) mcpInsertBlocks(pageID string, raw json.RawMessage, beforeID, afterID string) error {
+	if len(raw) == 0 || (beforeID != "" && afterID != "") {
+		return fmt.Errorf("provide blocks and at most one of before_block_id or after_block_id")
+	}
+	var additions []json.RawMessage
+	if err := json.Unmarshal(raw, &additions); err != nil || len(additions) == 0 {
+		return fmt.Errorf("blocks must be a non-empty array of BlockNote blocks")
+	}
+	for _, block := range additions {
+		var v map[string]any
+		if json.Unmarshal(block, &v) != nil || v["type"] == nil {
+			return fmt.Errorf("each block must be a BlockNote object with a type")
+		}
+	}
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	var content string
+	if err := tx.QueryRow(`SELECT content FROM pages WHERE id = ?`, pageID).Scan(&content); err != nil {
+		return err
+	}
+	var blocks []json.RawMessage
+	if json.Unmarshal([]byte(content), &blocks) != nil {
+		blocks = []json.RawMessage{}
+	}
+	idx := len(blocks)
+	anchor := beforeID
+	after := afterID != ""
+	if after {
+		anchor = afterID
+	}
+	if anchor != "" {
+		found := -1
+		for i, b := range blocks {
+			var v map[string]any
+			_ = json.Unmarshal(b, &v)
+			if v["id"] == anchor {
+				found = i
+				break
+			}
+		}
+		if found < 0 {
+			return fmt.Errorf("block %q not found on page", anchor)
+		}
+		idx = found
+		if after {
+			idx++
+		}
+	}
+	blocks = append(blocks, make([]json.RawMessage, len(additions))...)
+	copy(blocks[idx+len(additions):], blocks[idx:len(blocks)-len(additions)])
+	copy(blocks[idx:], additions)
+	merged, err := json.Marshal(blocks)
+	if err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`UPDATE pages SET content = ?, updated_at = ?, `+bumpDocGen+` WHERE id = ?`, string(merged), now(), pageID); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	for _, ref := range scanBlocksForFiles(string(merged)) {
+		s.recordFile(ref.name, pageID, ref.displayName)
+	}
+	if err := s.reindexPage(pageID); err != nil {
+		return err
+	}
+	s.resetYjsDoc(pageID)
+	return nil
+}
+
 // Agent parity, part 1: pages and content.
 //
 // The guiding rule for the whole MCP build-out: whatever a human can do in the

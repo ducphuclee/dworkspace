@@ -428,6 +428,14 @@ func New(dataDir string, dist fs.FS) (*Server, error) {
 			httpError(w, 404, "not found")
 			return
 		}
+		// A signed-in account is not automatically allowed to read every
+		// document attachment. The random file URL is not an authorization check.
+		name := filepath.Base(r.URL.Path)
+		var pageID sql.NullString
+		if err := s.db.QueryRow(`SELECT page_id FROM files WHERE file_name = ?`, name).Scan(&pageID); err == nil && pageID.Valid && (!s.canRead(requestUser(r).ID, pageID.String) || !s.tokenReachesWorkspace(r, s.pageWorkspace(pageID.String))) {
+			httpError(w, 404, "not found")
+			return
+		}
 		// Uploads are user-controlled: sandbox them so an uploaded .html/.svg
 		// can never run scripts on the app origin (stored XSS).
 		w.Header().Set("Content-Security-Policy", "sandbox; default-src 'none'; img-src 'self'; media-src 'self'; style-src 'unsafe-inline'")

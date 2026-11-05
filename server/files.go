@@ -39,6 +39,22 @@ type fileRef struct {
 	displayName string // what a person calls it
 }
 
+func assetReferencedByPage(s *Server, pageID, assetID string) bool {
+	if filepath.Base(assetID) != assetID || assetID == "." || assetID == "" {
+		return false
+	}
+	var content string
+	if s.db.QueryRow(`SELECT content FROM pages WHERE id = ?`, pageID).Scan(&content) != nil {
+		return false
+	}
+	for _, ref := range scanBlocksForFiles(content) {
+		if ref.name == assetID {
+			return true
+		}
+	}
+	return false
+}
+
 // scanBlocksForFiles walks a page's block JSON and collects every file
 // reference. It looks at `props.url` and `props.name` rather than at block
 // types, because the types differ by origin: BlockNote writes file/image/

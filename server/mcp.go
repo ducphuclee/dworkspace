@@ -834,7 +834,7 @@ func (s *Server) handleMCP(w http.ResponseWriter, r *http.Request) {
 				PageID  string `json:"page_id"`
 				AssetID string `json:"asset_id"`
 			}
-			if json.Unmarshal(params.Arguments, &assetArgs) != nil || assetArgs.PageID == "" || assetArgs.AssetID == "" || !s.canRead(u.ID, assetArgs.PageID) || !s.tokenReachesWorkspace(r, s.pageWorkspace(assetArgs.PageID)) || !assetReferencedByPage(s, assetArgs.PageID, assetArgs.AssetID) {
+			if json.Unmarshal(params.Arguments, &assetArgs) != nil || assetArgs.PageID == "" || assetArgs.AssetID == "" || !s.canRead(u.ID, assetArgs.PageID) || !s.credentialMayEnter(u, s.pageWorkspace(assetArgs.PageID)) || !assetReferencedByPage(s, assetArgs.PageID, assetArgs.AssetID) {
 				rpcResult(w, req.ID, textResult("page or asset not found", true))
 				return
 			}
@@ -1446,13 +1446,14 @@ func (s *Server) mcpCall(u *user, name string, rawArgs json.RawMessage, publicBa
 			if len(data) == 0 {
 				return "", fmt.Errorf("no file content: pass the bytes as data_base64")
 			}
-			name := newID() + clean
-			path := filepath.Join(s.dataDir, "files", name)
+			isUploadFile := name == "upload_file"
+			stored := newID() + clean
+			path := filepath.Join(s.dataDir, "files", stored)
 			if err := os.WriteFile(path, data, 0o644); err != nil {
 				return "", err
 			}
-			url := "/files/" + name
-			if args.PageID != "" && name == "upload_file" {
+			url := "/files/" + stored
+			if args.PageID != "" && isUploadFile {
 				blockType := "file"
 				switch clean {
 				case ".png", ".jpg", ".jpeg", ".gif", ".webp":
@@ -1463,18 +1464,18 @@ func (s *Server) mcpCall(u *user, name string, rawArgs json.RawMessage, publicBa
 					return "", err
 				}
 				if clean == ".pdf" {
-					s.indexFileText(name, args.PageID, extractPDFText(path))
+					s.indexFileText(stored, args.PageID, extractPDFText(path))
 				}
 			}
 			// The file index (W125). This was missing here while the HTTP
 			// upload had it, so several hundred files uploaded by an agent
 			// were on disk, on their pages, and searchable — but absent from
 			// list_files, which reads the index and nothing else.
-			s.recordFile(name, args.PageID, filepath.Base(args.FileName))
-			if name == "upload_file" {
+			s.recordFile(stored, args.PageID, filepath.Base(args.FileName))
+			if isUploadFile {
 				return fmt.Sprintf("Uploaded %s → %s", args.FileName, url), nil
 			}
-			return fmt.Sprintf(`{"assetId":%q,"url":%q,"name":%q}`, name, url, args.FileName), nil
+			return fmt.Sprintf(`{"assetId":%q,"url":%q,"name":%q}`, stored, url, args.FileName), nil
 		case "query_rows":
 			filters := make([]rowFilter, 0, len(args.Filter))
 			for _, f := range args.Filter {

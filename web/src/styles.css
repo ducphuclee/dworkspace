@@ -13,6 +13,11 @@
      That is exactly what made the page look unfinished. */
   --doc-width: 940px;
   --doc-pad: 56px;
+  /* Wide document column for when no right-hand panel is open: the stage
+     (whatever .main leaves after the sidebar) minus 96px of breathing room,
+     capped at 1200px so prose stays readable. A percentage inside max-width
+     resolves against each element's own containing block at the use site. */
+  --doc-width-wide: min(1200px, 100% - 96px);
   /* The right-hand panels — structure and comments — share one width, one
      header and one type scale. They sit in the same strip and only one is ever
      open, so two sizes read as an inconsistency rather than as a distinction.
@@ -1284,6 +1289,28 @@ body:has(.icon-picker) .bn-side-menu {
   background: transparent;
 }
 
+/* Wide tables scroll inside their own block instead of stretching the page.
+   min-width: 0 lets the block shrink below its content width (a flex/grid
+   child otherwise refuses), and the wrapper owns the horizontal scroll. */
+.bn-editor [data-content-type='table'] {
+  min-width: 0;
+}
+
+.bn-editor .tableWrapper {
+  overflow-x: auto;
+  max-width: 100%;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Keep the header row readable while scrolling a tall table. */
+.bn-editor .tableWrapper thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--bg);
+}
+
 .editor-loading {
   flex: 1;
 }
@@ -1500,6 +1527,31 @@ body:has(.icon-picker) .bn-side-menu {
    opening the panel shifts the text instead of covering it. */
 .editor-page.with-structure .page-body {
   padding-right: var(--panel-w);
+}
+
+/* With no panel open the document column grows to --doc-width-wide so wide
+   tables and code have room. Title, icon row, body and trail all move together
+   or the text would start at a different x than the heading.
+
+   Everything is prefixed with .page-body so it outranks the base rules, several
+   of which (.page-head, .trail-wrap) are declared further down this file.
+   :not() keeps database pages out: .page-head--db / .page-icon-row--db set
+   max-width: none on purpose and must not be given a cap here. */
+@media (min-width: 1024px) {
+  .page-body .editor-inner,
+  .page-body .page-head:not(.page-head--db),
+  .page-body .page-icon-row:not(.page-icon-row--db),
+  .page-body .trail-wrap {
+    max-width: var(--doc-width-wide);
+  }
+
+  /* A panel takes its share of the stage, so go back to the standard column. */
+  .editor-page.with-structure .page-body .editor-inner,
+  .editor-page.with-structure .page-body .page-head:not(.page-head--db),
+  .editor-page.with-structure .page-body .page-icon-row:not(.page-icon-row--db),
+  .editor-page.with-structure .page-body .trail-wrap {
+    max-width: var(--doc-width);
+  }
 }
 
 /* Same header as the comments panel, down to the padding: a title in the
